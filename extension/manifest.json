@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sightline",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first visual browser agent that can see, understand, and safely act on webpages.",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -43,5 +43,6 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  }
+  },
+  "version_name": "0.2.0-alpha"
 }
