@@ -34,11 +34,11 @@ export async function runBrowserTask({
   };
 
   const execute = async (action, { snapshot }) => {
-    let result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode }, chromeApi);
+    let result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode, taskGoal: goal }, chromeApi);
     if (result?.code === 'CONFIRMATION_REQUIRED' && typeof confirmAction === 'function') {
       const confirmed = await confirmAction({ action, target: result.target, risk: result.risk, snapshotId: snapshot.snapshotId });
       if (confirmed) result = await executeOnActiveTab({
-        action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey,
+        action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
       }, chromeApi);
     }
     if ((result?.code === 'STALE_SNAPSHOT' || result?.code === 'STALE_REF') && result?.snapshot) {
@@ -55,11 +55,6 @@ export async function runBrowserTask({
   try {
     return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits });
   } catch (error) {
-    return {
-      ok: false,
-      code: error?.code || 'TASK_ERROR',
-      error: String(error?.message || error),
-      timeline: [],
-    };
+    return { ok: false, code: error?.code || 'TASK_ERROR', error: String(error?.message || error), timeline: [] };
   }
 }
