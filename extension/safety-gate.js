@@ -10,6 +10,20 @@ function crossOriginLinkActivation(action, target, currentUrl) {
   catch { return true; }
 }
 
+function consequentialNavigation(action) {
+  if (action?.action !== 'navigate') return false;
+  try {
+    const url = new URL(action.url);
+    const path = decodeURIComponent(url.pathname).toLowerCase();
+    if (/(^|\/)(delete|destroy|remove|purge|unsubscribe|checkout|purchase|pay|logout|close-account)(\/|$)/i.test(path)) return true;
+    for (const [key, value] of url.searchParams) {
+      const pair = `${key}=${value}`.toLowerCase();
+      if (/\b(action|do|operation|confirm)=?(delete|destroy|remove|purge|unsubscribe|purchase|pay|close)/i.test(pair)) return true;
+    }
+    return false;
+  } catch { return true; }
+}
+
 function crossOriginNavigation(action, currentUrl) {
   if (action?.action !== 'navigate' || !currentUrl) return false;
   try { return new URL(action.url).origin !== new URL(currentUrl).origin; }
@@ -34,6 +48,9 @@ export function classifyActionRisk(action, target = {}, context = {}) {
   }
   if (action.action === 'click' && HIGH_IMPACT_PATTERN.test(label)) {
     return { level: 'high', reason: 'Target appears to perform a consequential action.' };
+  }
+  if (consequentialNavigation(action)) {
+    return { level: 'high', reason: 'Navigation target appears to represent a consequential or destructive endpoint.' };
   }
   if (crossOriginNavigation(action, context.currentUrl) || crossOriginLinkActivation(action, target, context.currentUrl)) {
     return { level: 'high', reason: 'Navigation leaves the current website origin.' };
