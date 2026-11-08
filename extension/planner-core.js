@@ -51,7 +51,8 @@ export function makePlannerPayload({ model, goal, snapshot, timeline = [], mode 
           'Do not read or type into elements marked sensitive=true.',
           'Do not output JavaScript, selectors, shell commands, prose outside JSON, or multiple actions.',
           'Allowed actions: read(ref), click(ref), type(ref,text,replace?), clear(ref), select(ref,value), check(ref), uncheck(ref), scroll(direction,amount), navigate(url), pressKey(key), wait(ms), verify(expect,ref?).',
-          'Return either {"done":true,"result":"short result"} or {"done":false,"action":{...}}.'
+          'If the semantic snapshot is genuinely insufficient and the task depends on visual layout/image content, you may request one visual fallback with {"done":false,"needVision":true,"reason":"short reason"}.',
+          'Return exactly one JSON object: completion, one action, or a bounded visual-fallback request.'
         ].join(' ')
       },
       {
@@ -81,6 +82,11 @@ export function parsePlannerDecision(raw, snapshot) {
     return { done: true, result };
   }
   if (value.done !== false) throw new Error('Planner must explicitly set done true or false.');
+  if (value.needVision === true) {
+    const reason = String(value.reason || '').trim().slice(0, 500);
+    if (!reason) throw new Error('Vision fallback request requires a reason.');
+    return { done: false, needVision: true, reason };
+  }
   const checked = validateAction(value.action);
   if (!checked.ok) throw new Error(`Planner proposed invalid action: ${checked.reason}`);
   const action = checked.action;
