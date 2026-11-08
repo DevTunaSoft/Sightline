@@ -79,6 +79,7 @@ export function buildPageSnapshot(options = {}) {
     version: 1,
     url: location.href,
     title: cleanPageText(document.title, 300),
+    visibleText: cleanPageText(document.body?.innerText || '', limits.maxVisibleTextChars),
     viewport: { width: innerWidth, height: innerHeight },
     truncated,
     elements,
