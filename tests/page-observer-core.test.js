@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity } from '../extension/page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector } from '../extension/page-observer-core.js';
 
 test('observer defaults are deliberately bounded', () => {
   assert.equal(PAGE_OBSERVER_LIMITS.maxElements, 300);
@@ -27,4 +27,16 @@ test('snapshot identity ignores ephemeral refs and geometry but changes with sem
   const c={...b,elements:[{...b.elements[0],name:'Delete'}]};
   const d={...b,visibleText:'New inbox message arrived'};
   assert.equal(snapshotIdentity(a),snapshotIdentity(b)); assert.notEqual(snapshotIdentity(a),snapshotIdentity(c)); assert.notEqual(snapshotIdentity(b),snapshotIdentity(d));
+});
+
+
+test('bounded text collector stops before materializing unlimited page text', () => {
+  const collector=createBoundedTextCollector(12);
+  assert.equal(collector.push('  hello   world  '),true);
+  assert.equal(collector.push('again and again'),false);
+  assert.equal(collector.value(),'hello world ');
+  assert.equal(collector.length,12);
+  assert.equal(collector.full,true);
+  assert.equal(collector.push('ignored'),false);
+  assert.equal(collector.value().length,12);
 });
