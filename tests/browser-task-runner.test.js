@@ -393,3 +393,47 @@ test('task diagnostics never retain typed action text', async () => {
   assert.match(diagnosticJson,/"action":"type"/);
   assert.equal(result.performance.execute.count,1);
 });
+
+
+test('stale confirmed Yahoo action cannot leak verification context into replanned action', async () => {
+  let executeCount=0, plannerCalls=0;
+  const before={snapshotId:'ys1',url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[
+    {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
+    {ref:'@e2',role:'button',name:'Refresh',sensitive:false},
+  ]};
+  const refreshed={snapshotId:'ys2',url:before.url,visibleText:'12 messages updated',elements:[
+    {ref:'@e2',role:'button',name:'Refresh',sensitive:false},
+  ]};
+  const done={snapshotId:'ys3',url:before.url,visibleText:'12 messages refreshed',elements:[]};
+  const chromeApi={tabs:{
+    query:async()=>[{id:7,url:before.url,active:true,windowId:1}],
+    get:async()=>({id:7,url:before.url,active:true,windowId:1}),
+    sendMessage:async(_id,msg)=>{
+      if(msg.type==='SIGHTLINE_PING') return {ok:true};
+      if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:before};
+      if(msg.type==='SIGHTLINE_EXECUTE'){
+        executeCount+=1;
+        if(executeCount===1) return {ok:false,code:'CONFIRMATION_REQUIRED',target:before.elements[0],risk:{level:'high'},confirmationKey:'k'};
+        if(executeCount===2) return {ok:false,code:'STALE_SNAPSHOT',snapshot:refreshed};
+        return {ok:true,receipt:{ok:true,changed:true},snapshot:done};
+      }
+    },
+  },scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>{
+    plannerCalls+=1;
+    const content=plannerCalls===1
+      ? '{"done":false,"action":{"action":"click","ref":"@e1"}}'
+      : plannerCalls===2
+        ? '{"done":false,"action":{"action":"click","ref":"@e2"}}'
+        : '{"done":true,"result":"done"}';
+    return new Response(JSON.stringify({message:{content}}),{status:200});
+  };
+  const result=await runBrowserTask({
+    goal:'Move selected messages to Trash',model:'gemma3:4b',chromeApi,fetchImpl,
+    confirmAction:async()=>true,limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}
+  });
+  assert.equal(result.ok,true);
+  assert.equal(result.timeline.length,2);
+  assert.equal(result.timeline[1].action.ref,'@e2');
+  assert.equal('siteVerification' in result.timeline[1].receipt,false);
+});
