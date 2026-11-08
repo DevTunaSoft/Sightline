@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10121a">
+  <title>Sightline Local</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><div class="mark" aria-hidden="true">◉</div><div><strong>Sightline</strong><small>LOCAL VISUAL INTELLIGENCE</small></div></div>
+      <span class="chip offline" id="connection">Checking AI</span>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="eyebrow">SEE MORE. UNDERSTAND FASTER.</div>
+        <h1>Ask your screen<br><em>anything.</em></h1>
+        <p>A private visual copilot for websites, apps, and videos. You control when it sees.</p>
+      </section>
+      <section class="surface" aria-labelledby="source-heading">
+        <div class="section-head"><h2 id="source-heading">01 <span>Choose a source</span></h2><span class="mini-tag" id="sourceTag">NO SOURCE</span></div>
+        <div class="sources">
+          <button id="tabBtn" type="button" class="source-btn"><span class="source-icon">▣</span><strong>Current tab</strong><small>One screenshot</small></button>
+          <button id="shareBtn" type="button" class="source-btn"><span class="source-icon">▤</span><strong>Share screen</strong><small>Tab, app, monitor</small></button>
+          <button id="fileBtn" type="button" class="source-btn"><span class="source-icon">▶</span><strong>Video file</strong><small>Stored on PC</small></button>
+        </div>
+        <input id="fileInput" type="file" accept="video/*" hidden>
+        <div class="preview-box">
+          <div id="previewEmpty" class="preview-empty"><div class="preview-symbol">◌</div><strong>No visual input yet</strong><span>Choose a tab, screen, or video above.</span></div>
+          <img id="preview" alt="Most recently captured frame" hidden>
+          <video id="videoSource" controls muted playsinline hidden aria-label="Video file playback"></video>
+          <div id="liveFlag" class="live-flag" hidden>● SHARING</div>
+        </div>
+        <div class="actions"><button id="snapshotBtn" class="subtle" disabled>Analyze a frame</button><button id="stopBtn" class="danger" disabled>Stop source</button></div>
+        <p class="note" id="captureStatus" role="status">No screen capture is active.</p>
+      </section>
+      <section class="surface" aria-labelledby="monitor-heading">
+        <div class="section-head"><h2 id="monitor-heading">02 <span>Observation mode</span></h2><span class="mini-tag" id="monitorTag">OFF</span></div>
+        <div class="row-between"><div><strong>Periodic visual observations</strong><p class="muted">Only changed frames are sent to local AI.</p></div><label class="toggle" aria-label="Toggle automatic observation"><input id="autoToggle" type="checkbox"><span></span></label></div>
+        <div class="row-between cadence"><label for="cadence">Check for changes every</label><select id="cadence"><option value="6">6 seconds</option><option value="12" selected>12 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div>
+        <p class="note">Automatic observations require an active screen share or a playing video file. Slower computers may analyze less frequently.</p>
+      </section>
+      <section class="surface" aria-labelledby="chat-heading">
+        <div class="section-head"><h2 id="chat-heading">03 <span>Ask Sightline</span></h2><button id="clearBtn" class="text-btn">Clear notes</button></div>
+        <div id="conversation" class="conversation" role="log" aria-live="polite"><div class="placeholder">Your visual observations and answers will appear here.</div></div>
+        <form id="questionForm" class="composer"><label class="sr-only" for="question">Question for AI</label><textarea id="question" rows="2" maxlength="1400" placeholder="What is this page showing? What changed in the video?"></textarea><button type="submit" id="askBtn" class="primary">Ask ↗</button></form>
+        <p class="note">The current frame is included in each question. Earlier observations provide context, not continuous video memory.</p>
+        <div class="actions"><button id="exportBtn" class="subtle">Export notes (.md)</button><button id="exportJsonBtn" class="subtle">Export data (.json)</button></div>
+      </section>
+      <section class="surface" aria-labelledby="settings-heading">
+        <div class="section-head"><h2 id="settings-heading">04 <span>Local AI engine</span></h2></div>
+        <label for="modelSelect" class="field-label">Installed vision model</label>
+        <div class="model-row"><select id="modelSelect"><option value="gemma3:4b">gemma3:4b</option></select><button class="subtle" id="refreshModels" type="button">Refresh</button></div>
+        <p class="note">Connects only to Ollama at <code>127.0.0.1:11434</code>. Use an image-capable model. No API key, account, or cloud connection.</p>
+        <div class="setup"><strong>First-time setup</strong><span>1. Install Ollama on your computer.</span><span>2. Run <code>ollama pull gemma3:4b</code>.</span><span>3. Set <code>OLLAMA_ORIGINS</code> to your extension ID and restart Ollama.</span><span>4. Click Refresh and select the model.</span></div>
+      </section>
+    </main>
+    <footer><span>PRIVATE BY DESIGN</span><span>v0.1.0 · BROWSER MVP</span></footer>
+  </div>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>
