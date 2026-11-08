@@ -2,13 +2,14 @@ import { runTaskLoop } from './task-loop-core.js';
 import { observeActiveTab, executeOnActiveTab } from './browser-bridge.js';
 import { planNextAction } from './planner-client.js';
 import { detectSkillBlocker } from './skill-blockers.js';
-import { skillPlannerContext } from './skill-registry.js';
+import { skillPlannerContext, verifySkillActionEffect } from './skill-registry.js';
 
 export async function runBrowserTask({
   goal, model, mode = 'assist', chromeApi = chrome, fetchImpl = fetch,
   signal, limits, onProgress = () => {}, confirmAction = null, resume = null, onCheckpoint = null,
 }) {
   let cachedSnapshot = null;
+  let lastConfirmedContext = null;
   const observe = async () => {
     if (cachedSnapshot) {
       const snapshot = cachedSnapshot;
@@ -43,9 +44,12 @@ export async function runBrowserTask({
         skill: skillContext ? { id: skillContext.id, name: skillContext.name } : null,
         preview: skillContext?.pageHints || null,
       });
-      if (confirmed) result = await executeOnActiveTab({
-        action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
-      }, chromeApi);
+      if (confirmed) {
+        lastConfirmedContext = { action, target: result.target || null, before: snapshot };
+        result = await executeOnActiveTab({
+          action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
+        }, chromeApi);
+      }
     }
     if ((result?.code === 'STALE_SNAPSHOT' || result?.code === 'STALE_REF') && result?.snapshot) {
       cachedSnapshot = result.snapshot;
