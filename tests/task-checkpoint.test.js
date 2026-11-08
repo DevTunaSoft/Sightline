@@ -47,3 +47,10 @@ test('checkpoint preserves task tab id without storing page URL', () => {
   assert.equal(cp.tabId,77);
   assert.equal('url' in cp,false);
 });
+
+
+test('checkpoint stores origin only for resume policy, never full page path or query', () => {
+  const cp=createTaskCheckpoint({taskId:'t-origin',goal:'Resume',taskOrigin:'https://mail.yahoo.com/d/folders/1?token=secret'});
+  assert.equal(cp.taskOrigin,'https://mail.yahoo.com');
+  assert.doesNotMatch(JSON.stringify(cp),/folders|token=secret/);
+});
