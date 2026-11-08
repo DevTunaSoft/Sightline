@@ -28,7 +28,7 @@ export async function runBrowserTask({
     let result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode }, chromeApi);
     if (result?.code === 'CONFIRMATION_REQUIRED' && typeof confirmAction === 'function') {
       const confirmed = await confirmAction({ action, target: result.target, risk: result.risk, snapshotId: snapshot.snapshotId });
-      if (confirmed) result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode, confirmed: true }, chromeApi);
+      if (confirmed) result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey }, chromeApi);
     }
     if (result?.snapshot) cachedSnapshot = result.snapshot;
     onProgress({ type: 'executed', action, result });
