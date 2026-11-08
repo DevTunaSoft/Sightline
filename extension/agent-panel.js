@@ -1,11 +1,12 @@
 import { observeActiveTab } from './browser-bridge.js';
 import { runBrowserTask } from './browser-task-runner.js';
+import { runBrowserAcceptanceSelfTest } from './browser-self-test.js';
 import { saveTaskCheckpoint, loadTaskCheckpoint, clearTaskCheckpoint } from './task-checkpoint.js';
 
 const byId = id => document.getElementById(id);
 const ui = {
   tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'),
-  observe: byId('observePageBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
+  observe: byId('observePageBtn'), selfTest: byId('browserSelfTestBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
   progress: byId('agentProgress'), report: byId('exportAgentReportBtn'), card: byId('confirmCard'), text: byId('confirmText'),
   confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
 };
@@ -15,6 +16,7 @@ const state = { running: false, controller: null, pendingConfirmation: null, res
 function sync() {
   ui.run.disabled = state.running;
   ui.observe.disabled = state.running;
+  ui.selfTest.disabled = state.running;
   ui.stop.disabled = !state.running;
   ui.taskCancel.disabled = !state.running;
   ui.report.disabled = state.running || !state.lastReport;
@@ -161,6 +163,25 @@ async function restoreInterruptedTask() {
   }
 }
 
+async function runBrowserSelfTest() {
+  if (state.running) return;
+  state.running = true;
+  clearProgress('Running deterministic installed-browser self-test…');
+  sync();
+  try {
+    const report = await runBrowserAcceptanceSelfTest(chrome);
+    for (const check of report.checks || []) {
+      addProgress(check.ok ? 'PASS' : 'FAIL', `${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
+    }
+    addProgress(report.ok ? 'Self-test complete' : 'Self-test stopped', report.code || (report.ok ? 'PASS' : 'FAIL'));
+  } catch (error) {
+    addProgress('Self-test error', error.message);
+  } finally {
+    state.running = false;
+    sync();
+  }
+}
+
 async function runTask() {
   const goal = ui.goal.value.trim();
   if (!goal) { clearProgress('Enter a browser task first.'); return; }
@@ -272,6 +293,7 @@ function cancelTask() {
 
 if (Object.values(ui).some(value => !value)) throw new Error('Sightline browser-agent UI is incomplete.');
 ui.observe.addEventListener('click', () => void observePage());
+ui.selfTest.addEventListener('click', () => void runBrowserSelfTest());
 ui.run.addEventListener('click', () => void runTask());
 ui.stop.addEventListener('click', pauseTask);
 ui.taskCancel.addEventListener('click', cancelTask);
