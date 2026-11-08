@@ -166,6 +166,7 @@ export async function runBrowserTask({
         skill: skillContext ? { id: skillContext.id, name: skillContext.name } : null,
         preview: skillContext?.pageHints || null,
       });
+      if (signal?.aborted) throw signal.reason || new DOMException('Task cancelled.', 'AbortError');
       if (confirmed) {
         lastConfirmedContext = { action, target: result.target || null, before: snapshot };
         if (action?.action === 'navigate') {
@@ -176,6 +177,8 @@ export async function runBrowserTask({
         result = await timings.measure('execute', () => executeOnTab(taskTabId, {
           action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
         }, chromeApi));
+      } else {
+        result = { ok: false, code: 'USER_DECLINED_ACTION', error: 'User declined the requested consequential action.' };
       }
     }
     if ((result?.code === 'STALE_SNAPSHOT' || result?.code === 'STALE_REF') && result?.snapshot) {
