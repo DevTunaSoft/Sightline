@@ -5,17 +5,18 @@ import { saveTaskCheckpoint, loadTaskCheckpoint, clearTaskCheckpoint } from './t
 const byId = id => document.getElementById(id);
 const ui = {
   tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'),
-  observe: byId('observePageBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'),
+  observe: byId('observePageBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
   progress: byId('agentProgress'), card: byId('confirmCard'), text: byId('confirmText'),
   confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
 };
 
-const state = { running: false, controller: null, pendingConfirmation: null, resume: null, checkpoint: null, taskId: null };
+const state = { running: false, controller: null, pendingConfirmation: null, resume: null, checkpoint: null, taskId: null, stopIntent: null };
 
 function sync() {
   ui.run.disabled = state.running;
   ui.observe.disabled = state.running;
   ui.stop.disabled = !state.running;
+  ui.taskCancel.disabled = !state.running;
   ui.mode.disabled = state.running;
   ui.goal.disabled = state.running;
   ui.tag.textContent = state.running ? 'RUNNING' : state.resume ? 'RESUME READY' : 'READY';
@@ -180,6 +181,26 @@ async function runTask() {
       try { await clearTaskCheckpoint(chrome); } catch {}
       state.resume = null; state.checkpoint = null; state.taskId = null;
     } else {
+      const cancelledTask = result.code === 'TASK_CANCELLED';
+      if (cancelledTask && state.stopIntent === 'cancel') {
+        addProgress('Cancelled', 'Task checkpoint cleared.');
+        try { await clearTaskCheckpoint(chrome); } catch {}
+        state.resume = null; state.checkpoint = null; state.taskId = null;
+      } else if (cancelledTask && state.stopIntent === 'pause') {
+        addProgress('Paused', 'Task can be resumed from its latest sanitized checkpoint.');
+        if (state.checkpoint) {
+          try {
+            state.checkpoint = await saveTaskCheckpoint({ ...state.checkpoint, status: 'interrupted', requiresReview: state.checkpoint.requiresReview === true }, chrome);
+            state.resume = {
+              timeline: state.checkpoint.timeline,
+              actionsUsed: state.checkpoint.actionsUsed,
+              visionFallbacksUsed: state.checkpoint.visionFallbacksUsed,
+              tabId: state.checkpoint.tabId,
+              taskOrigin: state.checkpoint.taskOrigin
+            };
+          } catch {}
+        }
+      } else {
       const deadTaskTab = ['TASK_TAB_UNAVAILABLE', 'UNSUPPORTED_TASK_TAB'].includes(result.code);
       if (deadTaskTab) {
         addProgress('Resume cleared', `${result.error || 'The original task tab is unavailable.'} Run again to start fresh on the current tab.`);
@@ -194,6 +215,7 @@ async function runTask() {
           } catch {}
         }
       }
+      }
     }
   } catch (error) {
     addProgress('Error', error.name === 'AbortError' ? 'Task cancelled' : error.message);
@@ -201,22 +223,32 @@ async function runTask() {
     if (state.pendingConfirmation) resolveConfirmation(false);
     state.controller = null;
     state.running = false;
+    state.stopIntent = null;
     sync();
   }
 }
 
-function stopTask() {
+function pauseTask() {
+  state.stopIntent = 'pause';
   state.controller?.abort();
   if (state.pendingConfirmation) resolveConfirmation(false);
-  addProgress('Stopping', 'Cancellation requested');
+  addProgress('Pausing', 'Execution cancellation requested; checkpoint will be retained.');
+}
+
+function cancelTask() {
+  state.stopIntent = 'cancel';
+  state.controller?.abort();
+  if (state.pendingConfirmation) resolveConfirmation(false);
+  addProgress('Cancelling', 'Execution cancellation requested; checkpoint will be cleared.');
 }
 
 if (Object.values(ui).some(value => !value)) throw new Error('Sightline browser-agent UI is incomplete.');
 ui.observe.addEventListener('click', () => void observePage());
 ui.run.addEventListener('click', () => void runTask());
-ui.stop.addEventListener('click', stopTask);
+ui.stop.addEventListener('click', pauseTask);
+ui.taskCancel.addEventListener('click', cancelTask);
 ui.confirm.addEventListener('click', () => resolveConfirmation(true));
 ui.cancel.addEventListener('click', () => resolveConfirmation(false));
-window.addEventListener('pagehide', stopTask);
+window.addEventListener('pagehide', pauseTask);
 sync();
 void restoreInterruptedTask();
