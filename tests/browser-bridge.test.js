@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isSupportedPageUrl, observeActiveTab, observeTab } from '../extension/browser-bridge.js';
+import { isSupportedPageUrl, observeActiveTab, observeTab, getTaskTab } from '../extension/browser-bridge.js';
 
 test('bridge rejects privileged/non-web URLs', () => {
   assert.equal(isSupportedPageUrl('https://example.com'),true);
@@ -39,4 +39,15 @@ test('observeTab stays on requested tab even when another tab becomes active', a
   const result=await observeTab(7,chromeApi);
   assert.equal(result.tabId,7);
   assert.ok(sent.every(([id])=>id===7));
+});
+
+
+test('closed task tab is classified as TASK_TAB_UNAVAILABLE', async () => {
+  const chromeApi={
+    tabs:{ get:async()=>{ throw new Error('No tab with id: 77'); } },
+  };
+  await assert.rejects(
+    ()=>getTaskTab(77,chromeApi),
+    error=>error?.code==='TASK_TAB_UNAVAILABLE' && /no longer available/i.test(error.message)
+  );
 });
