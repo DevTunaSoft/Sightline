@@ -36,3 +36,26 @@ test('planner client never loops beyond two malformed attempts', async () => {
   }),/invalid JSON/);
   assert.equal(calls,2);
 });
+
+
+test('planner client aborts a hung request within configured timeout', async () => {
+  let observedAbort=false;
+  const fetchImpl=async(_url,options)=>new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>{ observedAbort=true; reject(options.signal.reason || new DOMException('Aborted','AbortError')); },{once:true});
+  });
+  await assert.rejects(
+    ()=>planNextAction({model:'gemma3:4b',goal:'x',snapshot},fetchImpl,undefined,{timeoutMs:10}),
+    /timed out|TimeoutError|abort/i
+  );
+  assert.equal(observedAbort,true);
+});
+
+test('planner client propagates external cancellation immediately', async () => {
+  const controller=new AbortController();
+  const fetchImpl=async(_url,options)=>new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>reject(options.signal.reason || new DOMException('Aborted','AbortError')),{once:true});
+  });
+  const pending=planNextAction({model:'gemma3:4b',goal:'x',snapshot},fetchImpl,controller.signal,{timeoutMs:1000});
+  controller.abort(new DOMException('User cancelled','AbortError'));
+  await assert.rejects(()=>pending,/User cancelled|AbortError|abort/i);
+});
