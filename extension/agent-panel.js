@@ -1,5 +1,6 @@
 import { observeActiveTab } from './browser-bridge.js';
 import { runBrowserTask } from './browser-task-runner.js';
+import { saveTaskCheckpoint, loadTaskCheckpoint, clearTaskCheckpoint } from './task-checkpoint.js';
 
 const byId = id => document.getElementById(id);
 const ui = {
@@ -9,7 +10,7 @@ const ui = {
   confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
 };
 
-const state = { running: false, controller: null, pendingConfirmation: null };
+const state = { running: false, controller: null, pendingConfirmation: null, resume: null, checkpoint: null, taskId: null };
 
 function sync() {
   ui.run.disabled = state.running;
@@ -17,7 +18,7 @@ function sync() {
   ui.stop.disabled = !state.running;
   ui.mode.disabled = state.running;
   ui.goal.disabled = state.running;
-  ui.tag.textContent = state.running ? 'RUNNING' : 'READY';
+  ui.tag.textContent = state.running ? 'RUNNING' : state.resume ? 'RESUME READY' : 'READY';
 }
 
 function clearProgress(message = 'No browser task is running.') {
@@ -59,8 +60,18 @@ function resolveConfirmation(value) {
   if (pending) pending(Boolean(value));
 }
 
+async function markCheckpointForReview() {
+  if (!state.checkpoint) return;
+  try {
+    state.checkpoint = await saveTaskCheckpoint({ ...state.checkpoint, requiresReview: true, status: 'interrupted' }, chrome);
+  } catch {
+    // Checkpoint failure must never authorize or block the confirmation itself.
+  }
+}
+
 function requestConfirmation({ action, target, risk, skill, preview }) {
   if (state.pendingConfirmation) resolveConfirmation(false);
+  void markCheckpointForReview();
   return new Promise(resolve => {
     state.pendingConfirmation = resolve;
     const targetName = target?.name || target?.role || action?.ref || 'this control';
@@ -101,15 +112,43 @@ async function observePage() {
   }
 }
 
+async function restoreInterruptedTask() {
+  try {
+    const checkpoint = await loadTaskCheckpoint(chrome);
+    if (!checkpoint || !['running', 'interrupted', 'failed'].includes(checkpoint.status)) return;
+    state.resume = { timeline: checkpoint.timeline, actionsUsed: checkpoint.actionsUsed };
+    state.checkpoint = checkpoint;
+    state.taskId = checkpoint.taskId;
+    ui.goal.value = checkpoint.goal;
+    ui.mode.value = checkpoint.mode;
+    if ([...ui.model.options].some(option => option.value === checkpoint.model)) ui.model.value = checkpoint.model;
+    clearProgress(checkpoint.requiresReview
+      ? 'Interrupted task restored. A prior consequential action was awaiting review; it will require fresh confirmation.'
+      : `Interrupted task restored with ${checkpoint.actionsUsed} action(s) already counted. Click Run task to resume.`);
+    sync();
+  } catch (error) {
+    addProgress('Checkpoint', `Could not restore prior task: ${error.message}`);
+  }
+}
+
 async function runTask() {
   const goal = ui.goal.value.trim();
   if (!goal) { clearProgress('Enter a browser task first.'); return; }
   if (state.running) return;
   state.controller = new AbortController();
   state.running = true;
-  clearProgress('Starting browser task…');
-  sync();
+  state.taskId = state.taskId || (globalThis.crypto?.randomUUID?.() || `task-${Date.now()}`);
   try {
+    try {
+      state.checkpoint = await saveTaskCheckpoint({
+        taskId: state.taskId, goal, mode: ui.mode.value, model: ui.model.value, status: 'running',
+        timeline: state.resume?.timeline || [], actionsUsed: state.resume?.actionsUsed || 0, requiresReview: false,
+      }, chrome);
+    } catch (checkpointError) {
+      addProgress('Checkpoint', `Resumability unavailable: ${checkpointError.message}`);
+    }
+    clearProgress(state.resume ? 'Resuming browser task…' : 'Starting browser task…');
+    sync();
     const result = await runBrowserTask({
       goal,
       model: ui.model.value,
@@ -120,9 +159,32 @@ async function runTask() {
       limits: { maxActions: 40, maxDurationMs: 120000, maxRepeatedState: 3, maxRepeatedAction: 3 },
       onProgress(event) { const [label, detail] = describeProgress(event); addProgress(label, detail); },
       confirmAction: requestConfirmation,
+      resume: state.resume,
+      onCheckpoint: async checkpointState => {
+        try {
+          state.checkpoint = await saveTaskCheckpoint({
+            taskId: state.taskId, goal, mode: ui.mode.value, model: ui.model.value, status: 'running',
+            timeline: checkpointState.timeline, actionsUsed: checkpointState.actionsUsed,
+            lastSnapshotId: checkpointState.snapshotId, requiresReview: false,
+          }, chrome);
+        } catch (checkpointError) {
+          addProgress('Checkpoint', `Could not save resume point: ${checkpointError.message}`);
+        }
+      },
     });
-    if (result.ok) addProgress('Complete', result.result || `Finished in ${result.timeline.length} action(s)`);
-    else addProgress('Stopped', `${result.code || 'Task did not complete'}${result.error ? `: ${result.error}` : ''}`);
+    if (result.ok) {
+      addProgress('Complete', result.result || `Finished in ${result.timeline.length} action(s)`);
+      try { await clearTaskCheckpoint(chrome); } catch {}
+      state.resume = null; state.checkpoint = null; state.taskId = null;
+    } else {
+      addProgress('Stopped', `${result.code || 'Task did not complete'}${result.error ? `: ${result.error}` : ''}`);
+      if (state.checkpoint) {
+        try {
+          state.checkpoint = await saveTaskCheckpoint({ ...state.checkpoint, status: 'interrupted', requiresReview: state.checkpoint.requiresReview === true }, chrome);
+          state.resume = { timeline: state.checkpoint.timeline, actionsUsed: state.checkpoint.actionsUsed };
+        } catch {}
+      }
+    }
   } catch (error) {
     addProgress('Error', error.name === 'AbortError' ? 'Task cancelled' : error.message);
   } finally {
@@ -147,3 +209,4 @@ ui.confirm.addEventListener('click', () => resolveConfirmation(true));
 ui.cancel.addEventListener('click', () => resolveConfirmation(false));
 window.addEventListener('pagehide', stopTask);
 sync();
+void restoreInterruptedTask();
