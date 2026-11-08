@@ -152,3 +152,26 @@ test('Yahoo confirmation receipt includes site-specific verification evidence', 
   assert.equal(receipt.siteVerification.verified,true);
   assert.ok(receipt.siteVerification.evidence.length>0);
 });
+
+
+test('browser task remains bound to its starting tab if user switches active tabs', async () => {
+  let queryCount=0, plannerCalls=0;
+  const messageTabIds=[];
+  const chromeApi={
+    tabs:{
+      query:async()=>{ queryCount+=1; return [{id:queryCount===1?7:99,url:queryCount===1?'https://mail.yahoo.com/':'https://example.com/'}]; },
+      get:async id=>({id,url:id===7?'https://mail.yahoo.com/':'https://example.com/'}),
+      sendMessage:async(id,msg)=>{
+        messageTabIds.push(id);
+        if(msg.type==='SIGHTLINE_PING') return {ok:true};
+        if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:{snapshotId:'s1',url:'https://mail.yahoo.com/',visibleText:'Inbox',elements:[{ref:'@e1',role:'button',name:'Next',sensitive:false}]}};
+        if(msg.type==='SIGHTLINE_EXECUTE') return {ok:true,receipt:{ok:true,changed:true},snapshot:{snapshotId:'s2',url:'https://mail.yahoo.com/',visibleText:'Inbox changed',elements:[]}};
+      },
+    }, scripting:{executeScript:async()=>{}},
+  };
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:plannerCalls++===0?' {"done":false,"action":{"action":"click","ref":"@e1"}} ':'{"done":true,"result":"done"}'}}),{status:200});
+  const result=await runBrowserTask({goal:'work in Yahoo',model:'gemma3:4b',chromeApi,fetchImpl,limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}});
+  assert.equal(result.ok,true);
+  assert.equal(queryCount,1);
+  assert.ok(messageTabIds.every(id=>id===7));
+});
