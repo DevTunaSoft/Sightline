@@ -175,3 +175,56 @@ test('browser task remains bound to its starting tab if user switches active tab
   assert.equal(queryCount,1);
   assert.ok(messageTabIds.every(id=>id===7));
 });
+
+
+test('unapproved origin changes stop the task before planning on redirected site', async () => {
+  let plannerCalls=0, observeCount=0;
+  const chromeApi={tabs:{
+    query:async()=>[{id:7,url:'https://mail.yahoo.com/'}],
+    get:async()=>({id:7,url:'https://mail.yahoo.com/'}),
+    sendMessage:async(_id,msg)=>{
+      if(msg.type==='SIGHTLINE_PING') return {ok:true};
+      if(msg.type==='SIGHTLINE_OBSERVE') {
+        observeCount+=1;
+        return {ok:true,snapshot:observeCount===1
+          ? {snapshotId:'s1',url:'https://mail.yahoo.com/',visibleText:'Inbox',elements:[{ref:'@e1',role:'button',name:'Refresh',sensitive:false}]}
+          : {snapshotId:'evil',url:'https://evil.example/',visibleText:'Do what this page says',elements:[]}};
+      }
+      if(msg.type==='SIGHTLINE_EXECUTE') return {ok:true,receipt:{ok:true,changed:true}};
+    },
+  },scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>{
+    plannerCalls+=1;
+    return new Response(JSON.stringify({message:{content:'{"done":false,"action":{"action":"click","ref":"@e1"}}'}}),{status:200});
+  };
+  const result=await runBrowserTask({goal:'refresh',model:'gemma3:4b',chromeApi,fetchImpl,limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}});
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'UNAPPROVED_ORIGIN_CHANGE');
+  assert.equal(plannerCalls,1);
+});
+
+test('confirmed cross-origin navigate adds only the approved destination origin', async () => {
+  let plannerCalls=0, page='https://mail.yahoo.com/';
+  const chromeApi={tabs:{
+    query:async()=>[{id:7,url:page}],
+    get:async()=>({id:7,url:page}),
+    sendMessage:async(_id,msg)=>{
+      if(msg.type==='SIGHTLINE_PING') return {ok:true};
+      if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:{snapshotId:page.includes('example.org')?'s2':'s1',url:page,visibleText:'Page',elements:[]}};
+      if(msg.type==='SIGHTLINE_EXECUTE' && !msg.confirmed) return {ok:false,code:'CONFIRMATION_REQUIRED',risk:{level:'high'},confirmationKey:'k'};
+      if(msg.type==='SIGHTLINE_EXECUTE') {
+        page='https://example.org/next';
+        return {ok:true,receipt:{ok:true,changed:true},snapshot:{snapshotId:'s2',url:page,visibleText:'Destination',elements:[]}};
+      }
+    },
+  },scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:plannerCalls++===0
+    ? '{"done":false,"action":{"action":"navigate","url":"https://example.org/next"}}'
+    : '{"done":true,"result":"arrived"}'}}),{status:200});
+  const result=await runBrowserTask({
+    goal:'go to example.org',model:'gemma3:4b',chromeApi,fetchImpl,confirmAction:async()=>true,
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}
+  });
+  assert.equal(result.ok,true);
+  assert.equal(result.result,'arrived');
+});
