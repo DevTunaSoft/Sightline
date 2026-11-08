@@ -51,3 +51,20 @@ test('cross-origin link clicks require confirmation using origin-only target sta
   assert.equal(risk.level,'high');
   assert.equal(gateAction(action,target,'assist',{currentUrl:'https://mail.yahoo.com/inbox'}).confirmationRequired,true);
 });
+
+
+test('destructive-looking same-origin navigation requires confirmation', () => {
+  const context={currentUrl:'https://example.com/account'};
+  assert.equal(
+    classifyActionRisk({action:'navigate',url:'https://example.com/account/delete'}, {}, context).level,
+    'high'
+  );
+  assert.equal(
+    classifyActionRisk({action:'navigate',url:'https://example.com/settings?action=delete'}, {}, context).level,
+    'high'
+  );
+  assert.equal(
+    classifyActionRisk({action:'navigate',url:'https://example.com/account/profile'}, {}, context).level,
+    'normal'
+  );
+});
