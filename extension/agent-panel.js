@@ -177,12 +177,19 @@ async function runTask() {
       try { await clearTaskCheckpoint(chrome); } catch {}
       state.resume = null; state.checkpoint = null; state.taskId = null;
     } else {
-      addProgress('Stopped', `${result.code || 'Task did not complete'}${result.error ? `: ${result.error}` : ''}`);
-      if (state.checkpoint) {
-        try {
-          state.checkpoint = await saveTaskCheckpoint({ ...state.checkpoint, status: 'interrupted', requiresReview: state.checkpoint.requiresReview === true }, chrome);
-          state.resume = { timeline: state.checkpoint.timeline, actionsUsed: state.checkpoint.actionsUsed, tabId: state.checkpoint.tabId, taskOrigin: state.checkpoint.taskOrigin };
-        } catch {}
+      const deadTaskTab = ['TASK_TAB_UNAVAILABLE', 'UNSUPPORTED_TASK_TAB'].includes(result.code);
+      if (deadTaskTab) {
+        addProgress('Resume cleared', `${result.error || 'The original task tab is unavailable.'} Run again to start fresh on the current tab.`);
+        try { await clearTaskCheckpoint(chrome); } catch {}
+        state.resume = null; state.checkpoint = null; state.taskId = null;
+      } else {
+        addProgress('Stopped', `${result.code || 'Task did not complete'}${result.error ? `: ${result.error}` : ''}`);
+        if (state.checkpoint) {
+          try {
+            state.checkpoint = await saveTaskCheckpoint({ ...state.checkpoint, status: 'interrupted', requiresReview: state.checkpoint.requiresReview === true }, chrome);
+            state.resume = { timeline: state.checkpoint.timeline, actionsUsed: state.checkpoint.actionsUsed, tabId: state.checkpoint.tabId, taskOrigin: state.checkpoint.taskOrigin };
+          } catch {}
+        }
       }
     }
   } catch (error) {
