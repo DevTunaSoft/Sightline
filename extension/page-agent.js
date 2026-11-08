@@ -27,8 +27,17 @@ export function createPageAgentController(options = {}) {
       if (!currentSnapshot || message.snapshotId !== currentSnapshot.snapshotId) {
         return { ok: false, code: 'STALE_SNAPSHOT', snapshot: await refresh() };
       }
+
+      // The planner and confirmation UI may take time. Re-observe the live DOM
+      // immediately before execution so cached semantic state can never authorize
+      // an action against a page that changed underneath Sightline.
+      const liveSnapshot = await refresh();
+      if (message.snapshotId !== liveSnapshot.snapshotId) {
+        return { ok: false, code: 'STALE_SNAPSHOT', snapshot: liveSnapshot };
+      }
+
       const target = message.action?.ref
-        ? currentSnapshot.elements.find(element => element.ref === message.action.ref)
+        ? liveSnapshot.elements.find(element => element.ref === message.action.ref)
         : null;
       const gateContext = { currentUrl: currentSnapshot.url, taskGoal: message.taskGoal || '' };
       const decision = gate(message.action, target || {}, message.mode || 'assist', gateContext);
