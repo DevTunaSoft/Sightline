@@ -1,5 +1,6 @@
 import { assertModelName } from './vision-core.js';
 import { validateAction } from './action-protocol.js';
+import { skillPlannerContext } from './skill-registry.js';
 
 export const PLANNER_LIMITS = Object.freeze({
   maxGoalChars: 2000,
@@ -54,7 +55,7 @@ export function makePlannerPayload({ model, goal, snapshot, timeline = [], mode 
       },
       {
         role: 'user',
-        content: JSON.stringify({ goal: task, mode: safeMode, page: snapshot, recentActions: compactTimeline(timeline) })
+        content: JSON.stringify({ goal: task, mode: safeMode, page: snapshot, skill: skillPlannerContext(snapshot.url), recentActions: compactTimeline(timeline) })
       }
     ]
   };
