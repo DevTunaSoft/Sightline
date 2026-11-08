@@ -6,7 +6,7 @@ import { skillPlannerContext } from './skill-registry.js';
 
 export async function runBrowserTask({
   goal, model, mode = 'assist', chromeApi = chrome, fetchImpl = fetch,
-  signal, limits, onProgress = () => {}, confirmAction = null,
+  signal, limits, onProgress = () => {}, confirmAction = null, resume = null, onCheckpoint = null,
 }) {
   let cachedSnapshot = null;
   const observe = async () => {
@@ -54,6 +54,9 @@ export async function runBrowserTask({
     }
     if (result?.snapshot) cachedSnapshot = result.snapshot;
     onProgress({ type: 'executed', action, result });
+    if (result?.ok === false) {
+      return { ...(result.receipt || {}), ok: false, code: result.code || result.receipt?.code || 'ACTION_FAILED', error: result.error || result.receipt?.error };
+    }
     return result?.receipt || { ok: false, code: result?.code || 'ACTION_FAILED', error: result?.error };
   };
 
