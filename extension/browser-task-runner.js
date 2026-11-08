@@ -37,7 +37,14 @@ export async function runBrowserTask({
     let result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode }, chromeApi);
     if (result?.code === 'CONFIRMATION_REQUIRED' && typeof confirmAction === 'function') {
       const confirmed = await confirmAction({ action, target: result.target, risk: result.risk, snapshotId: snapshot.snapshotId });
-      if (confirmed) result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey }, chromeApi);
+      if (confirmed) result = await executeOnActiveTab({
+        action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey,
+      }, chromeApi);
+    }
+    if ((result?.code === 'STALE_SNAPSHOT' || result?.code === 'STALE_REF') && result?.snapshot) {
+      cachedSnapshot = result.snapshot;
+      onProgress({ type: 'recovered', code: result.code, snapshotId: result.snapshot.snapshotId });
+      return { ok: true, code: 'REPLAN_REQUIRED', recoveredFrom: result.code };
     }
     if (result?.snapshot) cachedSnapshot = result.snapshot;
     onProgress({ type: 'executed', action, result });
@@ -45,5 +52,14 @@ export async function runBrowserTask({
   };
 
   const verify = async ({ receipt }) => ({ ok: receipt?.ok === true });
-  return runTaskLoop({ goal, observe, plan, execute, verify, signal, limits });
+  try {
+    return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits });
+  } catch (error) {
+    return {
+      ok: false,
+      code: error?.code || 'TASK_ERROR',
+      error: String(error?.message || error),
+      timeline: [],
+    };
+  }
 }
