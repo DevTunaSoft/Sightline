@@ -38,3 +38,48 @@ test('adapter detects unavailable select option', async () => {
   const el=fakeElement({options:[{value:'a'},{value:'b'}]}); const result=await executeValidatedAction({action:'select',ref:'@e1',value:'c'},setup(el));
   assert.equal(result.ok,false); assert.equal(result.code,'OPTION_NOT_FOUND');
 });
+
+
+test('iframe input dispatch uses target document event realm', async () => {
+  class FrameEvent {
+    constructor(type){ this.type=type; this.realm='frame'; }
+  }
+  const el=fakeElement({
+    ownerDocument:{defaultView:{Event:FrameEvent}},
+    value:'',
+  });
+  const registry=new RefRegistry(); registry.replace('snap',[{ref:'@e1',value:el}]);
+  const adapter=createDomActionAdapter({
+    registry,
+    snapshotId:'snap',
+    windowObject:{Event:class TopEvent{constructor(type){this.type=type;this.realm='top';}}},
+    documentObject:{body:{innerText:'Page'},activeElement:el},
+  });
+  await executeValidatedAction({action:'type',ref:'@e1',text:'abc'},adapter);
+  assert.deepEqual(el.events,['input','change']);
+});
+
+test('pressKey descends into same-origin focused iframe', async () => {
+  const keyEvents=[];
+  class FrameKeyboardEvent {
+    constructor(type,options){ this.type=type; this.key=options.key; }
+  }
+  const inner={
+    tagName:'INPUT',
+    ownerDocument:{defaultView:{KeyboardEvent:FrameKeyboardEvent}},
+    dispatchEvent(event){ keyEvents.push([event.type,event.key]); return true; },
+  };
+  const frame={
+    tagName:'IFRAME',
+    contentDocument:{activeElement:inner,body:inner},
+  };
+  const adapter=createDomActionAdapter({
+    registry:new RefRegistry(),
+    snapshotId:'snap',
+    windowObject:{},
+    documentObject:{activeElement:frame,body:frame},
+  });
+  const result=await executeValidatedAction({action:'pressKey',key:'Enter'},adapter);
+  assert.equal(result.ok,true);
+  assert.deepEqual(keyEvents,[['keydown','Enter'],['keyup','Enter']]);
+});
