@@ -4,11 +4,25 @@
   "version": "0.1.0",
   "description": "Local-first visual browser agent that can see, understand, and safely act on webpages.",
   "minimum_chrome_version": "116",
-  "permissions": ["sidePanel", "activeTab", "scripting"],
-  "host_permissions": ["http://127.0.0.1:11434/*", "http://localhost:11434/*"],
-  "background": { "service_worker": "background.js" },
-  "side_panel": { "default_path": "panel.html" },
-  "action": { "default_title": "Open Sightline" },
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:11434/*",
+    "http://localhost:11434/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "action": {
+    "default_title": "Open Sightline"
+  },
   "web_accessible_resources": [
     {
       "resources": [
@@ -21,7 +35,10 @@
         "action-executor-core.js",
         "safety-gate.js"
       ],
-      "matches": ["http://*/*", "https://*/*"]
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
     }
   ],
   "content_security_policy": {
