@@ -63,15 +63,19 @@ function describeElement(element, index, limits) {
 }
 
 export function buildPageSnapshot(options = {}) {
-  const limits = { ...PAGE_OBSERVER_LIMITS, ...options };
+  const { registry = null, ...limitOverrides } = options;
+  const limits = { ...PAGE_OBSERVER_LIMITS, ...limitOverrides };
   const elements = [];
+  const registryEntries = [];
   let truncated = false;
   for (const candidate of document.querySelectorAll(INTERACTIVE_SELECTOR)) {
     if (!isVisible(candidate)) continue;
     if (elements.length >= limits.maxElements) { truncated = true; break; }
-    elements.push(describeElement(candidate, elements.length, limits));
+    const description = describeElement(candidate, elements.length, limits);
+    elements.push(description);
+    registryEntries.push({ ref: description.ref, value: candidate });
   }
-  return boundSnapshot({
+  const snapshot = boundSnapshot({
     version: 1,
     url: location.href,
     title: cleanPageText(document.title, 300),
@@ -79,4 +83,6 @@ export function buildPageSnapshot(options = {}) {
     truncated,
     elements,
   }, limits.maxSnapshotChars);
+  if (registry?.replace) registry.replace(snapshot.snapshotId, registryEntries.slice(0, snapshot.elements.length));
+  return snapshot;
 }
