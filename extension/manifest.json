@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Sightline Local — Visual AI Copilot",
+  "name": "Sightline",
   "version": "0.1.0",
-  "description": "Ask a local vision AI about a chosen screen, tab, or video. No cloud account required.",
+  "description": "Local-first visual browser agent that can see, understand, and safely act on webpages.",
   "minimum_chrome_version": "116",
-  "permissions": ["sidePanel", "activeTab"],
+  "permissions": ["sidePanel", "activeTab", "scripting"],
   "host_permissions": ["http://127.0.0.1:11434/*", "http://localhost:11434/*"],
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "panel.html" },
-  "action": { "default_title": "Open Sightline Local" },
+  "action": { "default_title": "Open Sightline" },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
