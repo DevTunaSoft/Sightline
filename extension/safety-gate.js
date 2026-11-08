@@ -1,6 +1,14 @@
+import { fnv1aHash } from './page-observer-core.js';
+
 const HIGH_IMPACT_PATTERN = /\b(delete|remove|trash|erase|send|submit|publish|post|purchase|buy|pay|checkout|place order|confirm order|close account|security|permission|authorize|transfer|unsubscribe)\b/i;
 
-export function classifyActionRisk(action, target = {}) {
+function crossOriginNavigation(action, currentUrl) {
+  if (action?.action !== 'navigate' || !currentUrl) return false;
+  try { return new URL(action.url).origin !== new URL(currentUrl).origin; }
+  catch { return true; }
+}
+
+export function classifyActionRisk(action, target = {}, context = {}) {
   if (!action || typeof action !== 'object') return { level: 'blocked', reason: 'Invalid action.' };
   if (target?.sensitive && ['read','type','clear'].includes(action.action)) {
     return { level: 'blocked', reason: 'Sensitive fields cannot be read or manipulated by autonomous browser control.' };
@@ -9,12 +17,24 @@ export function classifyActionRisk(action, target = {}) {
   if (action.action === 'click' && HIGH_IMPACT_PATTERN.test(label)) {
     return { level: 'high', reason: 'Target appears to perform a consequential action.' };
   }
-  if (action.action === 'navigate') return { level: 'normal', reason: 'Navigation is reversible.' };
+  if (crossOriginNavigation(action, context.currentUrl)) {
+    return { level: 'high', reason: 'Navigation leaves the current website origin.' };
+  }
+  if (action.action === 'navigate') return { level: 'normal', reason: 'Navigation stays on the current website origin.' };
   return { level: 'normal', reason: 'No high-impact signal detected.' };
 }
 
-export function gateAction(action, target, mode = 'assist') {
-  const risk = classifyActionRisk(action, target);
+export function actionConfirmationKey(snapshotId, action, target = {}) {
+  const stable = {
+    snapshotId: String(snapshotId || ''),
+    action: action || null,
+    target: { ref: target?.ref || null, role: target?.role || null, name: target?.name || null },
+  };
+  return `confirm-${fnv1aHash(JSON.stringify(stable))}`;
+}
+
+export function gateAction(action, target, mode = 'assist', context = {}) {
+  const risk = classifyActionRisk(action, target, context);
   if (risk.level === 'blocked') return { allowed: false, confirmationRequired: false, risk };
   if (risk.level === 'high') {
     return { allowed: false, confirmationRequired: mode !== 'observe', risk };
