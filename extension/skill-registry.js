@@ -8,7 +8,7 @@ export function skillForUrl(value) {
   return SKILLS.find(skill => skill.matches(url)) || null;
 }
 
-export function skillPlannerContext(value) {
+export function skillPlannerContext(value, snapshot = null) {
   const skill = skillForUrl(value);
   if (!skill) return null;
   return {
@@ -18,6 +18,7 @@ export function skillPlannerContext(value) {
     domain: skill.domain,
     guidance: skill.guidance.slice(0, 20),
     destructiveLabels: skill.destructiveLabels.slice(0, 20),
+    pageHints: typeof skill.analyzeSnapshot === 'function' ? skill.analyzeSnapshot(snapshot) : null,
   };
 }
 
