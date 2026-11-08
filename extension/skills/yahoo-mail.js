@@ -21,6 +21,47 @@ export const yahooMailSkill = Object.freeze({
     'If login, MFA, CAPTCHA, account recovery, or security challenge is shown, stop and hand control to the user.',
   ]),
   destructiveLabels: Object.freeze(['Delete', 'Trash', 'Move to Trash', 'Empty Trash', 'Delete forever']),
+  analyzeSnapshot(snapshot) {
+    const elements = Array.isArray(snapshot?.elements) ? snapshot.elements : [];
+    const text = String(snapshot?.visibleText || '');
+    const named = (pattern, roles = null) => elements.filter(element => {
+      if (roles && !roles.includes(element?.role)) return false;
+      return pattern.test(String(element?.name || ''));
+    });
+    const firstRef = list => list.find(element => element?.ref)?.ref || null;
+    const search = named(/\b(search|find)\b.*\b(mail|messages?)\b|\bsearch\b/i, ['textbox', 'combobox']);
+    const selectAll = named(/select\s+all|all\s+(?:messages?|mail)/i, ['checkbox', 'button', 'menuitem']);
+    const trash = named(/move.*trash|\btrash\b|\bdelete\b/i, ['button', 'menuitem', 'link']);
+    const countPatterns = [
+      /\b(\d{1,7})\s+(?:search\s+)?results?\b/i,
+      /\b(\d{1,7})\s+(?:messages?|emails?)\b/i,
+      /\b(?:showing|of)\s+(\d{1,7})\b/i,
+    ];
+    let visibleCount = null;
+    for (const pattern of countPatterns) {
+      const match = text.match(pattern);
+      if (match) { visibleCount = Number(match[1]); break; }
+    }
+    const excluded = /inbox|sent|draft|spam|trash|archive|settings|contacts|calendar|compose|search|select all|delete|move/i;
+    const messageSamples = [];
+    const seen = new Set();
+    for (const element of elements) {
+      const name = String(element?.name || '').trim();
+      if (!element?.ref || element?.sensitive || name.length < 8 || name.length > 240) continue;
+      if (!['link', 'checkbox', 'button', 'menuitem'].includes(element.role)) continue;
+      if (excluded.test(name) || seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+      messageSamples.push({ ref: element.ref, role: element.role, name: name.slice(0, 180) });
+      if (messageSamples.length >= 5) break;
+    }
+    return {
+      searchRef: firstRef(search),
+      selectAllRef: firstRef(selectAll),
+      trashRefs: trash.slice(0, 5).map(element => element.ref).filter(Boolean),
+      visibleCount: Number.isFinite(visibleCount) ? visibleCount : null,
+      messageSamples,
+    };
+  },
   detectBlocker(snapshot) {
     const text = String(snapshot?.visibleText || '').toLowerCase();
     const elements = Array.isArray(snapshot?.elements) ? snapshot.elements : [];
@@ -43,8 +84,7 @@ export const yahooMailSkill = Object.freeze({
 
 export function buildYahooSearchIntent({ sender = '', terms = '', olderThan = '', newerThan = '' } = {}) {
   const parts = [];
-  const clean = value => String(value || '').replace(/[
-	]+/g, ' ').trim().slice(0, 200);
+  const clean = value => String(value || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 200);
   const from = clean(sender);
   if (from) parts.push(`from:${from}`);
   const text = clean(terms);
