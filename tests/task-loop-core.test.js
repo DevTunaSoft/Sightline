@@ -42,3 +42,23 @@ test('task loop honors cancellation before work', async () => {
   const result=await runTaskLoop({goal:'x',observe:async()=>({}),plan:async()=>({}),execute:async()=>({}),verify:async()=>({}),signal:c.signal});
   assert.equal(result.ok,false); assert.equal(result.code,'ABORTED');
 });
+
+
+test('task loop resumes with prior action budget and checkpoint callback', async () => {
+  let checkpoint=null;
+  const result=await runTaskLoop({
+    goal:'resume',
+    observe:async()=>({snapshotId:'fresh'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:async()=>({ok:true}),
+    verify:async()=>({done:true,result:'resumed'}),
+    resume:{actionsUsed:2,timeline:[{n:1,snapshotId:'old',action:{action:'click',ref:'@e9'},receipt:{ok:true}},{n:2,snapshotId:'old2',action:{action:'click',ref:'@e8'},receipt:{ok:true}}]},
+    onCheckpoint:async value=>{checkpoint=value;},
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5},
+  });
+  assert.equal(result.ok,true);
+  assert.equal(result.timeline.length,3);
+  assert.equal(result.timeline.at(-1).n,3);
+  assert.equal(checkpoint.actionsUsed,3);
+  assert.equal(checkpoint.timeline.length,3);
+});
