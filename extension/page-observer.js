@@ -69,6 +69,9 @@ function describeElement(element, index, limits) {
   if ('disabled' in element) state.disabled = Boolean(element.disabled);
   if ('checked' in element && ['checkbox', 'radio'].includes(role)) state.checked = Boolean(element.checked);
   if ('readOnly' in element && element.readOnly) state.readOnly = true;
+  if (role === 'link' && element.href) {
+    try { state.hrefOrigin = new URL(element.href, location.href).origin; } catch {}
+  }
   if (!sensitive && ['textbox', 'combobox'].includes(role) && typeof element.value === 'string') state.valueLength = Math.min(4000, element.value.length);
   if (!sensitive && element.tagName?.toLowerCase() === 'select' && Number.isInteger(element.selectedIndex)) state.selectedIndex = element.selectedIndex;
   if (element.getAttribute('aria-expanded') !== null) state.expanded = element.getAttribute('aria-expanded') === 'true';
