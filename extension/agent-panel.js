@@ -116,7 +116,7 @@ async function restoreInterruptedTask() {
   try {
     const checkpoint = await loadTaskCheckpoint(chrome);
     if (!checkpoint || !['running', 'interrupted', 'failed'].includes(checkpoint.status)) return;
-    state.resume = { timeline: checkpoint.timeline, actionsUsed: checkpoint.actionsUsed };
+    state.resume = { timeline: checkpoint.timeline, actionsUsed: checkpoint.actionsUsed, tabId: checkpoint.tabId };
     state.checkpoint = checkpoint;
     state.taskId = checkpoint.taskId;
     ui.goal.value = checkpoint.goal;
@@ -164,7 +164,7 @@ async function runTask() {
         try {
           state.checkpoint = await saveTaskCheckpoint({
             taskId: state.taskId, goal, mode: ui.mode.value, model: ui.model.value, status: 'running',
-            timeline: checkpointState.timeline, actionsUsed: checkpointState.actionsUsed,
+            timeline: checkpointState.timeline, actionsUsed: checkpointState.actionsUsed, tabId: checkpointState.tabId,
             lastSnapshotId: checkpointState.snapshotId, requiresReview: false,
           }, chrome);
         } catch (checkpointError) {
@@ -181,7 +181,7 @@ async function runTask() {
       if (state.checkpoint) {
         try {
           state.checkpoint = await saveTaskCheckpoint({ ...state.checkpoint, status: 'interrupted', requiresReview: state.checkpoint.requiresReview === true }, chrome);
-          state.resume = { timeline: state.checkpoint.timeline, actionsUsed: state.checkpoint.actionsUsed };
+          state.resume = { timeline: state.checkpoint.timeline, actionsUsed: state.checkpoint.actionsUsed, tabId: state.checkpoint.tabId };
         } catch {}
       }
     }
