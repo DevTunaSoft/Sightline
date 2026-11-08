@@ -1,15 +1,71 @@
-export const PAGE_OBSERVER_LIMITS = Object.freeze({ maxElements: 300, maxTextPerElement: 240, maxSnapshotChars: 48000 });
-export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) { return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength); }
+export const PAGE_OBSERVER_LIMITS = Object.freeze({
+  maxElements: 300,
+  maxTextPerElement: 240,
+  maxSnapshotChars: 48000,
+});
+
+export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
 export function inferElementRole(tagName, explicitRole = '', inputType = '') {
-  if (explicitRole) return explicitRole;
-  const tag = String(tagName).toLowerCase(); const type = String(inputType).toLowerCase();
-  if (tag === 'a') return 'link'; if (tag === 'button') return 'button'; if (tag === 'select') return 'combobox'; if (tag === 'textarea') return 'textbox';
-  if (tag === 'input') { if (type === 'checkbox') return 'checkbox'; if (type === 'radio') return 'radio'; if (['button','submit','reset'].includes(type)) return 'button'; return 'textbox'; }
+  if (explicitRole) return cleanPageText(explicitRole, 64).toLowerCase();
+  const tag = String(tagName).toLowerCase();
+  const type = String(inputType).toLowerCase();
+  if (tag === 'a') return 'link';
+  if (tag === 'button') return 'button';
+  if (tag === 'select') return 'combobox';
+  if (tag === 'textarea') return 'textbox';
+  if (tag === 'input') {
+    if (type === 'checkbox') return 'checkbox';
+    if (type === 'radio') return 'radio';
+    if (['button', 'submit', 'reset'].includes(type)) return 'button';
+    return 'textbox';
+  }
   return 'generic';
 }
-export function isSensitiveField(inputType = '') { return String(inputType).toLowerCase() === 'password'; }
+
+const SENSITIVE_AUTOCOMPLETE = new Set([
+  'current-password', 'new-password', 'one-time-code',
+  'cc-number', 'cc-csc', 'cc-exp', 'cc-exp-month', 'cc-exp-year',
+]);
+const SENSITIVE_NAME_PATTERN = /(pass(word)?|passwd|pin|otp|one.?time|cvv|cvc|security.?code|card.?number|credit.?card|token|secret)/i;
+
+export function isSensitiveField(input = '') {
+  if (typeof input === 'string') return input.toLowerCase() === 'password';
+  const type = String(input?.type || '').toLowerCase();
+  const autocomplete = String(input?.autocomplete || '').toLowerCase();
+  const name = String(input?.name || '');
+  return type === 'password' || SENSITIVE_AUTOCOMPLETE.has(autocomplete) || SENSITIVE_NAME_PATTERN.test(name);
+}
+
+export function fnv1aHash(value) {
+  let hash = 0x811c9dc5;
+  const text = String(value ?? '');
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+export function snapshotIdentity(snapshot) {
+  const stable = {
+    url: snapshot?.url || '',
+    title: snapshot?.title || '',
+    elements: (snapshot?.elements || []).map(({ ref: _ref, rect: _rect, ...element }) => element),
+  };
+  return `s1-${fnv1aHash(JSON.stringify(stable))}`;
+}
+
 export function boundSnapshot(snapshot, maxChars = PAGE_OBSERVER_LIMITS.maxSnapshotChars) {
-  const bounded = { ...snapshot, elements: [...(snapshot.elements || [])] }; let serialized = JSON.stringify(bounded);
-  while (bounded.elements.length && serialized.length > maxChars) { bounded.elements.pop(); bounded.truncated = true; serialized = JSON.stringify(bounded); }
+  const bounded = { ...snapshot, elements: [...(snapshot.elements || [])] };
+  let serialized = JSON.stringify(bounded);
+  while (bounded.elements.length && serialized.length > maxChars) {
+    bounded.elements.pop();
+    bounded.truncated = true;
+    serialized = JSON.stringify(bounded);
+  }
+  bounded.snapshotId = snapshotIdentity(bounded);
   return bounded;
 }
