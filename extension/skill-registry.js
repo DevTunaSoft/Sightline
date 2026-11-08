@@ -33,3 +33,11 @@ export function verifySkillActionEffect({ before, after, action, target } = {}) 
   }
   return skill.verifyActionEffect({ before, after, action, target });
 }
+
+export function checkSkillDestructiveScope({ snapshot, goal, action, target } = {}) {
+  const skill = skillForUrl(snapshot?.url);
+  if (!skill || typeof skill.checkDestructiveScope !== 'function') {
+    return { applicable: false, allowed: true };
+  }
+  return skill.checkDestructiveScope({ snapshot, goal, action, target });
+}
