@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPageAgentController } from '../extension/page-agent.js';
 
-test('controller requires current snapshot and returns refreshed snapshot after action', async () => {
-  let n=0;
+test('controller requires current live snapshot and returns refreshed snapshot after action', async () => {
+  let after=false;
   const controller=createPageAgentController({
-    observe:async()=>({snapshotId:`s${++n}`,elements:[{ref:'@e1',name:'Inbox',role:'link'}]}),
-    adapterFactory:()=>({hasRef:()=>true,click:async()=>({ok:true})}),
+    observe:async()=>({snapshotId:after?'s2':'s1',elements:after?[]:[{ref:'@e1',name:'Inbox',role:'link'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{after=true;return {ok:true};}}),
     gate:()=>({allowed:true,confirmationRequired:false,risk:{level:'normal'}}),
   });
   const observed=await controller.handle({type:'SIGHTLINE_OBSERVE'});
@@ -74,4 +74,50 @@ test('confirmed high-impact action returns verified changed receipt when page ch
   assert.equal(result.receipt.changed,true);
   assert.equal(result.receipt.beforeSnapshotId,'before');
   assert.equal(result.receipt.afterSnapshotId,'after');
+});
+
+
+test('page change while planner is thinking is rejected before adapter execution', async () => {
+  let observations=0, clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>{
+      observations+=1;
+      return observations===1
+        ? {snapshotId:'planned',elements:[{ref:'@e1',name:'Old action',role:'button'}]}
+        : {snapshotId:'changed',elements:[{ref:'@e1',name:'New action',role:'button'}]};
+    },
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks+=1;return {ok:true};}}),
+    gate:()=>({allowed:true,confirmationRequired:false,risk:{level:'normal'}}),
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const result=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'planned',action:{action:'click',ref:'@e1'}});
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'STALE_SNAPSHOT');
+  assert.equal(result.snapshot.snapshotId,'changed');
+  assert.equal(clicks,0);
+});
+
+test('page change while user reviews confirmation invalidates confirmation before click', async () => {
+  let changed=false, clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>changed
+      ? {snapshotId:'changed',elements:[{ref:'@e1',name:'Delete different item',role:'button'}]}
+      : {snapshotId:'original',elements:[{ref:'@e1',name:'Delete item',role:'button'}]},
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks+=1;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high',reason:'destructive'}}),
+    sleep:async()=>{},
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const request=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'original',action:{action:'click',ref:'@e1'},taskGoal:'delete item'
+  });
+  assert.equal(request.code,'CONFIRMATION_REQUIRED');
+  changed=true;
+  const result=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'original',action:{action:'click',ref:'@e1'},
+    taskGoal:'delete item',confirmed:true,confirmationKey:request.confirmationKey
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'STALE_SNAPSHOT');
+  assert.equal(clicks,0);
 });
