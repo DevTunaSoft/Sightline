@@ -33,6 +33,13 @@ export function safeOrigin(value, base = '') {
   catch { return null; }
 }
 
+export function mayUseValueAsAccessibleName(tagName, role, inputType = '') {
+  const tag = String(tagName || '').toLowerCase();
+  const semanticRole = String(role || '').toLowerCase();
+  const type = String(inputType || '').toLowerCase();
+  return tag === 'input' && semanticRole === 'button' && ['button', 'submit', 'reset'].includes(type);
+}
+
 export function inferElementRole(tagName, explicitRole = '', inputType = '') {
   if (explicitRole) return cleanPageText(explicitRole, 64).toLowerCase();
   const tag = String(tagName).toLowerCase();
