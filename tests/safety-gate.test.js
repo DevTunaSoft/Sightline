@@ -28,3 +28,17 @@ test('confirmation keys bind snapshot, action, and target', () => {
   assert.notEqual(a,actionConfirmationKey('s2',{action:'click',ref:'@e1'},{ref:'@e1',name:'Delete',role:'button'}));
   assert.notEqual(a,actionConfirmationKey('s1',{action:'click',ref:'@e2'},{ref:'@e2',name:'Delete',role:'button'}));
 });
+test('permanent deletion is blocked unless original task explicitly asks for irreversible deletion', () => {
+  const action={action:'click',ref:'@e9'};
+  const target={name:'Empty Trash',role:'button'};
+  const ordinary=gateAction(action,target,'assist',{taskGoal:'Delete old Amazon emails'});
+  assert.equal(ordinary.allowed,false); assert.equal(ordinary.confirmationRequired,false); assert.equal(ordinary.risk.level,'blocked');
+  const explicit=gateAction(action,target,'assist',{taskGoal:'Empty Trash permanently'});
+  assert.equal(explicit.allowed,false); assert.equal(explicit.confirmationRequired,true); assert.equal(explicit.risk.level,'critical');
+});
+test('confirmation key is also bound to original task authorization context', () => {
+  const action={action:'click',ref:'@e9'}, target={ref:'@e9',name:'Empty Trash',role:'button'};
+  const a=actionConfirmationKey('s1',action,target,{taskGoal:'Empty Trash permanently'});
+  const b=actionConfirmationKey('s1',action,target,{taskGoal:'Delete old mail'});
+  assert.notEqual(a,b);
+});
