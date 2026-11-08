@@ -22,3 +22,17 @@ jobs:
           node-version: 22
       - name: Validate source and run tests
         run: npm run check
+
+
+  package-extension:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload Sightline extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sightline-extension-${{ github.sha }}
+          path: extension/
+          if-no-files-found: error
+          retention-days: 14
