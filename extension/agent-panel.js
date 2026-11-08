@@ -48,6 +48,7 @@ function describeProgress(event) {
     return ['Planner', `${decision?.action?.action || 'action'}${decision?.action?.ref ? ` ${decision.action.ref}` : ''}`];
   }
   if (event?.type === 'executed') return ['Executed', `${event.action?.action || 'action'} · ${event.result?.ok ? 'OK' : event.result?.code || 'failed'}`];
+  if (event?.type === 'recovered') return ['Recovered', `${event.code} · re-observed and re-planning`];
   return ['Progress', String(event?.type || 'update')];
 }
 
@@ -111,7 +112,7 @@ async function runTask() {
       confirmAction: requestConfirmation,
     });
     if (result.ok) addProgress('Complete', result.result || `Finished in ${result.timeline.length} action(s)`);
-    else addProgress('Stopped', result.code || 'Task did not complete');
+    else addProgress('Stopped', `${result.code || 'Task did not complete'}${result.error ? `: ${result.error}` : ''}`);
   } catch (error) {
     addProgress('Error', error.name === 'AbortError' ? 'Task cancelled' : error.message);
   } finally {
