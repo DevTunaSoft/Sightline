@@ -9,6 +9,25 @@ export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPer
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
+export function createBoundedTextCollector(maxChars = PAGE_OBSERVER_LIMITS.maxVisibleTextChars) {
+  const limit = Math.max(0, Math.min(100000, Number(maxChars) || 0));
+  let text = '';
+  return {
+    push(value) {
+      if (text.length >= limit) return false;
+      const chunk = String(value ?? '').replace(/\s+/g, ' ').trim();
+      if (!chunk) return text.length < limit;
+      const prefix = text ? ' ' : '';
+      const remaining = limit - text.length;
+      text += (prefix + chunk).slice(0, remaining);
+      return text.length < limit;
+    },
+    value() { return text; },
+    get full() { return text.length >= limit; },
+    get length() { return text.length; },
+  };
+}
+
 export function inferElementRole(tagName, explicitRole = '', inputType = '') {
   if (explicitRole) return cleanPageText(explicitRole, 64).toLowerCase();
   const tag = String(tagName).toLowerCase();
