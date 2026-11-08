@@ -251,3 +251,70 @@ test('resumed task with closed original tab stops before planner', async () => {
   assert.equal(result.code,'TASK_TAB_UNAVAILABLE');
   assert.equal(plannerCalls,0);
 });
+
+
+test('browser task uses one vision fallback when semantic planner explicitly requests it', async () => {
+  let fetchCalls=0, captures=0, executed=0;
+  const before={snapshotId:'s1',url:'https://example.com/',visibleText:'Ambiguous page',elements:[{ref:'@e1',role:'button',name:'Continue',sensitive:false}]};
+  const after={snapshotId:'s2',url:'https://example.com/',visibleText:'Done',elements:[]};
+  const chromeApi={
+    tabs:{
+      query:async()=>[{id:7,url:before.url,active:true,windowId:1}],
+      get:async()=>({id:7,url:before.url,active:true,windowId:1}),
+      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJD'; },
+      sendMessage:async(_id,msg)=>{
+        if(msg.type==='SIGHTLINE_PING') return {ok:true};
+        if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:before};
+        if(msg.type==='SIGHTLINE_EXECUTE') { executed+=1; return {ok:true,receipt:{ok:true,changed:true},snapshot:after}; }
+      },
+    },
+    scripting:{executeScript:async()=>{}},
+  };
+  const fetchImpl=async(_url,options)=>{
+    fetchCalls+=1;
+    if(fetchCalls===1) return new Response(JSON.stringify({message:{content:'{"done":false,"needVision":true,"reason":"Need visual layout"}'}}),{status:200});
+    if(fetchCalls===2) return new Response(JSON.stringify({message:{content:'The visible Continue button is the relevant control.'}}),{status:200});
+    if(fetchCalls===3) {
+      const payload=JSON.parse(options.body);
+      const user=JSON.parse(payload.messages.at(-1).content);
+      assert.match(user.page.visualContext,/Continue button/);
+      return new Response(JSON.stringify({message:{content:'{"done":false,"action":{"action":"click","ref":"@e1"}}'}}),{status:200});
+    }
+    return new Response(JSON.stringify({message:{content:'{"done":true,"result":"done"}'}}),{status:200});
+  };
+  const result=await runBrowserTask({
+    goal:'continue',model:'gemma3:4b',chromeApi,fetchImpl,
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}
+  });
+  assert.equal(result.ok,true);
+  assert.equal(result.result,'done');
+  assert.equal(captures,1);
+  assert.equal(executed,1);
+});
+
+test('same semantic snapshot cannot trigger repeated vision inference', async () => {
+  let fetchCalls=0, captures=0;
+  const snapshot={snapshotId:'same',url:'https://example.com/',visibleText:'Ambiguous',elements:[]};
+  const chromeApi={
+    tabs:{
+      query:async()=>[{id:7,url:snapshot.url,active:true,windowId:1}],
+      get:async()=>({id:7,url:snapshot.url,active:true,windowId:1}),
+      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJD'; },
+      sendMessage:async(_id,msg)=>{
+        if(msg.type==='SIGHTLINE_PING') return {ok:true};
+        if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+      },
+    },
+    scripting:{executeScript:async()=>{}},
+  };
+  const fetchImpl=async()=>{
+    fetchCalls+=1;
+    if(fetchCalls===2) return new Response(JSON.stringify({message:{content:'Visual description'}}),{status:200});
+    return new Response(JSON.stringify({message:{content:'{"done":false,"needVision":true,"reason":"Still ambiguous"}'}}),{status:200});
+  };
+  const result=await runBrowserTask({goal:'inspect',model:'gemma3:4b',chromeApi,fetchImpl});
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'VISION_FALLBACK_EXHAUSTED');
+  assert.equal(captures,1);
+  assert.equal(fetchCalls,3);
+});
