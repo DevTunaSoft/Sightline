@@ -59,7 +59,7 @@ export async function runBrowserTask({
 
   const verify = async ({ receipt }) => ({ ok: receipt?.ok === true });
   try {
-    return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits });
+    return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint });
   } catch (error) {
     return { ok: false, code: error?.code || 'TASK_ERROR', error: String(error?.message || error), timeline: [] };
   }
