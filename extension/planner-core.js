@@ -55,7 +55,7 @@ export function makePlannerPayload({ model, goal, snapshot, timeline = [], mode 
       },
       {
         role: 'user',
-        content: JSON.stringify({ goal: task, mode: safeMode, page: snapshot, skill: skillPlannerContext(snapshot.url), recentActions: compactTimeline(timeline) })
+        content: JSON.stringify({ goal: task, mode: safeMode, page: snapshot, skill: skillPlannerContext(snapshot.url, snapshot), recentActions: compactTimeline(timeline) })
       }
     ]
   };
