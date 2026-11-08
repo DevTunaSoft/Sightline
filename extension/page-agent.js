@@ -46,7 +46,12 @@ export function createPageAgentController(options = {}) {
       }
 
       const receipt = await executeValidatedAction(message.action, adapterFactory(currentSnapshot.snapshotId));
-      if (!receipt.ok) return { ok: false, code: receipt.code || 'ACTION_FAILED', receipt };
+      if (!receipt.ok) {
+        if (receipt.code === 'STALE_REF') {
+          return { ok: false, code: 'STALE_REF', receipt, snapshot: await refresh() };
+        }
+        return { ok: false, code: receipt.code || 'ACTION_FAILED', receipt };
+      }
       const snapshot = await refresh();
       return { ok: true, receipt, snapshot };
     },
