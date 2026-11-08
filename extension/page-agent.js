@@ -29,11 +29,12 @@ export function createPageAgentController(options = {}) {
       const target = message.action?.ref
         ? currentSnapshot.elements.find(element => element.ref === message.action.ref)
         : null;
-      const decision = gate(message.action, target || {}, message.mode || 'assist', { currentUrl: currentSnapshot.url });
-      const confirmationKey = decision.confirmationRequired ? actionConfirmationKey(currentSnapshot.snapshotId, message.action, target || {}) : null;
+      const gateContext = { currentUrl: currentSnapshot.url, taskGoal: message.taskGoal || '' };
+      const decision = gate(message.action, target || {}, message.mode || 'assist', gateContext);
+      const confirmationKey = decision.confirmationRequired ? actionConfirmationKey(currentSnapshot.snapshotId, message.action, target || {}, gateContext) : null;
       if (!decision.allowed) {
         if (decision.confirmationRequired && message.confirmed === true && message.confirmationKey === confirmationKey) {
-          // Confirmation is bound to this exact semantic action and snapshot.
+          // Confirmation is bound to this exact semantic action, task, and snapshot.
         } else {
           return {
             ok: false,
@@ -47,9 +48,7 @@ export function createPageAgentController(options = {}) {
 
       const receipt = await executeValidatedAction(message.action, adapterFactory(currentSnapshot.snapshotId));
       if (!receipt.ok) {
-        if (receipt.code === 'STALE_REF') {
-          return { ok: false, code: 'STALE_REF', receipt, snapshot: await refresh() };
-        }
+        if (receipt.code === 'STALE_REF') return { ok: false, code: 'STALE_REF', receipt, snapshot: await refresh() };
         return { ok: false, code: receipt.code || 'ACTION_FAILED', receipt };
       }
       const snapshot = await refresh();
