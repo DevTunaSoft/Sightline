@@ -9,6 +9,21 @@
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "panel.html" },
   "action": { "default_title": "Open Sightline" },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page-agent.js",
+        "page-observer.js",
+        "page-observer-core.js",
+        "ref-registry.js",
+        "dom-action-adapter.js",
+        "action-protocol.js",
+        "action-executor-core.js",
+        "safety-gate.js"
+      ],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
