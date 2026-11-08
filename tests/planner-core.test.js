@@ -23,3 +23,11 @@ test('planner completion is bounded and fenced JSON can be parsed', () => {
   const result=parsePlannerDecision('```json\n{"done":true,"result":"Finished"}\n```',snapshot);
   assert.deepEqual(result,{done:true,result:'Finished'});
 });
+
+
+test('planner prompt respects opaque iframe boundary', () => {
+  const framed={...snapshot,frames:{total:2,sameOrigin:1,opaque:1,origins:['https://example.org']}};
+  const payload=makePlannerPayload({model:'gemma3:4b',goal:'inspect embedded content',snapshot:framed});
+  assert.match(payload.messages[0].content,/opaque embedded frames/);
+  assert.match(payload.messages[1].content,/"opaque":1/);
+});
