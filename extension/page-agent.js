@@ -9,6 +9,7 @@ export function createPageAgentController(options = {}) {
   const observe = options.observe || (() => buildPageSnapshot({ registry }));
   const adapterFactory = options.adapterFactory || ((snapshotId) => createDomActionAdapter({ registry, snapshotId }));
   const gate = options.gate || gateAction;
+  const sleep = options.sleep || (ms => new Promise(resolve => setTimeout(resolve, ms)));
   let currentSnapshot = null;
 
   async function refresh() {
@@ -46,13 +47,26 @@ export function createPageAgentController(options = {}) {
         }
       }
 
-      const receipt = await executeValidatedAction(message.action, adapterFactory(currentSnapshot.snapshotId));
+      const beforeSnapshotId = currentSnapshot.snapshotId;
+      const receipt = await executeValidatedAction(message.action, adapterFactory(beforeSnapshotId));
       if (!receipt.ok) {
         if (receipt.code === 'STALE_REF') return { ok: false, code: 'STALE_REF', receipt, snapshot: await refresh() };
         return { ok: false, code: receipt.code || 'ACTION_FAILED', receipt };
       }
-      const snapshot = await refresh();
-      return { ok: true, receipt, snapshot };
+      let snapshot = await refresh();
+      const consequential = decision.risk?.level === 'high' || decision.risk?.level === 'critical';
+      if (consequential && snapshot.snapshotId === beforeSnapshotId) {
+        for (let attempt = 0; attempt < 3 && snapshot.snapshotId === beforeSnapshotId; attempt += 1) {
+          await sleep(100);
+          snapshot = await refresh();
+        }
+      }
+      const changed = snapshot.snapshotId !== beforeSnapshotId;
+      const verifiedReceipt = { ...receipt, beforeSnapshotId, afterSnapshotId: snapshot.snapshotId, changed };
+      if (consequential && !changed) {
+        return { ok: false, code: 'NO_VERIFIED_EFFECT', receipt: verifiedReceipt, snapshot };
+      }
+      return { ok: true, receipt: verifiedReceipt, snapshot };
     },
     getSnapshot: () => currentSnapshot,
   };
