@@ -59,3 +59,21 @@ Status language:
 - Installer/distribution/update path
 
 Do not infer any of the above from automated fixture success.
+
+
+## 0.2.0-alpha acceptance tooling
+
+| Gate/tool | Status |
+|---|---|
+| Installed-browser deterministic self-test | Implemented / automated-test verified |
+| Localhost fixture server | Implemented / integration-test verified |
+| Windows acceptance launcher | Implemented |
+| Extension-origin Ollama self-test | Implemented / automated-test verified |
+| CLI Ollama image-inference acceptance | Implemented / syntax/release-check verified; live model still required |
+| Yahoo read-only readiness | Implemented / automated-test verified |
+| CI extension artifact packaging | Implemented; workflow execution evidence still tracked separately |
+| Release permission/security/size audit | Implemented / current branch check verified |
+| Real Chrome acceptance | Pending |
+| Real Edge acceptance | Pending |
+| Live extension-origin Ollama acceptance | Pending |
+| Real Yahoo acceptance | Pending |
