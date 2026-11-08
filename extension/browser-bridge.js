@@ -7,9 +7,17 @@ export function isSupportedPageUrl(value) {
   } catch { return false; }
 }
 
+function codedError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
 function assertSupportedTab(tab) {
-  if (!tab?.id) throw new Error('Browser tab is unavailable.');
-  if (tab.url && !isSupportedPageUrl(tab.url)) throw new Error('Sightline can only control normal HTTP(S) webpages.');
+  if (!tab?.id) throw codedError('Browser tab is unavailable.', 'TASK_TAB_UNAVAILABLE');
+  if (tab.url && !isSupportedPageUrl(tab.url)) {
+    throw codedError('Sightline can only control normal HTTP(S) webpages.', 'UNSUPPORTED_TASK_TAB');
+  }
   return tab;
 }
 
@@ -19,10 +27,17 @@ export async function getActiveTab(chromeApi = chrome) {
 }
 
 export async function getTaskTab(tabId, chromeApi = chrome) {
-  if (!Number.isInteger(tabId) || tabId <= 0) throw new Error('Task tab id is invalid.');
+  if (!Number.isInteger(tabId) || tabId <= 0) {
+    throw codedError('Task tab id is invalid.', 'TASK_TAB_UNAVAILABLE');
+  }
   if (typeof chromeApi.tabs.get === 'function') {
-    const tab = await chromeApi.tabs.get(tabId);
-    return assertSupportedTab(tab);
+    try {
+      const tab = await chromeApi.tabs.get(tabId);
+      return assertSupportedTab(tab);
+    } catch (error) {
+      if (error?.code === 'UNSUPPORTED_TASK_TAB' || error?.code === 'TASK_TAB_UNAVAILABLE') throw error;
+      throw codedError('The browser tab for this Sightline task is no longer available.', 'TASK_TAB_UNAVAILABLE');
+    }
   }
   return { id: tabId };
 }
