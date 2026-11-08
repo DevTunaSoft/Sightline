@@ -85,3 +85,21 @@ export async function executeOnActiveTab(args, chromeApi = chrome) {
   const tab = await getActiveTab(chromeApi);
   return executeOnTab(tab.id, args, chromeApi);
 }
+
+
+export async function captureTaskTabFrame(tabId, chromeApi = chrome) {
+  const tab = await getTaskTab(tabId, chromeApi);
+  if (tab.active !== true) {
+    throw codedError('Vision fallback requires the Sightline task tab to be the visible active tab.', 'VISION_TAB_NOT_ACTIVE');
+  }
+  if (typeof chromeApi.tabs.captureVisibleTab !== 'function') {
+    throw codedError('Browser screenshot capture is unavailable.', 'VISION_CAPTURE_UNAVAILABLE');
+  }
+  const dataUrl = await chromeApi.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 65 });
+  const match = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!match) throw codedError('Browser returned an invalid screenshot.', 'VISION_CAPTURE_INVALID');
+  if (match[1].length > 6_000_000) {
+    throw codedError('Screenshot exceeds Sightline vision input budget.', 'VISION_CAPTURE_TOO_LARGE');
+  }
+  return { tabId, imageBase64: match[1] };
+}
