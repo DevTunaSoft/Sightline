@@ -149,6 +149,12 @@ export async function runBrowserTask({
       : null;
     return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint: checkpoint });
   } catch (error) {
-    return { ok: false, code: error?.code || 'TASK_ERROR', error: String(error?.message || error), timeline: [] };
+    const cancelled = signal?.aborted || error?.name === 'AbortError';
+    return {
+      ok: false,
+      code: cancelled ? 'TASK_CANCELLED' : (typeof error?.code === 'string' ? error.code : 'TASK_ERROR'),
+      error: cancelled ? 'Task cancelled.' : String(error?.message || error),
+      timeline: [],
+    };
   }
 }
