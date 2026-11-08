@@ -4,6 +4,12 @@ const HIGH_IMPACT_PATTERN = /\b(delete|remove|trash|erase|send|submit|publish|po
 const CRITICAL_DESTRUCTIVE_PATTERN = /\b(empty\s+trash|delete\s+forever|permanent(?:ly)?\s+delete|purge|erase\s+forever)\b/i;
 const EXPLICIT_CRITICAL_INTENT = /\b(empty|clear|purge)\b.{0,30}\btrash\b|\b(delete|erase)\b.{0,20}\b(permanently|forever)\b|\bpermanent(?:ly)?\s+delete\b/i;
 
+function crossOriginLinkActivation(action, target, currentUrl) {
+  if (action?.action !== 'click' || target?.role !== 'link' || !target?.state?.hrefOrigin || !currentUrl) return false;
+  try { return new URL(target.state.hrefOrigin).origin !== new URL(currentUrl).origin; }
+  catch { return true; }
+}
+
 function crossOriginNavigation(action, currentUrl) {
   if (action?.action !== 'navigate' || !currentUrl) return false;
   try { return new URL(action.url).origin !== new URL(currentUrl).origin; }
@@ -29,7 +35,7 @@ export function classifyActionRisk(action, target = {}, context = {}) {
   if (action.action === 'click' && HIGH_IMPACT_PATTERN.test(label)) {
     return { level: 'high', reason: 'Target appears to perform a consequential action.' };
   }
-  if (crossOriginNavigation(action, context.currentUrl)) {
+  if (crossOriginNavigation(action, context.currentUrl) || crossOriginLinkActivation(action, target, context.currentUrl)) {
     return { level: 'high', reason: 'Navigation leaves the current website origin.' };
   }
   if (action.action === 'navigate') return { level: 'normal', reason: 'Navigation stays on the current website origin.' };
