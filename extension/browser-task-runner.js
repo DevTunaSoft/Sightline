@@ -2,6 +2,7 @@ import { runTaskLoop } from './task-loop-core.js';
 import { observeActiveTab, executeOnActiveTab } from './browser-bridge.js';
 import { planNextAction } from './planner-client.js';
 import { detectSkillBlocker } from './skill-blockers.js';
+import { skillPlannerContext } from './skill-registry.js';
 
 export async function runBrowserTask({
   goal, model, mode = 'assist', chromeApi = chrome, fetchImpl = fetch,
@@ -36,7 +37,12 @@ export async function runBrowserTask({
   const execute = async (action, { snapshot }) => {
     let result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode, taskGoal: goal }, chromeApi);
     if (result?.code === 'CONFIRMATION_REQUIRED' && typeof confirmAction === 'function') {
-      const confirmed = await confirmAction({ action, target: result.target, risk: result.risk, snapshotId: snapshot.snapshotId });
+      const skillContext = skillPlannerContext(snapshot.url, snapshot);
+      const confirmed = await confirmAction({
+        action, target: result.target, risk: result.risk, snapshotId: snapshot.snapshotId,
+        skill: skillContext ? { id: skillContext.id, name: skillContext.name } : null,
+        preview: skillContext?.pageHints || null,
+      });
       if (confirmed) result = await executeOnActiveTab({
         action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
       }, chromeApi);
