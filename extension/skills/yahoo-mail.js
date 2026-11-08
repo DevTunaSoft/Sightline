@@ -62,6 +62,41 @@ export const yahooMailSkill = Object.freeze({
       messageSamples,
     };
   },
+  verifyActionEffect({ action, target, before, after } = {}) {
+    const label = String(target?.name || '').trim();
+    if (action?.action !== 'click' || !/move.*trash|\btrash\b|\bdelete\b/i.test(label)) {
+      return { applicable: false, verified: null, evidence: [] };
+    }
+    const beforeHints = this.analyzeSnapshot(before || {});
+    const afterHints = this.analyzeSnapshot(after || {});
+    const evidence = [];
+    let verified = null;
+
+    if (Number.isFinite(beforeHints.visibleCount) && Number.isFinite(afterHints.visibleCount)) {
+      if (afterHints.visibleCount < beforeHints.visibleCount) {
+        verified = true;
+        evidence.push(`visible result count decreased from ${beforeHints.visibleCount} to ${afterHints.visibleCount}`);
+      } else if (afterHints.visibleCount === beforeHints.visibleCount) {
+        evidence.push(`visible result count remained ${afterHints.visibleCount}`);
+      }
+    }
+
+    const afterText = String(after?.visibleText || '');
+    if (/moved?.{0,40}trash|sent to trash|moved selected|conversation(?:s)? moved/i.test(afterText)) {
+      verified = true;
+      evidence.push('Yahoo displayed a move-to-Trash success signal');
+    }
+
+    const beforeNames = new Set(beforeHints.messageSamples.map(item => item.name.toLowerCase()));
+    const afterNames = new Set(afterHints.messageSamples.map(item => item.name.toLowerCase()));
+    const removedSamples = [...beforeNames].filter(name => !afterNames.has(name));
+    if (removedSamples.length > 0) {
+      if (verified !== true) verified = true;
+      evidence.push(`${removedSamples.length} sampled message(s) disappeared from the result view`);
+    }
+
+    return { applicable: true, verified, evidence: evidence.slice(0, 5), before: beforeHints, after: afterHints };
+  },
   detectBlocker(snapshot) {
     const text = String(snapshot?.visibleText || '').toLowerCase();
     const elements = Array.isArray(snapshot?.elements) ? snapshot.elements : [];
