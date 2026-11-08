@@ -60,3 +60,33 @@ test('vision fallback count is bounded and survives checkpoint round trip', () =
   const cp=createTaskCheckpoint({taskId:'t-vision',goal:'Inspect',visionFallbacksUsed:99});
   assert.equal(cp.visionFallbacksUsed,2);
 });
+
+
+test('checkpoint revisions increase monotonically for the same task', async () => {
+  const chromeApi=fakeChrome();
+  const first=await saveTaskCheckpoint({taskId:'t-rev',goal:'x'},chromeApi);
+  const second=await saveTaskCheckpoint({...first,actionsUsed:1},chromeApi);
+  assert.equal(first.revision,1);
+  assert.equal(second.revision,2);
+  assert.equal((await loadTaskCheckpoint(chromeApi)).revision,2);
+});
+
+test('clear is serialized after pending save and cannot resurrect cancelled task', async () => {
+  const data={};
+  let releaseSet;
+  const gate=new Promise(resolve=>{releaseSet=resolve;});
+  let firstSet=true;
+  const chromeApi={storage:{session:{
+    async get(key){ return { [key]: data[key] }; },
+    async set(values){
+      if(firstSet){ firstSet=false; await gate; }
+      Object.assign(data,values);
+    },
+    async remove(key){ delete data[key]; },
+  }}};
+  const save=saveTaskCheckpoint({taskId:'t-race',goal:'x'},chromeApi);
+  const clear=clearTaskCheckpoint(chromeApi);
+  releaseSet();
+  await Promise.all([save,clear]);
+  assert.equal(await loadTaskCheckpoint(chromeApi),null);
+});
