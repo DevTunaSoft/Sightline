@@ -21,6 +21,24 @@ export const yahooMailSkill = Object.freeze({
     'If login, MFA, CAPTCHA, account recovery, or security challenge is shown, stop and hand control to the user.',
   ]),
   destructiveLabels: Object.freeze(['Delete', 'Trash', 'Move to Trash', 'Empty Trash', 'Delete forever']),
+  detectBlocker(snapshot) {
+    const text = String(snapshot?.visibleText || '').toLowerCase();
+    const elements = Array.isArray(snapshot?.elements) ? snapshot.elements : [];
+    const hasSensitive = elements.some(element => element?.sensitive === true);
+    if (/captcha|prove you(?:'|’)re not a robot|verify you(?:'|’)re human/.test(text)) {
+      return { code: 'CAPTCHA_REQUIRED', reason: 'Yahoo is requesting a human verification challenge.' };
+    }
+    if (/account recovery|recover your account|security challenge|unusual activity/.test(text)) {
+      return { code: 'ACCOUNT_CHALLENGE', reason: 'Yahoo is requesting an account/security recovery step.' };
+    }
+    if (/verification code|two-step verification|two factor|2-step|one-time code/.test(text)) {
+      return { code: 'MFA_REQUIRED', reason: 'Yahoo is requesting multi-factor authentication.' };
+    }
+    if (hasSensitive && /sign in|login|enter your password|password/.test(text)) {
+      return { code: 'LOGIN_REQUIRED', reason: 'Yahoo requires the user to sign in manually.' };
+    }
+    return null;
+  },
 });
 
 export function buildYahooSearchIntent({ sender = '', terms = '', olderThan = '', newerThan = '' } = {}) {
