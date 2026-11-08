@@ -343,3 +343,22 @@ test('resumed task cannot reset exhausted vision budget', async () => {
   assert.equal(result.code,'VISION_FALLBACK_EXHAUSTED');
   assert.equal(captures,0);
 });
+
+
+test('aborted browser task returns stable TASK_CANCELLED code', async () => {
+  const controller=new AbortController();
+  controller.abort(new DOMException('User paused task','AbortError'));
+  const result=await runBrowserTask({
+    goal:'pause me',
+    model:'gemma3:4b',
+    signal:controller.signal,
+    chromeApi:{
+      tabs:{query:async()=>[{id:7,url:'https://example.com/',active:true,windowId:1}]},
+      scripting:{executeScript:async()=>{}},
+    },
+    fetchImpl:async()=>{ throw new Error('planner must not run after cancellation'); },
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'TASK_CANCELLED');
+  assert.match(result.error,/cancelled/i);
+});
