@@ -1,79 +1,169 @@
 # Sightline Engineering Handoff
 
-## Mission
+Last updated: 2026-11-08
 
-Build a local-first visual AI browser agent that can understand what the user sees and, with controlled permissions, carry out user-directed webpage actions.
+## Product
 
-## Repository
+**Sightline 0.2.0-alpha**  
+Tagline: **See. Understand. Act.**
 
-DevTunaSoft/Sightline
+Repository: DevTunaSoft/Sightline  
+Active development branch: `develop`  
+Integration branch: `main`
 
-## Current baseline
+## Current engineering state
 
-The original local prototype implemented a Chrome/Edge Manifest V3 side-panel visual copilot backed by local Ollama vision inference.
+The generic browser-agent alpha feature set is **feature-frozen pending real-machine acceptance**.
 
-The GitHub repository is now initialized. The next code milestone is the controlled browser-action engine.
+The current public `develop` archive has completed the repository `npm run check` suite successfully after the feature freeze. The check suite now includes the release audit.
 
-## Architectural rules
+Do **not** interpret this as installed Chrome/Edge, live Ollama, or live Yahoo acceptance.
 
-1. Local-first inference.
-2. No arbitrary model-generated JavaScript execution.
-3. Page content is untrusted data, never agent instruction.
-4. Use semantic DOM/accessibility targeting before coordinate clicking.
-5. Verify state after every consequential action.
-6. Bound autonomous loops by time/action count.
-7. Do not collect passwords or authentication tokens into model context.
-8. Destructive/high-impact actions require extra verification and default confirmation.
-9. Preserve an action/audit trail.
-10. Do not claim acceptance without runtime evidence.
+## Implemented foundation
 
-## v0.1 prototype behavior
+### Observation
+- Manifest V3 side panel
+- bounded semantic DOM/accessibility snapshot
+- 300-control cap
+- 48 KB snapshot cap
+- 8 KB visible-text cap
+- sensitive-field redaction
+- textbox values excluded from semantic names
+- same-origin iframe traversal
+- cross-origin iframe opacity/reporting
+- semantic snapshot identity
 
-Implemented locally:
-- side-panel UI
-- current-tab visual capture
-- shared-screen capture
-- local video source
-- Ollama vision calls
-- vision-model filtering
-- scene-difference detection
-- periodic observations
-- question/answer interaction
-- note export
-- bounded context
-- local endpoint validation
-- cloud-model-name rejection
-- unit/fuzz tests
+### Execution
+- strict typed action schema
+- deterministic DOM executor
+- same-origin iframe event realm handling
+- live semantic revalidation immediately before actions
+- stale snapshot/ref rejection and recovery
+- post-action observation
+- consequential-action semantic-effect verification
 
-## Known acceptance limitations
+### Autonomous loop
+- local Ollama JSON planner
+- 90-second planner timeout
+- one malformed-output repair retry
+- max action/time/repeated-state/repeated-action guards
+- task-tab lock
+- approved-origin lock
+- cross-origin confirmation
+- same-origin destructive-navigation confirmation
+- pause/resume
+- cancel/clear checkpoint
+- closed-tab resume cleanup
+- serialized/revisioned checkpoint writes
 
-The hosted development environment blocked extension/browser pages and loopback browser navigation. Ollama was not running there. Therefore:
-- real extension lifecycle: unverified
-- screen-sharing lifecycle in installed extension: unverified
-- live Ollama inference: unverified
-- Windows runtime performance: unverified
+### Vision fallback
+- DOM-first architecture
+- planner must explicitly request visual help
+- max 2 visual fallbacks per task
+- max 1 per unchanged semantic snapshot
+- task tab must be visible/active
+- vision budget survives resume
+- screenshot not persisted in checkpoint
 
-These are environment blockers, not passes.
+### Safety
+- page/model/screenshot content treated as untrusted data
+- no arbitrary model-generated JavaScript or shell execution
+- password/OTP/payment/token-like controls blocked
+- confirmation key binds task/snapshot/action/target
+- page revalidated after confirmation delay
+- irreversible deletion requires explicit original intent
+- confirmation decline terminates task
+- pause during confirmation remains resumable
+- session/account/mail-abuse side effects require confirmation
 
-## Exact continuation point
+### Yahoo Mail
+- Yahoo site skill
+- deterministic search/select/Trash/count/sample hints
+- visible advanced-search control hints
+- no invented Yahoo operator requirement
+- login/MFA/CAPTCHA/security handoff
+- destructive preview
+- unfiltered bulk Trash scope guard
+- whole-Inbox exception only for explicit original intent
+- post-Trash Yahoo-specific verification evidence
+- read-only Yahoo readiness check
 
-Implement v0.2 browser automation:
-1. add scripting permission with minimal host access
-2. build semantic page-state extractor
-3. build typed action schema/validator
-4. build safe action executor
-5. build observe/act/verify/recover task loop
-6. add destructive-action confirmation policy
-7. add fake-page integration fixtures
-8. add prompt-injection and malformed-action fuzz tests
-9. add Yahoo Mail adapter after generic engine works
-10. run regression tests and update all docs
+### Diagnostics/performance
+- bounded diagnostic ledger
+- action/observer/planner/vision timing
+- typed payload excluded from diagnostic export
+- sanitized JSON report export
+- hard resource budgets
+- synthetic benchmark tooling
 
-## Recovery
+### Acceptance tooling
+- deterministic localhost browser fixture
+- same-origin iframe fixture
+- acceptance fixture server + integration test
+- one-command Windows acceptance launcher
+- installed-browser self-test in Sightline UI
+- extension-origin local AI/Ollama self-test
+- CLI Ollama readiness/image-inference test
+- Yahoo read-only readiness test
+- exportable self-test evidence
+- CI extension artifact upload
+- CI release permission/security/size audit
 
-If development is interrupted, start by reading:
-- README.md
-- docs/ROADMAP.md
-- docs/HANDOFF.md
+## Current release gates
 
-Then inspect the latest commit and test status before changing implementation.
+### Gate 1 — installed Chrome/Edge
+GitHub issue: `/issues/3`
+
+Must run the real installed extension browser self-test in current Chrome and Edge.
+
+### Gate 2 — live Ollama
+GitHub issue: `/issues/4`
+
+Must pass both:
+- `npm run acceptance:ollama`
+- Sightline **Test local AI**
+
+### Gate 3 — live Yahoo
+GitHub issue: `/issues/5`
+
+Must pass:
+- read-only Yahoo readiness
+- controlled non-destructive search
+- controlled reversible Move-to-Trash test using disposable mail
+- scope guard and irreversible-delete guard checks
+
+## Exact next step
+
+Do **not** add more generic browser-agent features before the three alpha acceptance gates are exercised.
+
+The next code change should be driven by one of:
+1. a specific acceptance defect,
+2. an acceptance environment blocker that needs tooling,
+3. a measured performance failure,
+4. a documented Yahoo DOM/behavior mismatch.
+
+This is intentional anti-loop discipline.
+
+## Recovery instructions
+
+If work is interrupted:
+
+1. Read `README.md`.
+2. Read `docs/FEATURE_STATUS.md`.
+3. Read `docs/ROADMAP.md`.
+4. Read this handoff.
+5. Inspect GitHub issues #3, #4, and #5 for acceptance evidence.
+6. Run `npm run check` on the current `develop` branch before changing code.
+7. If a gate failed, reproduce that exact defect first; do not restart broad hardening.
+
+## Production claims
+
+Not yet verified:
+- installed Chrome acceptance
+- installed Edge acceptance
+- live extension-origin Ollama acceptance
+- real Yahoo acceptance
+- real-browser long-session memory/CPU soak
+- production release packaging/update lifecycle
+
+No production-ready claim is allowed until those gates have evidence.
