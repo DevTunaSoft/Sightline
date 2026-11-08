@@ -1,11 +1,12 @@
 import { observeActiveTab } from './browser-bridge.js';
 import { runBrowserTask } from './browser-task-runner.js';
 import { runBrowserAcceptanceSelfTest } from './browser-self-test.js';
+import { runLocalAIBrowserSelfTest } from './local-ai-self-test.js';
 import { saveTaskCheckpoint, loadTaskCheckpoint, clearTaskCheckpoint } from './task-checkpoint.js';
 
 const byId = id => document.getElementById(id);
 const ui = {
-  tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'),
+  tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'), aiTest: byId('localAiSelfTestBtn'),
   observe: byId('observePageBtn'), selfTest: byId('browserSelfTestBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
   progress: byId('agentProgress'), report: byId('exportAgentReportBtn'), card: byId('confirmCard'), text: byId('confirmText'),
   confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
@@ -17,6 +18,7 @@ function sync() {
   ui.run.disabled = state.running;
   ui.observe.disabled = state.running;
   ui.selfTest.disabled = state.running;
+  ui.aiTest.disabled = state.running;
   ui.stop.disabled = !state.running;
   ui.taskCancel.disabled = !state.running;
   ui.report.disabled = state.running || !state.lastReport;
@@ -160,6 +162,40 @@ async function restoreInterruptedTask() {
     sync();
   } catch (error) {
     addProgress('Checkpoint', `Could not restore prior task: ${error.message}`);
+  }
+}
+
+async function runLocalAISelfTest() {
+  if (state.running) return;
+  state.running = true;
+  state.lastReport = null;
+  clearProgress('Testing extension-to-Ollama connection and local vision inference…');
+  sync();
+  try {
+    const report = await runLocalAIBrowserSelfTest({ model: ui.model.value }, fetch);
+    state.lastReport = {
+      version: 1,
+      type: 'local-ai-self-test',
+      generatedAt: new Date().toISOString(),
+      outcome: { ok: report.ok === true, code: report.code || null },
+      model: report.model || null,
+      inferenceMs: Number.isFinite(report.inferenceMs) ? report.inferenceMs : null,
+      responseChars: Number.isFinite(report.responseChars) ? report.responseChars : null,
+      checks: (report.checks || []).map(check => ({
+        name: String(check.name || '').slice(0, 120),
+        ok: check.ok === true,
+        detail: String(check.detail || '').slice(0, 300),
+      })),
+    };
+    for (const check of report.checks || []) {
+      addProgress(check.ok ? 'PASS' : 'FAIL', `${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
+    }
+    addProgress(report.ok ? 'Local AI ready' : 'Local AI test stopped', report.code || (report.ok ? 'PASS' : 'FAIL'));
+  } catch (error) {
+    addProgress('Local AI test error', error.message);
+  } finally {
+    state.running = false;
+    sync();
   }
 }
 
@@ -310,6 +346,7 @@ function cancelTask() {
 if (Object.values(ui).some(value => !value)) throw new Error('Sightline browser-agent UI is incomplete.');
 ui.observe.addEventListener('click', () => void observePage());
 ui.selfTest.addEventListener('click', () => void runBrowserSelfTest());
+ui.aiTest.addEventListener('click', () => void runLocalAISelfTest());
 ui.run.addEventListener('click', () => void runTask());
 ui.stop.addEventListener('click', pauseTask);
 ui.taskCancel.addEventListener('click', cancelTask);
