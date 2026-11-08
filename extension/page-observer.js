@@ -4,6 +4,7 @@ import {
   inferElementRole,
   isSensitiveField,
   boundSnapshot,
+  createBoundedTextCollector,
 } from './page-observer-core.js';
 
 const INTERACTIVE_SELECTOR = [
@@ -18,6 +19,26 @@ function isVisible(element) {
   if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0;
+}
+
+function collectBoundedPageText(root, maxChars) {
+  if (!root) return '';
+  const collector = createBoundedTextCollector(maxChars);
+  const doc = root.ownerDocument || document;
+  const nodeFilter = doc.defaultView?.NodeFilter || globalThis.NodeFilter;
+  if (!doc.createTreeWalker || !nodeFilter) return collector.value();
+  const walker = doc.createTreeWalker(root, nodeFilter.SHOW_TEXT);
+  const skippedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+  let node = walker.nextNode();
+  while (node && !collector.full) {
+    const parent = node.parentElement;
+    if (parent && !skippedTags.has(parent.tagName) && !parent.closest?.('[hidden],[aria-hidden="true"]')) {
+      const rects = typeof parent.getClientRects === 'function' ? parent.getClientRects() : null;
+      if (!rects || rects.length > 0) collector.push(node.nodeValue);
+    }
+    node = walker.nextNode();
+  }
+  return collector.value();
 }
 
 function accessibleName(element, maxLength) {
@@ -81,7 +102,7 @@ export function buildPageSnapshot(options = {}) {
     version: 1,
     url: location.href,
     title: cleanPageText(document.title, 300),
-    visibleText: cleanPageText(document.body?.innerText || '', limits.maxVisibleTextChars),
+    visibleText: collectBoundedPageText(document.body, limits.maxVisibleTextChars),
     viewport: { width: innerWidth, height: innerHeight },
     truncated,
     elements,
