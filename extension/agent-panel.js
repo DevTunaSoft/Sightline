@@ -231,7 +231,11 @@ async function runTask() {
       state.resume = null; state.checkpoint = null; state.taskId = null;
     } else {
       const cancelledTask = result.code === 'TASK_CANCELLED';
-      if (cancelledTask && state.stopIntent === 'cancel') {
+      if (result.code === 'USER_DECLINED_ACTION') {
+        addProgress('Stopped', 'You declined the requested consequential action. This task is closed.');
+        try { await clearTaskCheckpoint(chrome); } catch {}
+        state.resume = null; state.checkpoint = null; state.taskId = null;
+      } else if (cancelledTask && state.stopIntent === 'cancel') {
         addProgress('Cancelled', 'Task checkpoint cleared.');
         try { await clearTaskCheckpoint(chrome); } catch {}
         state.resume = null; state.checkpoint = null; state.taskId = null;
