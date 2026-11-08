@@ -33,6 +33,8 @@ test('controller returns confirmation requirement and executes only after explic
   await controller.handle({type:'SIGHTLINE_OBSERVE'});
   const blocked=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'}});
   assert.equal(blocked.code,'CONFIRMATION_REQUIRED');
-  const confirmed=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'},confirmed:true});
+  const wrong=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'},confirmed:true,confirmationKey:'wrong'});
+  assert.equal(wrong.code,'CONFIRMATION_REQUIRED');
+  const confirmed=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'},confirmed:true,confirmationKey:blocked.confirmationKey});
   assert.equal(confirmed.ok,true);
 });
