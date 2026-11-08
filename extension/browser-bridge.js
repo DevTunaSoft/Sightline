@@ -18,16 +18,14 @@ export async function ensurePageAgent(tabId, chromeApi = chrome) {
   try {
     const response = await chromeApi.tabs.sendMessage(tabId, { type: 'SIGHTLINE_PING' });
     if (response?.ok) return response;
-  } catch {
-    // Agent is not loaded yet or navigation replaced it.
-  }
+  } catch {}
   await chromeApi.scripting.executeScript({ target: { tabId }, files: ['page-agent-bootstrap.js'] });
   for (let attempt = 0; attempt < 10; attempt += 1) {
     await new Promise(resolve => setTimeout(resolve, 20));
     try {
       const response = await chromeApi.tabs.sendMessage(tabId, { type: 'SIGHTLINE_PING' });
       if (response?.ok) return response;
-    } catch { /* retry briefly while module loads */ }
+    } catch {}
   }
   throw new Error('Sightline page agent did not become ready.');
 }
@@ -40,10 +38,10 @@ export async function observeActiveTab(chromeApi = chrome) {
   return { tabId: tab.id, ...result };
 }
 
-export async function executeOnActiveTab({ action, snapshotId, mode = 'assist', confirmed = false, confirmationKey = null }, chromeApi = chrome) {
+export async function executeOnActiveTab({ action, snapshotId, mode = 'assist', confirmed = false, confirmationKey = null, taskGoal = '' }, chromeApi = chrome) {
   const tab = await getActiveTab(chromeApi);
   await ensurePageAgent(tab.id, chromeApi);
   return chromeApi.tabs.sendMessage(tab.id, {
-    type: 'SIGHTLINE_EXECUTE', action, snapshotId, mode, confirmed: confirmed === true, confirmationKey,
+    type: 'SIGHTLINE_EXECUTE', action, snapshotId, mode, confirmed: confirmed === true, confirmationKey, taskGoal: String(taskGoal || '').slice(0, 2000),
   });
 }
