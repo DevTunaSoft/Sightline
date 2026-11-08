@@ -48,3 +48,24 @@ test('Yahoo analyzer never samples sensitive fields or navigation chrome', () =>
   });
   assert.deepEqual(analysis.messageSamples, [{ ref: '@e3', role: 'link', name: 'Real subject from sender' }]);
 });
+
+
+test('Yahoo Trash verification accepts count decrease and success signal', () => {
+  const before={url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[
+    {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
+    {ref:'@e2',role:'link',name:'Amazon order shipped yesterday',sensitive:false},
+  ]};
+  const after={url:before.url,visibleText:'10 messages. Selected messages moved to Trash.',elements:[]};
+  const result=yahooMailSkill.verifyActionEffect({action:{action:'click',ref:'@e1'},target:before.elements[0],before,after});
+  assert.equal(result.applicable,true);
+  assert.equal(result.verified,true);
+  assert.ok(result.evidence.some(item=>/count decreased|success signal/.test(item)));
+});
+
+test('Yahoo Trash verification remains inconclusive when only unrelated state changed', () => {
+  const before={url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
+  const after={url:before.url,visibleText:'12 messages',elements:[{ref:'@e9',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
+  const result=yahooMailSkill.verifyActionEffect({action:{action:'click',ref:'@e1'},target:before.elements[0],before,after});
+  assert.equal(result.applicable,true);
+  assert.equal(result.verified,null);
+});
