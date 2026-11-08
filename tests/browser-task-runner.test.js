@@ -228,3 +228,26 @@ test('confirmed cross-origin navigate adds only the approved destination origin'
   assert.equal(result.ok,true);
   assert.equal(result.result,'arrived');
 });
+
+
+test('resumed task with closed original tab stops before planner', async () => {
+  let plannerCalls=0;
+  const chromeApi={
+    tabs:{
+      get:async()=>{ throw new Error('No tab with id: 77'); },
+      query:async()=>[{id:99,url:'https://example.com/'}],
+      sendMessage:async()=>{ throw new Error('should not message closed tab'); },
+    },
+    scripting:{executeScript:async()=>{ throw new Error('should not inject closed tab'); }},
+  };
+  const result=await runBrowserTask({
+    goal:'resume old task',
+    model:'gemma3:4b',
+    chromeApi,
+    resume:{tabId:77,taskOrigin:'https://mail.yahoo.com',actionsUsed:2,timeline:[]},
+    fetchImpl:async()=>{ plannerCalls+=1; throw new Error('planner should not run'); },
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'TASK_TAB_UNAVAILABLE');
+  assert.equal(plannerCalls,0);
+});
