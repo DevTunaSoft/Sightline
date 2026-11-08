@@ -11,16 +11,41 @@ export async function runBrowserTask({
   let cachedSnapshot = null;
   let lastConfirmedContext = null;
   let taskTabId = Number.isInteger(resume?.tabId) && resume.tabId > 0 ? resume.tabId : null;
+  let taskOrigin = typeof resume?.taskOrigin === 'string' && resume.taskOrigin ? resume.taskOrigin : null;
+  const approvedOrigins = new Set(taskOrigin ? [taskOrigin] : []);
+  function assertAllowedOrigin(snapshot) {
+    let origin;
+    try { origin = new URL(snapshot?.url || '').origin; }
+    catch {
+      const error = new Error('Observed page URL is invalid.');
+      error.code = 'INVALID_PAGE_URL';
+      throw error;
+    }
+    if (!taskOrigin) {
+      taskOrigin = origin;
+      approvedOrigins.add(origin);
+      return origin;
+    }
+    if (!approvedOrigins.has(origin)) {
+      const error = new Error(`Task tab moved from ${taskOrigin} to unapproved origin ${origin}.`);
+      error.code = 'UNAPPROVED_ORIGIN_CHANGE';
+      throw error;
+    }
+    return origin;
+  }
+
   const observe = async () => {
     if (cachedSnapshot) {
       const snapshot = cachedSnapshot;
       cachedSnapshot = null;
+      assertAllowedOrigin(snapshot);
       const blocker = detectSkillBlocker(snapshot);
       if (blocker) { const error = new Error(blocker.reason); error.code = blocker.code; throw error; }
       return snapshot;
     }
     const observed = taskTabId == null ? await observeActiveTab(chromeApi) : await observeTab(taskTabId, chromeApi);
     if (taskTabId == null) taskTabId = observed.tabId;
+    assertAllowedOrigin(observed.snapshot);
     const blocker = detectSkillBlocker(observed.snapshot);
     if (blocker) {
       const error = new Error(blocker.reason);
@@ -48,6 +73,11 @@ export async function runBrowserTask({
       });
       if (confirmed) {
         lastConfirmedContext = { action, target: result.target || null, before: snapshot };
+        if (action?.action === 'navigate') {
+          try { approvedOrigins.add(new URL(action.url).origin); } catch {}
+        } else if (action?.action === 'click' && result.target?.state?.hrefOrigin) {
+          try { approvedOrigins.add(new URL(result.target.state.hrefOrigin).origin); } catch {}
+        }
         result = await executeOnTab(taskTabId, {
           action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
         }, chromeApi);
@@ -69,7 +99,7 @@ export async function runBrowserTask({
   const verify = async ({ receipt }) => ({ ok: receipt?.ok === true });
   try {
     const checkpoint = typeof onCheckpoint === 'function'
-      ? state => onCheckpoint({ ...state, tabId: taskTabId })
+      ? state => onCheckpoint({ ...state, tabId: taskTabId, taskOrigin })
       : null;
     return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint: checkpoint });
   } catch (error) {
