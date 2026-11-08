@@ -59,12 +59,22 @@ function resolveConfirmation(value) {
   if (pending) pending(Boolean(value));
 }
 
-function requestConfirmation({ action, target, risk }) {
+function requestConfirmation({ action, target, risk, skill, preview }) {
   if (state.pendingConfirmation) resolveConfirmation(false);
   return new Promise(resolve => {
     state.pendingConfirmation = resolve;
     const targetName = target?.name || target?.role || action?.ref || 'this control';
-    ui.text.textContent = `${risk?.reason || 'This action may have an external effect.'} Requested: ${action?.action || 'action'} on “${targetName}”.`;
+    const parts = [
+      risk?.reason || 'This action may have an external effect.',
+      `Requested: ${action?.action || 'action'} on “${targetName}”.`,
+    ];
+    if (skill?.name && preview) {
+      if (Number.isFinite(preview.visibleCount)) parts.push(`${skill.name} currently shows ${preview.visibleCount} matching messages/results.`);
+      if (Array.isArray(preview.messageSamples) && preview.messageSamples.length) {
+        parts.push(`Sample: ${preview.messageSamples.slice(0, 3).map(item => item.name).join(' | ')}`);
+      }
+    }
+    ui.text.textContent = parts.join(' ');
     ui.card.hidden = false;
   });
 }
