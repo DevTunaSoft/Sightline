@@ -42,3 +42,12 @@ test('confirmation key is also bound to original task authorization context', ()
   const b=actionConfirmationKey('s1',action,target,{taskGoal:'Delete old mail'});
   assert.notEqual(a,b);
 });
+
+
+test('cross-origin link clicks require confirmation using origin-only target state', () => {
+  const action={action:'click',ref:'@e1'};
+  const target={ref:'@e1',role:'link',name:'Continue',state:{hrefOrigin:'https://example.org'}};
+  const risk=classifyActionRisk(action,target,{currentUrl:'https://mail.yahoo.com/inbox'});
+  assert.equal(risk.level,'high');
+  assert.equal(gateAction(action,target,'assist',{currentUrl:'https://mail.yahoo.com/inbox'}).confirmationRequired,true);
+});
