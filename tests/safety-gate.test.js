@@ -68,3 +68,12 @@ test('destructive-looking same-origin navigation requires confirmation', () => {
     'normal'
   );
 });
+
+
+test('session and mail-abuse controls are consequential', () => {
+  for (const name of ['Sign out','Log out','Block sender','Report spam']) {
+    const gate=gateAction({action:'click',ref:'@e1'},{name,role:'button'},'assist');
+    assert.equal(gate.allowed,false,name);
+    assert.equal(gate.confirmationRequired,true,name);
+  }
+});
