@@ -60,14 +60,52 @@ export function snapshotIdentity(snapshot) {
   return `s1-${fnv1aHash(JSON.stringify(stable))}`;
 }
 
+function finalizeCandidate(base, elements, visibleText, truncated) {
+  const candidate = { ...base, elements, visibleText, truncated };
+  candidate.snapshotId = snapshotIdentity(candidate);
+  return candidate;
+}
+
+function serializedLength(value) {
+  return JSON.stringify(value).length;
+}
+
 export function boundSnapshot(snapshot, maxChars = PAGE_OBSERVER_LIMITS.maxSnapshotChars) {
-  const bounded = { ...snapshot, elements: [...(snapshot.elements || [])] };
-  let serialized = JSON.stringify(bounded);
-  while (bounded.elements.length && serialized.length > maxChars) {
-    bounded.elements.pop();
-    bounded.truncated = true;
-    serialized = JSON.stringify(bounded);
+  const allElements = [...(snapshot.elements || [])];
+  const originalText = String(snapshot.visibleText || '');
+  const base = { ...snapshot };
+  delete base.elements;
+  delete base.visibleText;
+  delete base.snapshotId;
+
+  let visibleText = originalText;
+  let empty = finalizeCandidate(base, [], visibleText, Boolean(snapshot.truncated || allElements.length));
+
+  if (serializedLength(empty) > maxChars && visibleText) {
+    let low = 0;
+    let high = visibleText.length;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      const candidate = finalizeCandidate(base, [], visibleText.slice(0, mid), true);
+      if (serializedLength(candidate) <= maxChars) low = mid;
+      else high = mid - 1;
+    }
+    visibleText = visibleText.slice(0, low);
+    empty = finalizeCandidate(base, [], visibleText, true);
   }
-  bounded.snapshotId = snapshotIdentity(bounded);
-  return bounded;
+
+  if (!allElements.length || serializedLength(finalizeCandidate(base, allElements, visibleText, Boolean(snapshot.truncated))) <= maxChars) {
+    return finalizeCandidate(base, allElements, visibleText, Boolean(snapshot.truncated));
+  }
+
+  let low = 0;
+  let high = allElements.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    const candidate = finalizeCandidate(base, allElements.slice(0, mid), visibleText, true);
+    if (serializedLength(candidate) <= maxChars) low = mid;
+    else high = mid - 1;
+  }
+
+  return finalizeCandidate(base, allElements.slice(0, low), visibleText, true);
 }
