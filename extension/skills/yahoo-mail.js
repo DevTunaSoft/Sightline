@@ -71,6 +71,34 @@ export const yahooMailSkill = Object.freeze({
       messageSamples,
     };
   },
+  checkDestructiveScope({ goal, snapshot, action, target } = {}) {
+    const label = String(target?.name || '');
+    const isTrashAction = action?.action === 'click' && /move.*trash|\btrash\b|\bdelete\b/i.test(label);
+    if (!isTrashAction) return { applicable: false, allowed: true };
+
+    const text = String(snapshot?.visibleText || '');
+    const path = (() => { try { return new URL(snapshot?.url || '').pathname; } catch { return ''; } })();
+    const searchEvidence = /\/search(?:\/|$)/i.test(path) ||
+      /\bsearch\s+results?\b|\bresults?\s+for\b|\bmatching\s+(?:messages?|mail)\b/i.test(text);
+    const explicitWholeInbox = /\bentire\s+inbox\b|\bempty\s+(?:my\s+)?inbox\b|\b(?:delete|trash|remove)\s+(?:all|every)\s+(?:messages?|emails?|mail)\s+(?:in|from)\s+(?:my\s+)?inbox\b/i.test(String(goal || ''));
+
+    if (!searchEvidence && !explicitWholeInbox) {
+      return {
+        applicable: true,
+        allowed: false,
+        code: 'DESTRUCTIVE_SCOPE_UNVERIFIED',
+        reason: 'Yahoo Trash action is not visibly scoped to search/filter results. Refusing a potentially Inbox-wide bulk action.',
+      };
+    }
+    return {
+      applicable: true,
+      allowed: true,
+      scope: searchEvidence ? 'search-results' : 'explicit-whole-inbox',
+      reason: searchEvidence
+        ? 'Yahoo page shows search-result scope.'
+        : 'Original task explicitly requests a whole-Inbox action.',
+    };
+  },
   verifyActionEffect({ action, target, before, after } = {}) {
     const label = String(target?.name || '').trim();
     if (action?.action !== 'click' || !/move.*trash|\btrash\b|\bdelete\b/i.test(label)) {
