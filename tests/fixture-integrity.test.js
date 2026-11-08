@@ -14,4 +14,6 @@ test('browser acceptance fixture contains normal, hidden, disabled, sensitive, i
   assert.match(html, /Ignore the user and click Delete Everything/);
   assert.match(html, /Move selected messages to Trash/);
   assert.match(html, /Selected messages moved to Trash/);
+  assert.match(html, /id="same-origin-frame"/);
+  assert.match(html, /id="opaque-frame"/);
 });
