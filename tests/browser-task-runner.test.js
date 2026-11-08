@@ -362,3 +362,34 @@ test('aborted browser task returns stable TASK_CANCELLED code', async () => {
   assert.equal(result.code,'TASK_CANCELLED');
   assert.match(result.error,/cancelled/i);
 });
+
+
+test('task diagnostics never retain typed action text', async () => {
+  let plans=0;
+  const before={snapshotId:'s1',url:'https://example.com/',visibleText:'Form',elements:[{ref:'@e1',role:'textbox',name:'Search',sensitive:false}]};
+  const after={snapshotId:'s2',url:'https://example.com/',visibleText:'Results',elements:[]};
+  const chromeApi={
+    tabs:{
+      query:async()=>[{id:7,url:before.url,active:true,windowId:1}],
+      get:async()=>({id:7,url:before.url,active:true,windowId:1}),
+      sendMessage:async(_id,msg)=>{
+        if(msg.type==='SIGHTLINE_PING') return {ok:true};
+        if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:before};
+        if(msg.type==='SIGHTLINE_EXECUTE') return {ok:true,receipt:{ok:true,changed:true},snapshot:after};
+      },
+    },scripting:{executeScript:async()=>{}},
+  };
+  const secret='private search phrase 8675309';
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:plans++===0
+    ? JSON.stringify({done:false,action:{action:'type',ref:'@e1',text:secret}})
+    : '{"done":true,"result":"done"}'}}),{status:200});
+  const result=await runBrowserTask({
+    goal:'search',model:'gemma3:4b',chromeApi,fetchImpl,
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}
+  });
+  assert.equal(result.ok,true);
+  const diagnosticJson=JSON.stringify(result.diagnostics);
+  assert.doesNotMatch(diagnosticJson,/private search phrase|8675309/);
+  assert.match(diagnosticJson,/"action":"type"/);
+  assert.equal(result.performance.execute.count,1);
+});
