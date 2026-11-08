@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin } from '../extension/page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName } from '../extension/page-observer-core.js';
 
 test('observer defaults are deliberately bounded', () => {
   assert.equal(PAGE_OBSERVER_LIMITS.maxElements, 300);
@@ -46,4 +46,12 @@ test('safeOrigin exposes origin only and strips path/query/hash', () => {
   assert.equal(safeOrigin('https://example.com/path?q=secret#x'),'https://example.com');
   assert.equal(safeOrigin('/embedded','https://mail.yahoo.com/inbox'),'https://mail.yahoo.com');
   assert.equal(safeOrigin('not a url'),null);
+});
+
+
+test('only button-like inputs may use value attributes as labels', () => {
+  assert.equal(mayUseValueAsAccessibleName('input','button','submit'),true);
+  assert.equal(mayUseValueAsAccessibleName('input','textbox','text'),false);
+  assert.equal(mayUseValueAsAccessibleName('textarea','textbox',''),false);
+  assert.equal(mayUseValueAsAccessibleName('select','combobox',''),false);
 });
