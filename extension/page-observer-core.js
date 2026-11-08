@@ -28,6 +28,11 @@ export function createBoundedTextCollector(maxChars = PAGE_OBSERVER_LIMITS.maxVi
   };
 }
 
+export function safeOrigin(value, base = '') {
+  try { return new URL(String(value || ''), base || undefined).origin; }
+  catch { return null; }
+}
+
 export function inferElementRole(tagName, explicitRole = '', inputType = '') {
   if (explicitRole) return cleanPageText(explicitRole, 64).toLowerCase();
   const tag = String(tagName).toLowerCase();
