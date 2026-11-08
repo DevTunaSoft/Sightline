@@ -91,3 +91,34 @@ test('Yahoo analyzer exposes visible advanced-search controls without inventing 
   assert.deepEqual(analysis.dateControlRefs,['@e4']);
   assert.match(yahooMailSkill.guidance.join(' '),/Do not invent Yahoo search operator syntax/);
 });
+
+
+test('Yahoo destructive scope blocks unfiltered inbox Trash unless whole Inbox is explicit', () => {
+  const snapshot={
+    url:'https://mail.yahoo.com/d/folders/1',
+    visibleText:'Inbox 500 messages',
+    elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}],
+  };
+  const action={action:'click',ref:'@e1'};
+  const target=snapshot.elements[0];
+  const scoped=yahooMailSkill.checkDestructiveScope({goal:'Delete old Amazon emails',snapshot,action,target});
+  assert.equal(scoped.allowed,false);
+  assert.equal(scoped.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
+
+  const explicit=yahooMailSkill.checkDestructiveScope({goal:'Delete all messages in my inbox',snapshot,action,target});
+  assert.equal(explicit.allowed,true);
+  assert.equal(explicit.scope,'explicit-whole-inbox');
+});
+
+test('Yahoo destructive scope accepts visible search-result state', () => {
+  const snapshot={
+    url:'https://mail.yahoo.com/d/search/name=amazon',
+    visibleText:'Search results 12 messages',
+    elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}],
+  };
+  const result=yahooMailSkill.checkDestructiveScope({
+    goal:'Delete old Amazon emails',snapshot,action:{action:'click',ref:'@e1'},target:snapshot.elements[0]
+  });
+  assert.equal(result.allowed,true);
+  assert.equal(result.scope,'search-results');
+});
