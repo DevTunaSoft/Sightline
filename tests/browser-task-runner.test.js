@@ -63,3 +63,43 @@ test('Yahoo authentication blocker returns structured failure before planner run
   const result=await runBrowserTask({goal:'open inbox',model:'gemma3:4b',chromeApi,fetchImpl:async()=>{planned=true;throw new Error('should not plan');}});
   assert.equal(result.ok,false); assert.equal(result.code,'MFA_REQUIRED'); assert.equal(planned,false);
 });
+
+
+test('Yahoo destructive confirmation receives deterministic count and message preview', async () => {
+  let confirmedArgs = null;
+  let confirmed = false;
+  const snapshot = {
+    snapshotId:'ys1', url:'https://mail.yahoo.com/d/search/name=amazon', visibleText:'Search results 12 messages',
+    elements:[
+      {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
+      {ref:'@e2',role:'link',name:'Amazon order shipped yesterday',sensitive:false},
+      {ref:'@e3',role:'link',name:'Amazon receipt order 42',sensitive:false},
+    ],
+  };
+  const chromeApi={
+    tabs:{
+      query:async()=>[{id:1,url:snapshot.url}],
+      sendMessage:async(_id,msg)=>{
+        if(msg.type==='SIGHTLINE_PING') return {ok:true};
+        if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+        if(msg.type==='SIGHTLINE_EXECUTE') {
+          if(!msg.confirmed) return {ok:false,code:'CONFIRMATION_REQUIRED',target:snapshot.elements[0],risk:{level:'high',reason:'destructive'},confirmationKey:'k'};
+          confirmed=true;
+          return {ok:true,receipt:{ok:true},snapshot:{...snapshot,snapshotId:'ys2',visibleText:'0 messages'}};
+        }
+      }
+    }, scripting:{executeScript:async()=>{}},
+  };
+  let plans=0;
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:plans++===0 ? '{"done":false,"action":{"action":"click","ref":"@e1"}}' : '{"done":true,"result":"done"}'}}),{status:200});
+  const result=await runBrowserTask({
+    goal:'Move matching Amazon emails to Trash', model:'gemma3:4b', chromeApi, fetchImpl,
+    confirmAction:async args=>{ confirmedArgs=args; return true; },
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5},
+  });
+  assert.equal(result.ok,true);
+  assert.equal(confirmed,true);
+  assert.equal(confirmedArgs.skill.id,'yahoo-mail');
+  assert.equal(confirmedArgs.preview.visibleCount,12);
+  assert.equal(confirmedArgs.preview.messageSamples.length,2);
+});
