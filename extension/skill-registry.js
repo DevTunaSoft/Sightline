@@ -25,3 +25,11 @@ export function skillPlannerContext(value, snapshot = null) {
 export function listSkills() {
   return SKILLS.map(({ id, name, version, domain }) => ({ id, name, version, domain }));
 }
+
+export function verifySkillActionEffect({ before, after, action, target } = {}) {
+  const skill = skillForUrl(before?.url || after?.url);
+  if (!skill || typeof skill.verifyActionEffect !== 'function') {
+    return { applicable: false, verified: null, evidence: [] };
+  }
+  return skill.verifyActionEffect({ before, after, action, target });
+}
