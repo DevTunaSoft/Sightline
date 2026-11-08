@@ -2,7 +2,7 @@ import { buildPageSnapshot } from './page-observer.js';
 import { RefRegistry } from './ref-registry.js';
 import { createDomActionAdapter } from './dom-action-adapter.js';
 import { executeValidatedAction } from './action-executor-core.js';
-import { gateAction } from './safety-gate.js';
+import { gateAction, actionConfirmationKey } from './safety-gate.js';
 
 export function createPageAgentController(options = {}) {
   const registry = options.registry || new RefRegistry();
@@ -29,16 +29,18 @@ export function createPageAgentController(options = {}) {
       const target = message.action?.ref
         ? currentSnapshot.elements.find(element => element.ref === message.action.ref)
         : null;
-      const decision = gate(message.action, target || {}, message.mode || 'assist');
+      const decision = gate(message.action, target || {}, message.mode || 'assist', { currentUrl: currentSnapshot.url });
+      const confirmationKey = decision.confirmationRequired ? actionConfirmationKey(currentSnapshot.snapshotId, message.action, target || {}) : null;
       if (!decision.allowed) {
-        if (decision.confirmationRequired && message.confirmed === true) {
-          // Explicit confirmation applies only to this exact action + current snapshot.
+        if (decision.confirmationRequired && message.confirmed === true && message.confirmationKey === confirmationKey) {
+          // Confirmation is bound to this exact semantic action and snapshot.
         } else {
           return {
             ok: false,
             code: decision.confirmationRequired ? 'CONFIRMATION_REQUIRED' : 'ACTION_BLOCKED',
             risk: decision.risk,
             target,
+            confirmationKey,
           };
         }
       }
