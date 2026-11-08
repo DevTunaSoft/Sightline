@@ -40,3 +40,10 @@ test('session checkpoint save/load/clear round trip', async () => {
   await clearTaskCheckpoint(chromeApi);
   assert.equal(await loadTaskCheckpoint(chromeApi),null);
 });
+
+
+test('checkpoint preserves task tab id without storing page URL', () => {
+  const cp=createTaskCheckpoint({taskId:'t-tab',goal:'Continue task',tabId:77});
+  assert.equal(cp.tabId,77);
+  assert.equal('url' in cp,false);
+});
