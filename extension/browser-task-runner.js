@@ -3,7 +3,7 @@ import { observeActiveTab, observeTab, executeOnTab, captureTaskTabFrame } from 
 import { planNextAction } from './planner-client.js';
 import { detectSkillBlocker } from './skill-blockers.js';
 import { analyzeFrame } from './client.js';
-import { skillPlannerContext, verifySkillActionEffect } from './skill-registry.js';
+import { skillPlannerContext, verifySkillActionEffect, checkSkillDestructiveScope } from './skill-registry.js';
 import { DiagnosticLedger } from './diagnostics-core.js';
 import { TimingBook } from './performance-core.js';
 
@@ -161,6 +161,21 @@ export async function runBrowserTask({
     let result = await timings.measure('execute', () => executeOnTab(taskTabId, { action, snapshotId: snapshot.snapshotId, mode, taskGoal: goal }, chromeApi));
     if (result?.code === 'CONFIRMATION_REQUIRED' && typeof confirmAction === 'function') {
       const skillContext = skillPlannerContext(snapshot.url, snapshot);
+      const scopePolicy = checkSkillDestructiveScope({
+        snapshot,
+        goal,
+        action,
+        target: result.target || null,
+      });
+      if (scopePolicy.applicable && scopePolicy.allowed === false) {
+        result = {
+          ok: false,
+          code: scopePolicy.code || 'DESTRUCTIVE_SCOPE_UNVERIFIED',
+          error: scopePolicy.reason || 'Destructive action scope could not be verified.',
+          target: result.target,
+          risk: result.risk,
+        };
+      } else {
       const confirmed = await confirmAction({
         action, target: result.target, risk: result.risk, snapshotId: snapshot.snapshotId,
         skill: skillContext ? { id: skillContext.id, name: skillContext.name } : null,
@@ -179,6 +194,7 @@ export async function runBrowserTask({
         }, chromeApi));
       } else {
         result = { ok: false, code: 'USER_DECLINED_ACTION', error: 'User declined the requested consequential action.' };
+      }
       }
     }
     if ((result?.code === 'STALE_SNAPSHOT' || result?.code === 'STALE_REF') && result?.snapshot) {
