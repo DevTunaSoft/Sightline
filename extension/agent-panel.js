@@ -166,10 +166,22 @@ async function restoreInterruptedTask() {
 async function runBrowserSelfTest() {
   if (state.running) return;
   state.running = true;
+  state.lastReport = null;
   clearProgress('Running deterministic installed-browser self-test…');
   sync();
   try {
     const report = await runBrowserAcceptanceSelfTest(chrome);
+    state.lastReport = {
+      version: 1,
+      type: 'browser-self-test',
+      generatedAt: new Date().toISOString(),
+      outcome: { ok: report.ok === true, code: report.code || null },
+      checks: (report.checks || []).map(check => ({
+        name: String(check.name || '').slice(0, 120),
+        ok: check.ok === true,
+        detail: String(check.detail || '').slice(0, 300),
+      })),
+    };
     for (const check of report.checks || []) {
       addProgress(check.ok ? 'PASS' : 'FAIL', `${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
     }
