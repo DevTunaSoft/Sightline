@@ -31,3 +31,15 @@ test('planner prompt respects opaque iframe boundary', () => {
   assert.match(payload.messages[0].content,/opaque embedded frames/);
   assert.match(payload.messages[1].content,/"opaque":1/);
 });
+
+
+test('planner may request bounded vision fallback only with explicit reason', () => {
+  assert.deepEqual(
+    parsePlannerDecision('{"done":false,"needVision":true,"reason":"Need to inspect chart labels"}',snapshot),
+    {done:false,needVision:true,reason:'Need to inspect chart labels'}
+  );
+  assert.throws(
+    ()=>parsePlannerDecision('{"done":false,"needVision":true,"reason":""}',snapshot),
+    /requires a reason/
+  );
+});
