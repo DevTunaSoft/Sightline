@@ -6,17 +6,18 @@ const byId = id => document.getElementById(id);
 const ui = {
   tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'),
   observe: byId('observePageBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
-  progress: byId('agentProgress'), card: byId('confirmCard'), text: byId('confirmText'),
+  progress: byId('agentProgress'), report: byId('exportAgentReportBtn'), card: byId('confirmCard'), text: byId('confirmText'),
   confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
 };
 
-const state = { running: false, controller: null, pendingConfirmation: null, resume: null, checkpoint: null, taskId: null, stopIntent: null };
+const state = { running: false, controller: null, pendingConfirmation: null, resume: null, checkpoint: null, taskId: null, stopIntent: null, lastReport: null };
 
 function sync() {
   ui.run.disabled = state.running;
   ui.observe.disabled = state.running;
   ui.stop.disabled = !state.running;
   ui.taskCancel.disabled = !state.running;
+  ui.report.disabled = state.running || !state.lastReport;
   ui.mode.disabled = state.running;
   ui.goal.disabled = state.running;
   ui.tag.textContent = state.running ? 'RUNNING' : state.resume ? 'RESUME READY' : 'READY';
@@ -55,6 +56,31 @@ function describeProgress(event) {
   if (event?.type === 'vision-complete') return ['Vision complete', `${event.chars || 0} characters of bounded visual context`];
   if (event?.type === 'site-verified') return ['Verified', (event.verification?.evidence || []).join(' · ') || 'Site-specific evidence recorded'];
   return ['Progress', String(event?.type || 'update')];
+}
+
+function buildSafeReport(result) {
+  return {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    outcome: {
+      ok: result?.ok === true,
+      code: result?.code || null,
+      actions: Array.isArray(result?.timeline) ? result.timeline.length : 0,
+    },
+    diagnostics: result?.diagnostics || { version: 1, events: [] },
+    performance: result?.performance || {},
+  };
+}
+
+function exportAgentReport() {
+  if (!state.lastReport) return;
+  const blob = new Blob([JSON.stringify(state.lastReport, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `sightline-agent-report-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function resolveConfirmation(value) {
@@ -141,6 +167,7 @@ async function runTask() {
   if (state.running) return;
   state.controller = new AbortController();
   state.running = true;
+  state.lastReport = null;
   state.taskId = state.taskId || (globalThis.crypto?.randomUUID?.() || `task-${Date.now()}`);
   try {
     try {
@@ -176,6 +203,7 @@ async function runTask() {
         }
       },
     });
+    state.lastReport = buildSafeReport(result);
     if (result.ok) {
       addProgress('Complete', result.result || `Finished in ${result.timeline.length} action(s)`);
       try { await clearTaskCheckpoint(chrome); } catch {}
@@ -247,6 +275,7 @@ ui.observe.addEventListener('click', () => void observePage());
 ui.run.addEventListener('click', () => void runTask());
 ui.stop.addEventListener('click', pauseTask);
 ui.taskCancel.addEventListener('click', cancelTask);
+ui.report.addEventListener('click', exportAgentReport);
 ui.confirm.addEventListener('click', () => resolveConfirmation(true));
 ui.cancel.addEventListener('click', () => resolveConfirmation(false));
 window.addEventListener('pagehide', pauseTask);
