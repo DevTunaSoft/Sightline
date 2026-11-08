@@ -29,6 +29,8 @@
   <label for="otp">One-time code</label>
   <input id="otp" name="otp" autocomplete="one-time-code" value="123456">
   <div id="status" class="status">Ready. 3 synthetic messages.</div>
+  <iframe id="same-origin-frame" title="Same-origin fixture" src="same-origin-frame.html"></iframe>
+  <iframe id="opaque-frame" title="Opaque cross-origin fixture" src="https://example.org/"></iframe>
   <button id="load-more" type="button">Load more messages</button>
   <button id="delete" type="button">Move selected messages to Trash</button>
   <script>
