@@ -129,3 +129,26 @@ test('NO_VERIFIED_EFFECT terminates task even when low-level click receipt was o
   assert.equal(result.timeline.length,1);
   assert.equal(result.timeline[0].receipt.ok,false);
 });
+
+
+test('Yahoo confirmation receipt includes site-specific verification evidence', async () => {
+  let confirmed=false, plannerCalls=0;
+  const before={snapshotId:'ys1',url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[
+    {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
+    {ref:'@e2',role:'link',name:'Amazon order shipped yesterday',sensitive:false},
+  ]};
+  const after={snapshotId:'ys2',url:before.url,visibleText:'10 messages. Selected messages moved to Trash.',elements:[]};
+  const chromeApi={tabs:{query:async()=>[{id:1,url:before.url}],sendMessage:async(_id,msg)=>{
+    if(msg.type==='SIGHTLINE_PING') return {ok:true};
+    if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:before};
+    if(msg.type==='SIGHTLINE_EXECUTE' && !msg.confirmed) return {ok:false,code:'CONFIRMATION_REQUIRED',target:before.elements[0],risk:{level:'high'},confirmationKey:'k'};
+    if(msg.type==='SIGHTLINE_EXECUTE') { confirmed=true; return {ok:true,receipt:{ok:true,changed:true},snapshot:after}; }
+  }},scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:plannerCalls++===0?' {"done":false,"action":{"action":"click","ref":"@e1"}} ':'{"done":true,"result":"done"}'}}),{status:200});
+  const result=await runBrowserTask({goal:'Move selected Amazon mail to Trash',model:'gemma3:4b',chromeApi,fetchImpl,confirmAction:async()=>true,limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}});
+  assert.equal(result.ok,true);
+  assert.equal(confirmed,true);
+  const receipt=result.timeline[0].receipt;
+  assert.equal(receipt.siteVerification.verified,true);
+  assert.ok(receipt.siteVerification.evidence.length>0);
+});
