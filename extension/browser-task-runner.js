@@ -23,7 +23,7 @@ export async function runBrowserTask({
   let taskTabId = Number.isInteger(resume?.tabId) && resume.tabId > 0 ? resume.tabId : null;
   let taskOrigin = typeof resume?.taskOrigin === 'string' && resume.taskOrigin ? resume.taskOrigin : null;
   const approvedOrigins = new Set(taskOrigin ? [taskOrigin] : []);
-  let visionFallbacks = 0;
+  let visionFallbacks = Math.max(0, Math.min(MAX_VISION_FALLBACKS_PER_TASK, Number(resume?.visionFallbacksUsed) || 0));
   const visionSnapshots = new Set();
   function assertAllowedOrigin(snapshot) {
     let origin;
@@ -145,7 +145,7 @@ export async function runBrowserTask({
   const verify = async ({ receipt }) => ({ ok: receipt?.ok === true });
   try {
     const checkpoint = typeof onCheckpoint === 'function'
-      ? state => onCheckpoint({ ...state, tabId: taskTabId, taskOrigin })
+      ? state => onCheckpoint({ ...state, tabId: taskTabId, taskOrigin, visionFallbacksUsed: visionFallbacks })
       : null;
     return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint: checkpoint });
   } catch (error) {
