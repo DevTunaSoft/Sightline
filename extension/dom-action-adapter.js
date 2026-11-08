@@ -19,11 +19,29 @@ function ensureElement(element) {
   return element;
 }
 
+function elementWindow(element, fallbackWindow) {
+  return element?.ownerDocument?.defaultView || fallbackWindow || globalThis.window;
+}
+
 function dispatch(element, type, windowObject) {
   if (typeof element?.dispatchEvent !== 'function') return;
-  const EventCtor = windowObject?.Event || globalThis.Event;
+  const view = elementWindow(element, windowObject);
+  const EventCtor = view?.Event || globalThis.Event;
   if (!EventCtor) return;
   element.dispatchEvent(new EventCtor(type, { bubbles: true, composed: true }));
+}
+
+function deepestActiveElement(documentObject, maxDepth = 3) {
+  let active = documentObject?.activeElement || documentObject?.body || null;
+  for (let depth = 0; depth < maxDepth && active; depth += 1) {
+    const tag = String(active.tagName || '').toLowerCase();
+    if (!['iframe', 'frame'].includes(tag)) break;
+    let childActive = null;
+    try { childActive = active.contentDocument?.activeElement || active.contentDocument?.body || null; } catch {}
+    if (!childActive || childActive === active) break;
+    active = childActive;
+  }
+  return active;
 }
 
 function setValue(element, value, windowObject) {
@@ -103,8 +121,9 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       return { ok: true, url: action.url };
     },
     async pressKey(action) {
-      const target = documentObject?.activeElement || documentObject?.body;
-      const KeyboardCtor = windowObject?.KeyboardEvent || globalThis.KeyboardEvent;
+      const target = deepestActiveElement(documentObject);
+      const targetWindow = elementWindow(target, windowObject);
+      const KeyboardCtor = targetWindow?.KeyboardEvent || globalThis.KeyboardEvent;
       if (!target?.dispatchEvent || !KeyboardCtor) return { ok: false, code: 'KEYBOARD_UNAVAILABLE', error: 'Keyboard dispatch unavailable.' };
       target.dispatchEvent(new KeyboardCtor('keydown', { key: action.key, bubbles: true, composed: true }));
       target.dispatchEvent(new KeyboardCtor('keyup', { key: action.key, bubbles: true, composed: true }));
