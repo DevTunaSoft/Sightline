@@ -54,3 +54,9 @@ test('checkpoint stores origin only for resume policy, never full page path or q
   assert.equal(cp.taskOrigin,'https://mail.yahoo.com');
   assert.doesNotMatch(JSON.stringify(cp),/folders|token=secret/);
 });
+
+
+test('vision fallback count is bounded and survives checkpoint round trip', () => {
+  const cp=createTaskCheckpoint({taskId:'t-vision',goal:'Inspect',visionFallbacksUsed:99});
+  assert.equal(cp.visionFallbacksUsed,2);
+});
