@@ -103,3 +103,29 @@ test('Yahoo destructive confirmation receives deterministic count and message pr
   assert.equal(confirmedArgs.preview.visibleCount,12);
   assert.equal(confirmedArgs.preview.messageSamples.length,2);
 });
+
+
+test('NO_VERIFIED_EFFECT terminates task even when low-level click receipt was ok', async () => {
+  let plannerCalls=0;
+  const snapshot={snapshotId:'s1',url:'https://example.com',elements:[{ref:'@e1',role:'button',name:'Delete item',sensitive:false}]};
+  const chromeApi={
+    tabs:{
+      query:async()=>[{id:1,url:snapshot.url}],
+      sendMessage:async(_id,msg)=>{
+        if(msg.type==='SIGHTLINE_PING') return {ok:true};
+        if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+        if(msg.type==='SIGHTLINE_EXECUTE') return {ok:false,code:'NO_VERIFIED_EFFECT',receipt:{ok:true,changed:false},snapshot};
+      }
+    }, scripting:{executeScript:async()=>{}},
+  };
+  const fetchImpl=async()=>{
+    plannerCalls+=1;
+    return new Response(JSON.stringify({message:{content:'{"done":false,"action":{"action":"click","ref":"@e1"}}'}}),{status:200});
+  };
+  const result=await runBrowserTask({goal:'delete item',model:'gemma3:4b',chromeApi,fetchImpl,limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}});
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'NO_VERIFIED_EFFECT');
+  assert.equal(plannerCalls,1);
+  assert.equal(result.timeline.length,1);
+  assert.equal(result.timeline[0].receipt.ok,false);
+});
