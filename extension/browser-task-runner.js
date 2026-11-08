@@ -1,6 +1,7 @@
 import { runTaskLoop } from './task-loop-core.js';
 import { observeActiveTab, executeOnActiveTab } from './browser-bridge.js';
 import { planNextAction } from './planner-client.js';
+import { detectSkillBlocker } from './skill-blockers.js';
 
 export async function runBrowserTask({
   goal, model, mode = 'assist', chromeApi = chrome, fetchImpl = fetch,
@@ -11,9 +12,17 @@ export async function runBrowserTask({
     if (cachedSnapshot) {
       const snapshot = cachedSnapshot;
       cachedSnapshot = null;
+      const blocker = detectSkillBlocker(snapshot);
+      if (blocker) { const error = new Error(blocker.reason); error.code = blocker.code; throw error; }
       return snapshot;
     }
     const observed = await observeActiveTab(chromeApi);
+    const blocker = detectSkillBlocker(observed.snapshot);
+    if (blocker) {
+      const error = new Error(blocker.reason);
+      error.code = blocker.code;
+      throw error;
+    }
     onProgress({ type: 'observed', snapshotId: observed.snapshot.snapshotId, elementCount: observed.snapshot.elements.length });
     return observed.snapshot;
   };
