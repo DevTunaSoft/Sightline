@@ -69,3 +69,25 @@ test('Yahoo Trash verification remains inconclusive when only unrelated state ch
   assert.equal(result.applicable,true);
   assert.equal(result.verified,null);
 });
+
+
+test('Yahoo analyzer exposes visible advanced-search controls without inventing syntax', () => {
+  const snapshot={
+    url:'https://mail.yahoo.com/d/search',
+    visibleText:'Advanced search',
+    elements:[
+      {ref:'@e1',role:'button',name:'Advanced Search',sensitive:false},
+      {ref:'@e2',role:'textbox',name:'From',sensitive:false},
+      {ref:'@e3',role:'textbox',name:'Subject',sensitive:false},
+      {ref:'@e4',role:'button',name:'Date range',sensitive:false},
+      {ref:'@e5',role:'textbox',name:'Search mail',sensitive:false},
+    ],
+  };
+  const analysis=yahooMailSkill.analyzeSnapshot(snapshot);
+  assert.equal(analysis.searchRef,'@e5');
+  assert.equal(analysis.advancedSearchRef,'@e1');
+  assert.equal(analysis.fromFieldRef,'@e2');
+  assert.equal(analysis.subjectFieldRef,'@e3');
+  assert.deepEqual(analysis.dateControlRefs,['@e4']);
+  assert.match(yahooMailSkill.guidance.join(' '),/Do not invent Yahoo search operator syntax/);
+});
