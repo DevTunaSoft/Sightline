@@ -1,5 +1,5 @@
 import { runTaskLoop } from './task-loop-core.js';
-import { observeActiveTab, executeOnActiveTab } from './browser-bridge.js';
+import { observeActiveTab, observeTab, executeOnTab } from './browser-bridge.js';
 import { planNextAction } from './planner-client.js';
 import { detectSkillBlocker } from './skill-blockers.js';
 import { skillPlannerContext, verifySkillActionEffect } from './skill-registry.js';
@@ -10,6 +10,7 @@ export async function runBrowserTask({
 }) {
   let cachedSnapshot = null;
   let lastConfirmedContext = null;
+  let taskTabId = Number.isInteger(resume?.tabId) && resume.tabId > 0 ? resume.tabId : null;
   const observe = async () => {
     if (cachedSnapshot) {
       const snapshot = cachedSnapshot;
@@ -18,7 +19,8 @@ export async function runBrowserTask({
       if (blocker) { const error = new Error(blocker.reason); error.code = blocker.code; throw error; }
       return snapshot;
     }
-    const observed = await observeActiveTab(chromeApi);
+    const observed = taskTabId == null ? await observeActiveTab(chromeApi) : await observeTab(taskTabId, chromeApi);
+    if (taskTabId == null) taskTabId = observed.tabId;
     const blocker = detectSkillBlocker(observed.snapshot);
     if (blocker) {
       const error = new Error(blocker.reason);
@@ -36,7 +38,7 @@ export async function runBrowserTask({
   };
 
   const execute = async (action, { snapshot }) => {
-    let result = await executeOnActiveTab({ action, snapshotId: snapshot.snapshotId, mode, taskGoal: goal }, chromeApi);
+    let result = await executeOnTab(taskTabId, { action, snapshotId: snapshot.snapshotId, mode, taskGoal: goal }, chromeApi);
     if (result?.code === 'CONFIRMATION_REQUIRED' && typeof confirmAction === 'function') {
       const skillContext = skillPlannerContext(snapshot.url, snapshot);
       const confirmed = await confirmAction({
@@ -46,7 +48,7 @@ export async function runBrowserTask({
       });
       if (confirmed) {
         lastConfirmedContext = { action, target: result.target || null, before: snapshot };
-        result = await executeOnActiveTab({
+        result = await executeOnTab(taskTabId, {
           action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
         }, chromeApi);
       }
@@ -66,7 +68,10 @@ export async function runBrowserTask({
 
   const verify = async ({ receipt }) => ({ ok: receipt?.ok === true });
   try {
-    return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint });
+    const checkpoint = typeof onCheckpoint === 'function'
+      ? state => onCheckpoint({ ...state, tabId: taskTabId })
+      : null;
+    return await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint: checkpoint });
   } catch (error) {
     return { ok: false, code: error?.code || 'TASK_ERROR', error: String(error?.message || error), timeline: [] };
   }
