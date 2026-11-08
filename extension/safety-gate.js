@@ -1,6 +1,6 @@
 import { fnv1aHash } from './page-observer-core.js';
 
-const HIGH_IMPACT_PATTERN = /\b(delete|remove|trash|erase|send|submit|publish|post|purchase|buy|pay|checkout|place order|confirm order|close account|security|permission|authorize|transfer|unsubscribe)\b/i;
+const HIGH_IMPACT_PATTERN = /\b(delete|remove|trash|erase|send|submit|publish|post|purchase|buy|pay|checkout|place order|confirm order|close account|security|permission|authorize|transfer|unsubscribe|logout|log out|sign out|block sender|report spam|mark as spam)\b/i;
 const CRITICAL_DESTRUCTIVE_PATTERN = /\b(empty\s+trash|delete\s+forever|permanent(?:ly)?\s+delete|purge|erase\s+forever)\b/i;
 const EXPLICIT_CRITICAL_INTENT = /\b(empty|clear|purge)\b.{0,30}\btrash\b|\b(delete|erase)\b.{0,20}\b(permanently|forever)\b|\bpermanent(?:ly)?\s+delete\b/i;
 
