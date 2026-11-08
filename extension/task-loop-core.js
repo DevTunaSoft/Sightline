@@ -16,7 +16,7 @@ export class TaskProgressGuard {
     this.limits = { ...DEFAULT_LIMITS, ...options.limits };
     this.clock = options.clock;
     this.startedAt = nowMs(this.clock);
-    this.actions = 0;
+    this.actions = Math.max(0, Math.min(this.limits.maxActions, Number(options.initialActions) || 0));
     this.lastSnapshotId = null;
     this.repeatedState = 0;
     this.lastActionKey = null;
@@ -44,7 +44,7 @@ export class TaskProgressGuard {
   }
 }
 
-export async function runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, clock }) {
+export async function runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, clock, resume = null, onCheckpoint = null }) {
   if (typeof goal !== 'string' || !goal.trim()) throw new Error('Task goal is required.');
   for (const fn of [observe, plan, execute, verify]) if (typeof fn !== 'function') throw new Error('Task loop dependency missing.');
   const guard = new TaskProgressGuard({ limits, clock });
