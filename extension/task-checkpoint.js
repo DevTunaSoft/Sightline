@@ -1,6 +1,14 @@
 export const TASK_CHECKPOINT_KEY = 'sightline.activeTask.v1';
 export const TASK_CHECKPOINT_LIMITS = Object.freeze({ maxGoalChars: 2000, maxTimelineItems: 40, maxStoredBytes: 24000 });
 
+let checkpointQueue = Promise.resolve();
+
+function enqueueCheckpointOperation(operation) {
+  const next = checkpointQueue.catch(() => {}).then(operation);
+  checkpointQueue = next.then(() => undefined, () => undefined);
+  return next;
+}
+
 function clean(value, max) { return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max); }
 
 function safeAction(action) {
@@ -27,7 +35,7 @@ export function sanitizeCheckpointTimeline(timeline = []) {
   }));
 }
 
-export function createTaskCheckpoint({ taskId, goal, mode = 'assist', model = '', status = 'running', timeline = [], actionsUsed = 0, visionFallbacksUsed = 0, tabId = null, taskOrigin = null, lastSnapshotId = null, requiresReview = false, updatedAt = new Date().toISOString() }) {
+export function createTaskCheckpoint({ taskId, goal, mode = 'assist', model = '', status = 'running', timeline = [], actionsUsed = 0, visionFallbacksUsed = 0, revision = 0, tabId = null, taskOrigin = null, lastSnapshotId = null, requiresReview = false, updatedAt = new Date().toISOString() }) {
   const checkpoint = {
     version: 1,
     taskId: clean(taskId, 100),
@@ -35,6 +43,7 @@ export function createTaskCheckpoint({ taskId, goal, mode = 'assist', model = ''
     mode: ['observe', 'assist', 'autonomous'].includes(mode) ? mode : 'assist',
     model: clean(model, 110),
     status: ['running', 'interrupted', 'completed', 'failed'].includes(status) ? status : 'running',
+    revision: Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(Number(revision) || 0))),
     actionsUsed: Math.max(0, Math.min(1000, Number(actionsUsed) || 0)),
     visionFallbacksUsed: Math.max(0, Math.min(2, Number(visionFallbacksUsed) || 0)),
     tabId: Number.isInteger(tabId) && tabId > 0 ? tabId : null,
@@ -56,12 +65,23 @@ function sessionStore(chromeApi) {
 }
 
 export async function saveTaskCheckpoint(checkpoint, chromeApi = chrome) {
-  const value = createTaskCheckpoint(checkpoint);
-  await sessionStore(chromeApi).set({ [TASK_CHECKPOINT_KEY]: value });
-  return value;
+  return enqueueCheckpointOperation(async () => {
+    const store = sessionStore(chromeApi);
+    const existingRaw = (await store.get(TASK_CHECKPOINT_KEY))?.[TASK_CHECKPOINT_KEY];
+    let existing = null;
+    try { if (existingRaw?.version === 1) existing = createTaskCheckpoint(existingRaw); } catch {}
+    const sameTask = existing?.taskId && existing.taskId === String(checkpoint?.taskId || '').trim();
+    const nextRevision = sameTask
+      ? Math.max(existing.revision + 1, Number(checkpoint?.revision) || 0)
+      : Math.max(1, Number(checkpoint?.revision) || 0);
+    const value = createTaskCheckpoint({ ...checkpoint, revision: nextRevision });
+    await store.set({ [TASK_CHECKPOINT_KEY]: value });
+    return value;
+  });
 }
 
 export async function loadTaskCheckpoint(chromeApi = chrome) {
+  await checkpointQueue.catch(() => {});
   const result = await sessionStore(chromeApi).get(TASK_CHECKPOINT_KEY);
   const value = result?.[TASK_CHECKPOINT_KEY];
   if (!value || value.version !== 1) return null;
@@ -69,5 +89,7 @@ export async function loadTaskCheckpoint(chromeApi = chrome) {
 }
 
 export async function clearTaskCheckpoint(chromeApi = chrome) {
-  await sessionStore(chromeApi).remove(TASK_CHECKPOINT_KEY);
+  return enqueueCheckpointOperation(async () => {
+    await sessionStore(chromeApi).remove(TASK_CHECKPOINT_KEY);
+  });
 }
