@@ -437,3 +437,51 @@ test('stale confirmed Yahoo action cannot leak verification context into replann
   assert.equal(result.timeline[1].action.ref,'@e2');
   assert.equal('siteVerification' in result.timeline[1].receipt,false);
 });
+
+
+test('explicitly declined consequential action returns USER_DECLINED_ACTION', async () => {
+  let plannerCalls=0;
+  const snapshot={snapshotId:'s1',url:'https://example.com/',visibleText:'Danger',elements:[{ref:'@e1',role:'button',name:'Delete item',sensitive:false}]};
+  const chromeApi={tabs:{
+    query:async()=>[{id:7,url:snapshot.url,active:true,windowId:1}],
+    get:async()=>({id:7,url:snapshot.url,active:true,windowId:1}),
+    sendMessage:async(_id,msg)=>{
+      if(msg.type==='SIGHTLINE_PING') return {ok:true};
+      if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+      if(msg.type==='SIGHTLINE_EXECUTE') return {ok:false,code:'CONFIRMATION_REQUIRED',target:snapshot.elements[0],risk:{level:'high'},confirmationKey:'k'};
+    },
+  },scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>{
+    plannerCalls+=1;
+    return new Response(JSON.stringify({message:{content:'{"done":false,"action":{"action":"click","ref":"@e1"}}'}}),{status:200});
+  };
+  const result=await runBrowserTask({
+    goal:'delete item',model:'gemma3:4b',chromeApi,fetchImpl,confirmAction:async()=>false,
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'USER_DECLINED_ACTION');
+  assert.equal(plannerCalls,1);
+});
+
+test('pausing while confirmation is open returns TASK_CANCELLED, not USER_DECLINED_ACTION', async () => {
+  const controller=new AbortController();
+  const snapshot={snapshotId:'s1',url:'https://example.com/',visibleText:'Danger',elements:[{ref:'@e1',role:'button',name:'Delete item',sensitive:false}]};
+  const chromeApi={tabs:{
+    query:async()=>[{id:7,url:snapshot.url,active:true,windowId:1}],
+    get:async()=>({id:7,url:snapshot.url,active:true,windowId:1}),
+    sendMessage:async(_id,msg)=>{
+      if(msg.type==='SIGHTLINE_PING') return {ok:true};
+      if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+      if(msg.type==='SIGHTLINE_EXECUTE') return {ok:false,code:'CONFIRMATION_REQUIRED',target:snapshot.elements[0],risk:{level:'high'},confirmationKey:'k'};
+    },
+  },scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:'{"done":false,"action":{"action":"click","ref":"@e1"}}'}}),{status:200});
+  const result=await runBrowserTask({
+    goal:'delete item',model:'gemma3:4b',chromeApi,fetchImpl,signal:controller.signal,
+    confirmAction:async()=>{ controller.abort(new DOMException('Paused','AbortError')); return false; },
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'TASK_CANCELLED');
+});
