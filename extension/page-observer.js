@@ -6,6 +6,7 @@ import {
   boundSnapshot,
   createBoundedTextCollector,
   safeOrigin,
+  mayUseValueAsAccessibleName,
 } from './page-observer-core.js';
 
 const INTERACTIVE_SELECTOR = [
@@ -65,7 +66,7 @@ function inventoryFrames(maxFrames = 20) {
   return result;
 }
 
-function accessibleName(element, maxLength) {
+function accessibleName(element, maxLength, allowValueLabel = false) {
   const labelledBy = element.getAttribute('aria-labelledby');
   if (labelledBy) {
     const text = labelledBy.split(/\s+/).map(id => document.getElementById(id)?.textContent || '').join(' ');
@@ -78,7 +79,7 @@ function accessibleName(element, maxLength) {
   if (placeholder) return cleanPageText(placeholder, maxLength);
   const title = element.getAttribute('title');
   if (title) return cleanPageText(title, maxLength);
-  return cleanPageText(element.innerText || element.textContent || element.getAttribute('value') || '', maxLength);
+  return cleanPageText(element.innerText || element.textContent || (allowValueLabel ? element.getAttribute('value') : '') || '', maxLength);
 }
 
 function describeElement(element, index, limits) {
@@ -102,7 +103,7 @@ function describeElement(element, index, limits) {
   return {
     ref: `@e${index + 1}`,
     role,
-    name: sensitive ? '[REDACTED SENSITIVE FIELD]' : accessibleName(element, limits.maxTextPerElement),
+    name: sensitive ? '[REDACTED SENSITIVE FIELD]' : accessibleName(element, limits.maxTextPerElement, mayUseValueAsAccessibleName(element.tagName, role, element.getAttribute('type') || '')),
     sensitive,
     state,
     rect: {
