@@ -14,6 +14,7 @@ export const yahooMailSkill = Object.freeze({
   guidance: Object.freeze([
     'Use the existing signed-in browser session. Never request, read, store, or type the Yahoo password.',
     'Prefer Yahoo search controls for inbox filtering instead of manually scanning message rows.',
+    'Prefer visible Yahoo advanced-search/filter controls for sender, subject, folder, and date constraints. Do not invent Yahoo search operator syntax that is not represented by the current page or an approved skill rule.',
     'When the user asks to delete messages, first search/filter, then identify the result scope, then present or obtain a count/sample when available.',
     'Moving messages to Trash is destructive/high-impact and must pass Sightline confirmation before the final Trash/Delete control is activated.',
     'After a move-to-Trash action, verify the page changed and that the requested messages are no longer in the previous result state when possible.',
@@ -30,6 +31,10 @@ export const yahooMailSkill = Object.freeze({
     });
     const firstRef = list => list.find(element => element?.ref)?.ref || null;
     const search = named(/\b(search|find)\b.*\b(mail|messages?)\b|\bsearch\b/i, ['textbox', 'combobox']);
+    const advancedSearch = named(/advanced\s+search|search\s+(?:options|filters?)|filter\s+search/i, ['button', 'menuitem', 'link']);
+    const fromField = named(/^(?:from|sender)(?:\s+address)?$/i, ['textbox', 'combobox']);
+    const subjectField = named(/^subject(?:\s+contains)?$/i, ['textbox', 'combobox']);
+    const dateControls = named(/\b(date|before|after|older|newer|since)\b/i, ['textbox', 'combobox', 'button', 'menuitem']);
     const selectAll = named(/select\s+all|all\s+(?:messages?|mail)/i, ['checkbox', 'button', 'menuitem']);
     const trash = named(/move.*trash|\btrash\b|\bdelete\b/i, ['button', 'menuitem', 'link']);
     const countPatterns = [
@@ -56,6 +61,10 @@ export const yahooMailSkill = Object.freeze({
     }
     return {
       searchRef: firstRef(search),
+      advancedSearchRef: firstRef(advancedSearch),
+      fromFieldRef: firstRef(fromField),
+      subjectFieldRef: firstRef(subjectField),
+      dateControlRefs: dateControls.slice(0, 6).map(element => element.ref).filter(Boolean),
       selectAllRef: firstRef(selectAll),
       trashRefs: trash.slice(0, 5).map(element => element.ref).filter(Boolean),
       visibleCount: Number.isFinite(visibleCount) ? visibleCount : null,
