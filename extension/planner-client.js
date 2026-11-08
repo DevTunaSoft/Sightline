@@ -42,9 +42,12 @@ async function requestPlanner(payload, fetchImpl, signal) {
   return content;
 }
 
-export async function planNextAction(args, fetchImpl = fetch, signal) {
+export async function planNextAction(args, fetchImpl = fetch, signal, requestOptions = {}) {
   const payload = makePlannerPayload(args);
-  const requestAbort = createRequestAbort(signal, PLANNER_REQUEST_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(requestOptions.timeoutMs)
+    ? Math.max(1, Math.min(PLANNER_REQUEST_TIMEOUT_MS, Math.round(requestOptions.timeoutMs)))
+    : PLANNER_REQUEST_TIMEOUT_MS;
+  const requestAbort = createRequestAbort(signal, timeoutMs);
   try {
     let lastError = null;
     for (let attempt = 1; attempt <= PLANNER_MAX_ATTEMPTS; attempt += 1) {
