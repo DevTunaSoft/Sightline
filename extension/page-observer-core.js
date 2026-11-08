@@ -2,6 +2,7 @@ export const PAGE_OBSERVER_LIMITS = Object.freeze({
   maxElements: 300,
   maxTextPerElement: 240,
   maxSnapshotChars: 48000,
+  maxVisibleTextChars: 8000,
 });
 
 export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) {
@@ -53,6 +54,7 @@ export function snapshotIdentity(snapshot) {
   const stable = {
     url: snapshot?.url || '',
     title: snapshot?.title || '',
+    visibleText: snapshot?.visibleText || '',
     elements: (snapshot?.elements || []).map(({ ref: _ref, rect: _rect, ...element }) => element),
   };
   return `s1-${fnv1aHash(JSON.stringify(stable))}`;
