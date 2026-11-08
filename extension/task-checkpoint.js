@@ -27,7 +27,7 @@ export function sanitizeCheckpointTimeline(timeline = []) {
   }));
 }
 
-export function createTaskCheckpoint({ taskId, goal, mode = 'assist', model = '', status = 'running', timeline = [], actionsUsed = 0, tabId = null, taskOrigin = null, lastSnapshotId = null, requiresReview = false, updatedAt = new Date().toISOString() }) {
+export function createTaskCheckpoint({ taskId, goal, mode = 'assist', model = '', status = 'running', timeline = [], actionsUsed = 0, visionFallbacksUsed = 0, tabId = null, taskOrigin = null, lastSnapshotId = null, requiresReview = false, updatedAt = new Date().toISOString() }) {
   const checkpoint = {
     version: 1,
     taskId: clean(taskId, 100),
@@ -36,6 +36,7 @@ export function createTaskCheckpoint({ taskId, goal, mode = 'assist', model = ''
     model: clean(model, 110),
     status: ['running', 'interrupted', 'completed', 'failed'].includes(status) ? status : 'running',
     actionsUsed: Math.max(0, Math.min(1000, Number(actionsUsed) || 0)),
+    visionFallbacksUsed: Math.max(0, Math.min(2, Number(visionFallbacksUsed) || 0)),
     tabId: Number.isInteger(tabId) && tabId > 0 ? tabId : null,
     taskOrigin: (() => { try { return taskOrigin ? new URL(String(taskOrigin)).origin : null; } catch { return null; } })(),
     lastSnapshotId: clean(lastSnapshotId, 80) || null,
