@@ -40,10 +40,10 @@ export async function observeActiveTab(chromeApi = chrome) {
   return { tabId: tab.id, ...result };
 }
 
-export async function executeOnActiveTab({ action, snapshotId, mode = 'assist', confirmed = false }, chromeApi = chrome) {
+export async function executeOnActiveTab({ action, snapshotId, mode = 'assist', confirmed = false, confirmationKey = null }, chromeApi = chrome) {
   const tab = await getActiveTab(chromeApi);
   await ensurePageAgent(tab.id, chromeApi);
   return chromeApi.tabs.sendMessage(tab.id, {
-    type: 'SIGHTLINE_EXECUTE', action, snapshotId, mode, confirmed: confirmed === true,
+    type: 'SIGHTLINE_EXECUTE', action, snapshotId, mode, confirmed: confirmed === true, confirmationKey,
   });
 }
