@@ -47,8 +47,10 @@ export class TaskProgressGuard {
 export async function runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, clock, resume = null, onCheckpoint = null }) {
   if (typeof goal !== 'string' || !goal.trim()) throw new Error('Task goal is required.');
   for (const fn of [observe, plan, execute, verify]) if (typeof fn !== 'function') throw new Error('Task loop dependency missing.');
-  const guard = new TaskProgressGuard({ limits, clock });
-  const timeline = [];
+  const resumeTimeline = Array.isArray(resume?.timeline) ? resume.timeline.slice(-40) : [];
+  const initialActions = Math.max(Number(resume?.actionsUsed) || 0, resumeTimeline.length);
+  const guard = new TaskProgressGuard({ limits, clock, initialActions });
+  const timeline = [...resumeTimeline];
 
   while (true) {
     if (signal?.aborted) return { ok: false, code: 'ABORTED', timeline };
@@ -65,6 +67,9 @@ export async function runTaskLoop({ goal, observe, plan, execute, verify, signal
 
     const receipt = await execute(decision.action, { signal, snapshot });
     timeline.push({ n: allowed.actionNumber, snapshotId: snapshot.snapshotId || null, action: decision.action, receipt });
+    if (typeof onCheckpoint === 'function') {
+      await onCheckpoint({ timeline: [...timeline], actionsUsed: guard.actions, snapshotId: snapshot.snapshotId || null });
+    }
     if (!receipt?.ok) return { ok: false, code: receipt?.code || 'ACTION_FAILED', timeline };
 
     const verdict = await verify({ goal: goal.trim(), before: snapshot, action: decision.action, receipt, signal });
