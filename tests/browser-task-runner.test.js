@@ -318,3 +318,28 @@ test('same semantic snapshot cannot trigger repeated vision inference', async ()
   assert.equal(captures,1);
   assert.equal(fetchCalls,3);
 });
+
+
+test('resumed task cannot reset exhausted vision budget', async () => {
+  let captures=0;
+  const snapshot={snapshotId:'same',url:'https://example.com/',visibleText:'Ambiguous',elements:[]};
+  const chromeApi={
+    tabs:{
+      get:async()=>({id:7,url:snapshot.url,active:true,windowId:1}),
+      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJD'; },
+      sendMessage:async(_id,msg)=>{
+        if(msg.type==='SIGHTLINE_PING') return {ok:true};
+        if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+      },
+    },
+    scripting:{executeScript:async()=>{}},
+  };
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:'{"done":false,"needVision":true,"reason":"Need visual"}'}}),{status:200});
+  const result=await runBrowserTask({
+    goal:'inspect',model:'gemma3:4b',chromeApi,fetchImpl,
+    resume:{tabId:7,taskOrigin:'https://example.com',visionFallbacksUsed:2,actionsUsed:0,timeline:[]}
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'VISION_FALLBACK_EXHAUSTED');
+  assert.equal(captures,0);
+});
