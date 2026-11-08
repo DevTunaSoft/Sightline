@@ -1,10 +1,15 @@
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot } from './page-observer-core.js';
+import {
+  PAGE_OBSERVER_LIMITS,
+  cleanPageText,
+  inferElementRole,
+  isSensitiveField,
+  boundSnapshot,
+} from './page-observer-core.js';
 
-const DEFAULT_LIMITS = PAGE_OBSERVER_LIMITS;
 const INTERACTIVE_SELECTOR = [
   'a[href]', 'button', 'input', 'select', 'textarea',
   '[role="button"]', '[role="link"]', '[role="checkbox"]', '[role="radio"]',
-  '[role="textbox"]', '[role="combobox"]', '[role="menuitem"]', '[tabindex]'
+  '[role="textbox"]', '[role="combobox"]', '[role="menuitem"]', '[tabindex]',
 ].join(',');
 
 function isVisible(element) {
@@ -33,8 +38,11 @@ function accessibleName(element, maxLength) {
 
 function describeElement(element, index, limits) {
   const role = inferElementRole(element.tagName, element.getAttribute('role') || '', element.getAttribute('type') || '');
-  const type = (element.getAttribute('type') || '').toLowerCase();
-  const sensitive = isSensitiveField(type);
+  const sensitive = isSensitiveField({
+    type: element.getAttribute('type'),
+    autocomplete: element.getAttribute('autocomplete'),
+    name: element.getAttribute('name') || element.id,
+  });
   const rect = element.getBoundingClientRect();
   const state = {};
   if ('disabled' in element) state.disabled = Boolean(element.disabled);
@@ -42,21 +50,33 @@ function describeElement(element, index, limits) {
   if ('readOnly' in element && element.readOnly) state.readOnly = true;
   if (element.getAttribute('aria-expanded') !== null) state.expanded = element.getAttribute('aria-expanded') === 'true';
   return {
-    ref: `@e${index + 1}`, role,
+    ref: `@e${index + 1}`,
+    role,
     name: sensitive ? '[REDACTED SENSITIVE FIELD]' : accessibleName(element, limits.maxTextPerElement),
-    sensitive, state,
-    rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }
+    sensitive,
+    state,
+    rect: {
+      x: Math.round(rect.x), y: Math.round(rect.y),
+      width: Math.round(rect.width), height: Math.round(rect.height),
+    },
   };
 }
 
 export function buildPageSnapshot(options = {}) {
-  const limits = { ...DEFAULT_LIMITS, ...options };
-  const candidates = [...document.querySelectorAll(INTERACTIVE_SELECTOR)].filter(isVisible).slice(0, limits.maxElements);
-  const elements = candidates.map((el, index) => describeElement(el, index, limits));
-  const snapshot = {
-    version: 1, url: location.href, title: cleanPageText(document.title, 300),
+  const limits = { ...PAGE_OBSERVER_LIMITS, ...options };
+  const elements = [];
+  let truncated = false;
+  for (const candidate of document.querySelectorAll(INTERACTIVE_SELECTOR)) {
+    if (!isVisible(candidate)) continue;
+    if (elements.length >= limits.maxElements) { truncated = true; break; }
+    elements.push(describeElement(candidate, elements.length, limits));
+  }
+  return boundSnapshot({
+    version: 1,
+    url: location.href,
+    title: cleanPageText(document.title, 300),
     viewport: { width: innerWidth, height: innerHeight },
-    truncated: candidates.length >= limits.maxElements, elements,
-  };
-  return boundSnapshot(snapshot, limits.maxSnapshotChars);
+    truncated,
+    elements,
+  }, limits.maxSnapshotChars);
 }
