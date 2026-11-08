@@ -16,3 +16,23 @@ test('planner client uses local Ollama only and parses decision', async () => {
 test('planner client rejects malformed model decisions', async () => {
   await assert.rejects(()=>planNextAction({model:'gemma3:4b',goal:'x',snapshot},async()=>new Response(JSON.stringify({message:{content:'not json'}}),{status:200})),/invalid JSON/);
 });
+
+test('planner client performs at most one bounded repair retry for malformed JSON', async () => {
+  let calls=0;
+  const decision=await planNextAction({model:'gemma3:4b',goal:'open inbox',snapshot},async()=>{
+    calls+=1;
+    const content=calls===1 ? 'not json' : '{"done":false,"action":{"action":"click","ref":"@e1"}}';
+    return new Response(JSON.stringify({message:{content}}),{status:200});
+  });
+  assert.equal(calls,2);
+  assert.equal(decision.action.ref,'@e1');
+});
+
+test('planner client never loops beyond two malformed attempts', async () => {
+  let calls=0;
+  await assert.rejects(()=>planNextAction({model:'gemma3:4b',goal:'x',snapshot},async()=>{
+    calls+=1;
+    return new Response(JSON.stringify({message:{content:'still invalid'}}),{status:200});
+  }),/invalid JSON/);
+  assert.equal(calls,2);
+});
