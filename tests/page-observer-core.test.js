@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector } from '../extension/page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin } from '../extension/page-observer-core.js';
 
 test('observer defaults are deliberately bounded', () => {
   assert.equal(PAGE_OBSERVER_LIMITS.maxElements, 300);
@@ -39,4 +39,11 @@ test('bounded text collector stops before materializing unlimited page text', ()
   assert.equal(collector.full,true);
   assert.equal(collector.push('ignored'),false);
   assert.equal(collector.value().length,12);
+});
+
+
+test('safeOrigin exposes origin only and strips path/query/hash', () => {
+  assert.equal(safeOrigin('https://example.com/path?q=secret#x'),'https://example.com');
+  assert.equal(safeOrigin('/embedded','https://mail.yahoo.com/inbox'),'https://mail.yahoo.com');
+  assert.equal(safeOrigin('not a url'),null);
 });
