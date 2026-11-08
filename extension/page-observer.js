@@ -5,6 +5,7 @@ import {
   isSensitiveField,
   boundSnapshot,
   createBoundedTextCollector,
+  safeOrigin,
 } from './page-observer-core.js';
 
 const INTERACTIVE_SELECTOR = [
@@ -39,6 +40,29 @@ function collectBoundedPageText(root, maxChars) {
     node = walker.nextNode();
   }
   return collector.value();
+}
+
+function inventoryFrames(maxFrames = 20) {
+  const frames = [...document.querySelectorAll('iframe,frame')];
+  const result = { total: frames.length, sameOrigin: 0, opaque: 0, origins: [] };
+  const originSet = new Set();
+  for (const frame of frames.slice(0, Math.max(0, Math.min(100, maxFrames)))) {
+    let readable = false;
+    try {
+      readable = Boolean(frame.contentDocument);
+      if (readable) result.sameOrigin += 1;
+      else result.opaque += 1;
+    } catch {
+      result.opaque += 1;
+    }
+    const origin = safeOrigin(frame.getAttribute?.('src') || '', location.href);
+    if (origin && origin !== 'null' && !originSet.has(origin) && originSet.size < 10) {
+      originSet.add(origin);
+      result.origins.push(origin);
+    }
+  }
+  if (frames.length > maxFrames) result.truncated = true;
+  return result;
 }
 
 function accessibleName(element, maxLength) {
@@ -106,6 +130,7 @@ export function buildPageSnapshot(options = {}) {
     url: location.href,
     title: cleanPageText(document.title, 300),
     visibleText: collectBoundedPageText(document.body, limits.maxVisibleTextChars),
+    frames: inventoryFrames(),
     viewport: { width: innerWidth, height: innerHeight },
     truncated,
     elements,
