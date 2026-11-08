@@ -485,3 +485,33 @@ test('pausing while confirmation is open returns TASK_CANCELLED, not USER_DECLIN
   assert.equal(result.ok,false);
   assert.equal(result.code,'TASK_CANCELLED');
 });
+
+
+test('unscoped Yahoo Trash is blocked before user confirmation is offered', async () => {
+  let confirmCalls=0;
+  const snapshot={
+    snapshotId:'ys-inbox',url:'https://mail.yahoo.com/d/folders/1',visibleText:'Inbox 500 messages',
+    elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}],
+  };
+  const chromeApi={tabs:{
+    query:async()=>[{id:7,url:snapshot.url,active:true,windowId:1}],
+    get:async()=>({id:7,url:snapshot.url,active:true,windowId:1}),
+    sendMessage:async(_id,msg)=>{
+      if(msg.type==='SIGHTLINE_PING') return {ok:true};
+      if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+      if(msg.type==='SIGHTLINE_EXECUTE') return {
+        ok:false,code:'CONFIRMATION_REQUIRED',target:snapshot.elements[0],
+        risk:{level:'high'},confirmationKey:'k'
+      };
+    },
+  },scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:'{"done":false,"action":{"action":"click","ref":"@e1"}}'}}),{status:200});
+  const result=await runBrowserTask({
+    goal:'Delete old Amazon emails',model:'gemma3:4b',chromeApi,fetchImpl,
+    confirmAction:async()=>{ confirmCalls+=1; return true; },
+    limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
+  assert.equal(confirmCalls,0);
+});
