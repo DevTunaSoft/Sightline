@@ -1,4 +1,4 @@
-import { isSensitiveField, cleanPageText } from './page-observer-core.js';
+import { isSensitiveField, cleanPageText, createBoundedTextCollector } from './page-observer-core.js';
 
 function attr(element, name) {
   return typeof element?.getAttribute === 'function' ? element.getAttribute(name) : null;
@@ -10,6 +10,25 @@ function sensitiveElement(element) {
     autocomplete: attr(element, 'autocomplete') || element?.autocomplete,
     name: attr(element, 'name') || element?.name || element?.id,
   });
+}
+
+function boundedElementText(element, maxChars = 4000) {
+  if (!element) return '';
+  if (typeof element.value === 'string' && ['INPUT', 'TEXTAREA', 'SELECT'].includes(String(element.tagName || '').toUpperCase())) {
+    return cleanPageText(element.value, maxChars);
+  }
+  const doc = element.ownerDocument || globalThis.document;
+  const nodeFilter = doc?.defaultView?.NodeFilter || globalThis.NodeFilter;
+  const collector = createBoundedTextCollector(maxChars);
+  if (!doc?.createTreeWalker || !nodeFilter) return cleanPageText(element.textContent || '', maxChars);
+  const walker = doc.createTreeWalker(element, nodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node && !collector.full) {
+    const parent = node.parentElement;
+    if (parent && !parent.closest?.('[hidden],[aria-hidden="true"]')) collector.push(node.nodeValue);
+    node = walker.nextNode();
+  }
+  return collector.value();
 }
 
 function ensureElement(element) {
@@ -56,7 +75,7 @@ function setValue(element, value, windowObject) {
 export function createDomActionAdapter({ registry, snapshotId, windowObject = globalThis.window, documentObject = globalThis.document }) {
   if (!registry) throw new Error('Ref registry is required.');
   const resolve = (ref) => ensureElement(registry.resolve(ref, snapshotId));
-  const textOf = (element) => cleanPageText(element?.innerText || element?.textContent || element?.value || '', 4000);
+  const textOf = (element) => boundedElementText(element, 4000);
 
   return {
     hasRef: (ref) => registry.has(ref, snapshotId),
@@ -138,7 +157,7 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       return { ok: true, waitedMs: action.ms };
     },
     async verify(action) {
-      const haystack = action.ref ? textOf(resolve(action.ref)) : cleanPageText(documentObject?.body?.innerText || '', 12000);
+      const haystack = action.ref ? textOf(resolve(action.ref)) : boundedElementText(documentObject?.body, 12000);
       const ok = haystack.toLowerCase().includes(action.expect.toLowerCase());
       return { ok, ref: action.ref, matched: ok, expectation: action.expect };
     },
