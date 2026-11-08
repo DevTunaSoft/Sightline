@@ -2,12 +2,13 @@ import { observeActiveTab } from './browser-bridge.js';
 import { runBrowserTask } from './browser-task-runner.js';
 import { runBrowserAcceptanceSelfTest } from './browser-self-test.js';
 import { runLocalAIBrowserSelfTest } from './local-ai-self-test.js';
+import { runYahooReadinessCheck } from './yahoo-readiness.js';
 import { saveTaskCheckpoint, loadTaskCheckpoint, clearTaskCheckpoint } from './task-checkpoint.js';
 
 const byId = id => document.getElementById(id);
 const ui = {
   tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'), aiTest: byId('localAiSelfTestBtn'),
-  observe: byId('observePageBtn'), selfTest: byId('browserSelfTestBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
+  observe: byId('observePageBtn'), selfTest: byId('browserSelfTestBtn'), yahooReadiness: byId('yahooReadinessBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
   progress: byId('agentProgress'), report: byId('exportAgentReportBtn'), card: byId('confirmCard'), text: byId('confirmText'),
   confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
 };
@@ -18,6 +19,7 @@ function sync() {
   ui.run.disabled = state.running;
   ui.observe.disabled = state.running;
   ui.selfTest.disabled = state.running;
+  ui.yahooReadiness.disabled = state.running;
   ui.aiTest.disabled = state.running;
   ui.stop.disabled = !state.running;
   ui.taskCancel.disabled = !state.running;
@@ -162,6 +164,39 @@ async function restoreInterruptedTask() {
     sync();
   } catch (error) {
     addProgress('Checkpoint', `Could not restore prior task: ${error.message}`);
+  }
+}
+
+async function runYahooReadiness() {
+  if (state.running) return;
+  state.running = true;
+  state.lastReport = null;
+  clearProgress('Inspecting Yahoo Mail readiness without taking any actions…');
+  sync();
+  try {
+    const report = await runYahooReadinessCheck(chrome);
+    state.lastReport = {
+      version: 1,
+      type: 'yahoo-readiness',
+      generatedAt: new Date().toISOString(),
+      outcome: { ok: report.ok === true, code: report.code || null },
+      summary: report.summary || {},
+      checks: (report.checks || []).map(check => ({
+        name: String(check.name || '').slice(0, 120),
+        ok: check.ok === true,
+        required: check.required === true,
+        detail: String(check.detail || '').slice(0, 300),
+      })),
+    };
+    for (const check of report.checks || []) {
+      addProgress(check.ok ? 'PASS' : (check.required ? 'FAIL' : 'INFO'), `${check.name}${check.detail ? ` — ${check.detail}` : ''}`);
+    }
+    addProgress(report.ok ? 'Yahoo ready' : 'Yahoo readiness stopped', report.code || (report.ok ? 'PASS' : 'FAIL'));
+  } catch (error) {
+    addProgress('Yahoo readiness error', error.message);
+  } finally {
+    state.running = false;
+    sync();
   }
 }
 
@@ -346,6 +381,7 @@ function cancelTask() {
 if (Object.values(ui).some(value => !value)) throw new Error('Sightline browser-agent UI is incomplete.');
 ui.observe.addEventListener('click', () => void observePage());
 ui.selfTest.addEventListener('click', () => void runBrowserSelfTest());
+ui.yahooReadiness.addEventListener('click', () => void runYahooReadiness());
 ui.aiTest.addEventListener('click', () => void runLocalAISelfTest());
 ui.run.addEventListener('click', () => void runTask());
 ui.stop.addEventListener('click', pauseTask);
