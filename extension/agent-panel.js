@@ -50,6 +50,9 @@ function describeProgress(event) {
   }
   if (event?.type === 'executed') return ['Executed', `${event.action?.action || 'action'} · ${event.result?.ok ? 'OK' : event.result?.code || 'failed'}`];
   if (event?.type === 'recovered') return ['Recovered', `${event.code} · re-observed and re-planning`];
+  if (event?.type === 'vision-started') return ['Vision fallback', event.reason || 'Semantic page data was insufficient'];
+  if (event?.type === 'vision-complete') return ['Vision complete', `${event.chars || 0} characters of bounded visual context`];
+  if (event?.type === 'site-verified') return ['Verified', (event.verification?.evidence || []).join(' · ') || 'Site-specific evidence recorded'];
   return ['Progress', String(event?.type || 'update')];
 }
 
