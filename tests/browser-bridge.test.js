@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isSupportedPageUrl, observeActiveTab, observeTab, getTaskTab } from '../extension/browser-bridge.js';
+import { isSupportedPageUrl, observeActiveTab, observeTab, getTaskTab, captureTaskTabFrame } from '../extension/browser-bridge.js';
 
 test('bridge rejects privileged/non-web URLs', () => {
   assert.equal(isSupportedPageUrl('https://example.com'),true);
@@ -50,4 +50,35 @@ test('closed task tab is classified as TASK_TAB_UNAVAILABLE', async () => {
     ()=>getTaskTab(77,chromeApi),
     error=>error?.code==='TASK_TAB_UNAVAILABLE' && /no longer available/i.test(error.message)
   );
+});
+
+
+test('vision capture refuses a task tab that is not currently visible', async () => {
+  let captures=0;
+  const chromeApi={
+    tabs:{
+      get:async()=>({id:7,url:'https://example.com/',active:false,windowId:1}),
+      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,AAAA'; },
+    },
+  };
+  await assert.rejects(
+    ()=>captureTaskTabFrame(7,chromeApi),
+    error=>error?.code==='VISION_TAB_NOT_ACTIVE'
+  );
+  assert.equal(captures,0);
+});
+
+test('vision capture returns base64 only for the exact active task tab', async () => {
+  const chromeApi={
+    tabs:{
+      get:async()=>({id:7,url:'https://example.com/',active:true,windowId:4}),
+      captureVisibleTab:async(windowId,options)=>{
+        assert.equal(windowId,4);
+        assert.equal(options.format,'jpeg');
+        return 'data:image/jpeg;base64,QUJD';
+      },
+    },
+  };
+  const result=await captureTaskTabFrame(7,chromeApi);
+  assert.deepEqual(result,{tabId:7,imageBase64:'QUJD'});
 });
