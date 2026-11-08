@@ -55,7 +55,8 @@ export function validateAction(input) {
   }
   if (action === 'verify') {
     if (!boundedText(input.expect, 1000)) return fail('Verify requires bounded expectation text.');
-    return pass({ ...base, expect: input.expect, ref: input.ref && validRef(input.ref) ? input.ref : undefined });
+    if (input.ref !== undefined && !validRef(input.ref)) return fail('Verify ref is invalid.');
+    return pass({ ...base, expect: input.expect, ref: input.ref });
   }
   return fail('Action validation fell through.');
 }
