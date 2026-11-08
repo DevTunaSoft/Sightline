@@ -16,19 +16,19 @@ const INTERACTIVE_SELECTOR = [
 ].join(',');
 
 function isVisible(element) {
-  if (!(element instanceof Element)) return false;
-  const style = getComputedStyle(element);
-  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
-  const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
+  if (!element || element.nodeType !== 1) return false;
+  const view = element.ownerDocument?.defaultView;
+  const style = view?.getComputedStyle?.(element);
+  if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) return false;
+  const rect = element.getBoundingClientRect?.();
+  return Boolean(rect && rect.width > 0 && rect.height > 0);
 }
 
-function collectBoundedPageText(root, maxChars) {
-  if (!root) return '';
-  const collector = createBoundedTextCollector(maxChars);
+function appendBoundedPageText(root, collector) {
+  if (!root || collector.full) return;
   const doc = root.ownerDocument || document;
   const nodeFilter = doc.defaultView?.NodeFilter || globalThis.NodeFilter;
-  if (!doc.createTreeWalker || !nodeFilter) return collector.value();
+  if (!doc.createTreeWalker || !nodeFilter) return;
   const walker = doc.createTreeWalker(root, nodeFilter.SHOW_TEXT);
   const skippedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
   let node = walker.nextNode();
@@ -40,36 +40,63 @@ function collectBoundedPageText(root, maxChars) {
     }
     node = walker.nextNode();
   }
-  return collector.value();
 }
 
-function inventoryFrames(maxFrames = 20) {
-  const frames = [...document.querySelectorAll('iframe,frame')];
-  const result = { total: frames.length, sameOrigin: 0, opaque: 0, origins: [] };
+function collectFrameContexts(rootDocument, maxFrames = 20, maxDepth = 3) {
+  const contexts = [{ doc: rootDocument, path: 'top', depth: 0, origin: safeOrigin(rootDocument.location?.href || location.href) }];
+  const inventory = { total: 0, sameOrigin: 0, opaque: 0, skippedDepth: 0, origins: [] };
   const originSet = new Set();
-  for (const frame of frames.slice(0, Math.max(0, Math.min(100, maxFrames)))) {
-    let readable = false;
-    try {
-      readable = Boolean(frame.contentDocument);
-      if (readable) result.sameOrigin += 1;
-      else result.opaque += 1;
-    } catch {
-      result.opaque += 1;
+  let inspected = 0;
+
+  for (let contextIndex = 0; contextIndex < contexts.length; contextIndex += 1) {
+    const context = contexts[contextIndex];
+    const frames = [...context.doc.querySelectorAll('iframe,frame')];
+    inventory.total += frames.length;
+
+    for (let i = 0; i < frames.length; i += 1) {
+      if (inspected >= maxFrames) {
+        inventory.truncated = true;
+        break;
+      }
+      inspected += 1;
+      const frame = frames[i];
+      const origin = safeOrigin(frame.getAttribute?.('src') || '', context.doc.location?.href || location.href);
+      if (origin && origin !== 'null' && !originSet.has(origin) && originSet.size < 10) {
+        originSet.add(origin);
+        inventory.origins.push(origin);
+      }
+
+      let childDocument = null;
+      try { childDocument = frame.contentDocument || null; } catch {}
+      if (!childDocument?.documentElement) {
+        inventory.opaque += 1;
+        continue;
+      }
+
+      inventory.sameOrigin += 1;
+      if (context.depth >= maxDepth || !isVisible(frame)) {
+        inventory.skippedDepth += context.depth >= maxDepth ? 1 : 0;
+        continue;
+      }
+
+      contexts.push({
+        doc: childDocument,
+        path: `${context.path}/f${i + 1}`,
+        depth: context.depth + 1,
+        origin: safeOrigin(childDocument.location?.href || origin || '', context.doc.location?.href || location.href),
+      });
     }
-    const origin = safeOrigin(frame.getAttribute?.('src') || '', location.href);
-    if (origin && origin !== 'null' && !originSet.has(origin) && originSet.size < 10) {
-      originSet.add(origin);
-      result.origins.push(origin);
-    }
+    if (inspected >= maxFrames) break;
   }
-  if (frames.length > maxFrames) result.truncated = true;
-  return result;
+
+  return { contexts, inventory };
 }
 
 function accessibleName(element, maxLength, allowValueLabel = false) {
+  const doc = element.ownerDocument || document;
   const labelledBy = element.getAttribute('aria-labelledby');
   if (labelledBy) {
-    const text = labelledBy.split(/\s+/).map(id => document.getElementById(id)?.textContent || '').join(' ');
+    const text = labelledBy.split(/\s+/).map(id => doc.getElementById(id)?.textContent || '').join(' ');
     if (text.trim()) return cleanPageText(text, maxLength);
   }
   const aria = element.getAttribute('aria-label');
@@ -82,7 +109,7 @@ function accessibleName(element, maxLength, allowValueLabel = false) {
   return cleanPageText(element.innerText || element.textContent || (allowValueLabel ? element.getAttribute('value') : '') || '', maxLength);
 }
 
-function describeElement(element, index, limits) {
+function describeElement(element, index, limits, frameContext) {
   const role = inferElementRole(element.tagName, element.getAttribute('role') || '', element.getAttribute('type') || '');
   const sensitive = isSensitiveField({
     type: element.getAttribute('type'),
@@ -100,12 +127,16 @@ function describeElement(element, index, limits) {
   if (!sensitive && ['textbox', 'combobox'].includes(role) && typeof element.value === 'string') state.valueLength = Math.min(4000, element.value.length);
   if (!sensitive && element.tagName?.toLowerCase() === 'select' && Number.isInteger(element.selectedIndex)) state.selectedIndex = element.selectedIndex;
   if (element.getAttribute('aria-expanded') !== null) state.expanded = element.getAttribute('aria-expanded') === 'true';
+  const frame = frameContext?.depth > 0
+    ? { path: frameContext.path, depth: frameContext.depth, origin: frameContext.origin || null }
+    : undefined;
   return {
     ref: `@e${index + 1}`,
     role,
     name: sensitive ? '[REDACTED SENSITIVE FIELD]' : accessibleName(element, limits.maxTextPerElement, mayUseValueAsAccessibleName(element.tagName, role, element.getAttribute('type') || '')),
     sensitive,
     state,
+    ...(frame ? { frame } : {}),
     rect: {
       x: Math.round(rect.x), y: Math.round(rect.y),
       width: Math.round(rect.width), height: Math.round(rect.height),
@@ -118,20 +149,28 @@ export function buildPageSnapshot(options = {}) {
   const limits = { ...PAGE_OBSERVER_LIMITS, ...limitOverrides };
   const elements = [];
   const registryEntries = [];
+  const { contexts, inventory } = collectFrameContexts(document);
+  const textCollector = createBoundedTextCollector(limits.maxVisibleTextChars);
   let truncated = false;
-  for (const candidate of document.querySelectorAll(INTERACTIVE_SELECTOR)) {
-    if (!isVisible(candidate)) continue;
-    if (elements.length >= limits.maxElements) { truncated = true; break; }
-    const description = describeElement(candidate, elements.length, limits);
-    elements.push(description);
-    registryEntries.push({ ref: description.ref, value: candidate });
+
+  for (const frameContext of contexts) {
+    appendBoundedPageText(frameContext.doc.body, textCollector);
+    for (const candidate of frameContext.doc.querySelectorAll(INTERACTIVE_SELECTOR)) {
+      if (!isVisible(candidate)) continue;
+      if (elements.length >= limits.maxElements) { truncated = true; break; }
+      const description = describeElement(candidate, elements.length, limits, frameContext);
+      elements.push(description);
+      registryEntries.push({ ref: description.ref, value: candidate });
+    }
+    if (truncated) break;
   }
+
   const snapshot = boundSnapshot({
     version: 1,
     url: location.href,
     title: cleanPageText(document.title, 300),
-    visibleText: collectBoundedPageText(document.body, limits.maxVisibleTextChars),
-    frames: inventoryFrames(),
+    visibleText: textCollector.value(),
+    frames: inventory,
     viewport: { width: innerWidth, height: innerHeight },
     truncated,
     elements,
