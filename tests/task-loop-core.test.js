@@ -165,3 +165,21 @@ test('resuming after unverified page change is blocked before any work', async (
   assert.equal(result.code,'ACTION_RECONCILIATION_REQUIRED');
   assert.equal(called,false);
 });
+
+test('cancellation during a slow checkpoint prevents late mutation', async () => {
+  const aborter=new AbortController();
+  let executed=0;
+  const result=await runTaskLoop({
+    goal:'stop while saving',
+    observe:async()=>({snapshotId:'s1'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:async()=>{executed++;return {ok:true};},
+    verify:async()=>({ok:true}),
+    onCheckpoint:async()=>{aborter.abort();},
+    signal:aborter.signal,
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'ABORTED');
+  assert.equal(executed,0);
+  assert.equal(result.timeline.length,1);
+});
