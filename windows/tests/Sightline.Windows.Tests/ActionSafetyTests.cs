@@ -153,6 +153,31 @@ public sealed class ActionSafetyTests
     }
 
     [Fact]
+    public void Idle_session_construction_allocation_stays_bounded()
+    {
+        const int warmup = 25;
+        const int cycles = 250;
+        const long maxBytesPerSession = 4096;
+
+        for (var i = 0; i < warmup; i++)
+        {
+            var warm = new WindowsAutomationSession();
+            warm.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+
+        for (var i = 0; i < cycles; i++)
+        {
+            var session = new WindowsAutomationSession();
+            session.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.InRange(allocated, 0, maxBytesPerSession * cycles);
+    }
+
+    [Fact]
     public void Uia_runtime_options_reject_unbounded_or_tiny_timeouts()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
