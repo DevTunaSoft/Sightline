@@ -1,169 +1,93 @@
 # Sightline Engineering Handoff
 
-Last updated: 2026-11-08
+Last updated: 2026-11-09
 
 ## Product
 
-**Sightline 0.2.0-alpha**  
-Tagline: **See. Understand. Act.**
+**Sightline** — *See. Understand. Act.*
 
 Repository: DevTunaSoft/Sightline  
-Active development branch: `develop`  
-Integration branch: `main`
+Integration branch: `main`  
+Browser development baseline: `develop`  
+Current Windows work: `feature/windows-foundation-v0`
 
-## Current engineering state
+## Direction
 
-The generic browser-agent alpha feature set is **feature-frozen pending real-machine acceptance**.
+Sightline is now a lightweight standalone Windows application with the existing Chrome/Edge extension retained as the browser companion.
 
-The current public `develop` archive has completed the repository `npm run check` suite successfully after the feature freeze. The check suite now includes the release audit.
+The browser alpha is preserved; Windows work must not recreate its DOM observation, browser safety, Yahoo skill, checkpoint, or Ollama acceptance features.
 
-Do **not** interpret this as installed Chrome/Edge, live Ollama, or live Yahoo acceptance.
+## Verified baseline
 
-## Implemented foundation
+- repository reconciliation: PASS
+- Windows duplication check: PASS
+- browser alpha source on develop: PRESENT
+- CI defect `package-extension -> needs: test`: CONFIRMED and corrected on Windows feature branch
+- Windows runtime behavior: UNVERIFIED
+- real Chrome/Edge/Ollama/Yahoo acceptance: UNVERIFIED
 
-### Observation
-- Manifest V3 side panel
-- bounded semantic DOM/accessibility snapshot
-- 300-control cap
-- 48 KB snapshot cap
-- 8 KB visible-text cap
-- sensitive-field redaction
-- textbox values excluded from semantic names
-- same-origin iframe traversal
-- cross-origin iframe opacity/reporting
-- semantic snapshot identity
+## Windows Foundation v0
 
-### Execution
-- strict typed action schema
-- deterministic DOM executor
-- same-origin iframe event realm handling
-- live semantic revalidation immediately before actions
-- stale snapshot/ref rejection and recovery
-- post-action observation
-- consequential-action semantic-effect verification
+Implemented on feature branch:
+- .NET 8 Windows solution
+- `Sightline.Core` with no FlaUI dependency
+- `Sightline.Windows` with FlaUI UIA3 adapter
+- `Sightline.App` minimal observation CLI
+- bounded traversal by node/depth/time
+- cancellation
+- semantic snapshot DTOs
+- structured error-code foundation
+- fixed-capacity diagnostic ledger
+- xUnit core tests
+- deterministic WPF test target
+- Windows CI restore/build/test job
 
-### Autonomous loop
-- local Ollama JSON planner
-- 90-second planner timeout
-- one malformed-output repair retry
-- max action/time/repeated-state/repeated-action guards
-- task-tab lock
-- approved-origin lock
-- cross-origin confirmation
-- same-origin destructive-navigation confirmation
-- pause/resume
-- cancel/clear checkpoint
-- closed-tab resume cleanup
-- serialized/revisioned checkpoint writes
+Not yet verified until CI completes:
+- NuGet restore
+- Windows compilation
+- tests
+- FlaUI API compatibility
+- WPF fixture build
 
-### Vision fallback
-- DOM-first architecture
-- planner must explicitly request visual help
-- max 2 visual fallbacks per task
-- max 1 per unchanged semantic snapshot
-- task tab must be visible/active
-- vision budget survives resume
-- screenshot not persisted in checkpoint
+Not yet implemented:
+- persistent rotating logging
+- privacy scrubber
+- element lease registry/generation identity
+- UIA actions/readback
+- focus verification
+- UIA circuit breaker
+- Win32 adapter
+- Windows Graphics Capture/OCR
+- browser IPC
+- tiny local GGUF runtime
+- standalone GUI
 
-### Safety
-- page/model/screenshot content treated as untrusted data
-- no arbitrary model-generated JavaScript or shell execution
-- password/OTP/payment/token-like controls blocked
-- confirmation key binds task/snapshot/action/target
-- page revalidated after confirmation delay
-- irreversible deletion requires explicit original intent
-- confirmation decline terminates task
-- pause during confirmation remains resumable
-- session/account/mail-abuse side effects require confirmation
+## Resource rules
 
-### Yahoo Mail
-- Yahoo site skill
-- deterministic search/select/Trash/count/sample hints
-- visible advanced-search control hints
-- no invented Yahoo operator requirement
-- login/MFA/CAPTCHA/security handoff
-- destructive preview
-- unfiltered bulk Trash scope guard
-- whole-Inbox exception only for explicit original intent
-- post-Trash Yahoo-specific verification evidence
-- read-only Yahoo readiness check
+Memory growth is a defect.
 
-### Diagnostics/performance
-- bounded diagnostic ledger
-- action/observer/planner/vision timing
-- typed payload excluded from diagnostic export
-- sanitized JSON report export
-- hard resource budgets
-- synthetic benchmark tooling
+All new subsystems must be bounded and measured. Do not add unbounded logs, snapshots, queues, screenshots, model contexts, or caches. Avoid polling. Heavy optional features must load only when needed.
 
-### Acceptance tooling
-- deterministic localhost browser fixture
-- same-origin iframe fixture
-- acceptance fixture server + integration test
-- one-command Windows acceptance launcher
-- installed-browser self-test in Sightline UI
-- extension-origin local AI/Ollama self-test
-- CLI Ollama readiness/image-inference test
-- Yahoo read-only readiness test
-- exportable self-test evidence
-- CI extension artifact upload
-- CI release permission/security/size audit
+## AI direction
 
-## Current release gates
+Do not put an LLM in the execution path for tasks deterministic code can solve.
 
-### Gate 1 — installed Chrome/Edge
-GitHub issue: `/issues/3`
+Future routing:
+1. deterministic code
+2. tiny local GGUF model
+3. larger Ollama/local endpoint
 
-Must run the real installed extension browser self-test in current Chrome and Edge.
+Model selection must be benchmarked by capability per MB. Streaming output and bounded context are required. Failure/unavailability of AI must not disable deterministic Windows/browser functions.
 
-### Gate 2 — live Ollama
-GitHub issue: `/issues/4`
+## Immediate recovery instructions
 
-Must pass both:
-- `npm run acceptance:ollama`
-- Sightline **Test local AI**
+1. Inspect the latest commit and CI on `feature/windows-foundation-v0`.
+2. If Windows CI fails, fix the first root cause and add/adjust regression coverage.
+3. Do not repeat an unchanged failed attempt twice.
+4. Once build/tests pass, implement element leases + semantic UIA action/readback.
+5. Add automated real-desktop acceptance harness before broad Windows capabilities.
+6. Keep docs/status accurate: PASS, FAIL, BLOCKED, NOT RUN, UNVERIFIED.
 
-### Gate 3 — live Yahoo
-GitHub issue: `/issues/5`
+## Release claims
 
-Must pass:
-- read-only Yahoo readiness
-- controlled non-destructive search
-- controlled reversible Move-to-Trash test using disposable mail
-- scope guard and irreversible-delete guard checks
-
-## Exact next step
-
-Do **not** add more generic browser-agent features before the three alpha acceptance gates are exercised.
-
-The next code change should be driven by one of:
-1. a specific acceptance defect,
-2. an acceptance environment blocker that needs tooling,
-3. a measured performance failure,
-4. a documented Yahoo DOM/behavior mismatch.
-
-This is intentional anti-loop discipline.
-
-## Recovery instructions
-
-If work is interrupted:
-
-1. Read `README.md`.
-2. Read `docs/FEATURE_STATUS.md`.
-3. Read `docs/ROADMAP.md`.
-4. Read this handoff.
-5. Inspect GitHub issues #3, #4, and #5 for acceptance evidence.
-6. Run `npm run check` on the current `develop` branch before changing code.
-7. If a gate failed, reproduce that exact defect first; do not restart broad hardening.
-
-## Production claims
-
-Not yet verified:
-- installed Chrome acceptance
-- installed Edge acceptance
-- live extension-origin Ollama acceptance
-- real Yahoo acceptance
-- real-browser long-session memory/CPU soak
-- production release packaging/update lifecycle
-
-No production-ready claim is allowed until those gates have evidence.
+No production-ready claim is permitted until automated CI and real-machine acceptance have evidence.
