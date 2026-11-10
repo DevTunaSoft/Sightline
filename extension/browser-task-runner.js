@@ -160,6 +160,9 @@ export async function runBrowserTask({
   };
 
   const execute = async (action, { snapshot }) => {
+    // Confirmation evidence belongs only to this invocation, never the next one.
+    lastConfirmedContext = null;
+    try {
     let result = await timings.measure('execute', () => executeOnTab(taskTabId, { action, snapshotId: snapshot.snapshotId, mode, taskGoal: goal }, chromeApi));
     if (result?.code === 'CONFIRMATION_REQUIRED' && typeof confirmAction === 'function') {
       const skillContext = skillPlannerContext(snapshot.url, snapshot);
@@ -232,9 +235,18 @@ export async function runBrowserTask({
       return { ...(result.receipt || {}), ok: false, code: result.code || result.receipt?.code || 'ACTION_FAILED', error: result.error || result.receipt?.error };
     }
     return result?.receipt || { ok: false, code: result?.code || 'ACTION_FAILED', error: result?.error };
+    } finally {
+      lastConfirmedContext = null;
+    }
   };
 
-  const verify = async ({ receipt }) => ({ ok: receipt?.ok === true });
+  const verify = async ({ receipt }) => {
+    if (receipt?.ok !== true) return { ok: false, code: receipt?.code || 'ACTION_FAILED' };
+    // A site-specific verifier must not be overridden by a generic ok receipt.
+    if (receipt.siteVerification?.applicable === true && receipt.siteVerification.verified !== true)
+      return { ok: false, code: 'NO_VERIFIED_EFFECT' };
+    return { ok: true };
+  };
   try {
     const checkpoint = state => {
       // Preserve sanitized progress even if planning, storage or a provider fails.
