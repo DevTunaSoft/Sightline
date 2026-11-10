@@ -153,7 +153,7 @@ public sealed class ActionSafetyTests
     }
 
     [Fact]
-    public void Idle_session_construction_allocation_stays_bounded()
+    public async Task Idle_session_construction_allocation_stays_bounded()
     {
         const int warmup = 25;
         const int cycles = 250;
@@ -161,19 +161,20 @@ public sealed class ActionSafetyTests
 
         for (var i = 0; i < warmup; i++)
         {
-            var warm = new WindowsAutomationSession();
-            warm.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            await using var warm = new WindowsAutomationSession();
         }
 
+        var sessions = new WindowsAutomationSession[cycles];
         var before = GC.GetAllocatedBytesForCurrentThread();
 
         for (var i = 0; i < cycles; i++)
-        {
-            var session = new WindowsAutomationSession();
-            session.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        }
+            sessions[i] = new WindowsAutomationSession();
 
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        foreach (var session in sessions)
+            await session.DisposeAsync();
+
         Assert.InRange(allocated, 0, maxBytesPerSession * cycles);
     }
 
