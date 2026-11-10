@@ -203,6 +203,21 @@ export async function runBrowserTask({
       return { ok: true, code: 'REPLAN_REQUIRED', recoveredFrom: result.code };
     }
     if (result?.snapshot) cachedSnapshot = result.snapshot;
+    if (result?.ok === true && lastConfirmedContext && result?.snapshot) {
+      const siteVerification = verifySkillActionEffect({
+        before: lastConfirmedContext.before,
+        after: result.snapshot,
+        action: lastConfirmedContext.action,
+        target: lastConfirmedContext.target,
+      });
+      if (siteVerification.applicable) {
+        result = {
+          ...result,
+          receipt: { ...(result.receipt || {}), siteVerification },
+        };
+      }
+      lastConfirmedContext = null;
+    }
     diagnostics.record('execute', 'Browser action finished.', {
       action: safeActionSummary(action),
       ok: result?.ok === true,
@@ -221,7 +236,8 @@ export async function runBrowserTask({
     const checkpoint = typeof onCheckpoint === 'function'
       ? state => onCheckpoint({ ...state, tabId: taskTabId, taskOrigin, visionFallbacksUsed: visionFallbacks })
       : null;
-    const result = await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint: checkpoint });
+    let result = await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint: checkpoint });
+    if (result?.code === 'ABORTED') result = { ...result, code: 'TASK_CANCELLED', error: 'Task cancelled.' };
     diagnostics.record('task-finish', 'Browser task finished.', {
       ok: result?.ok === true,
       code: result?.code || null,
