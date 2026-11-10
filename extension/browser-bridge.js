@@ -1,9 +1,7 @@
-const BLOCKED_PROTOCOLS = new Set(['chrome:', 'edge:', 'about:', 'chrome-extension:', 'moz-extension:', 'view-source:']);
-
 export function isSupportedPageUrl(value) {
   try {
     const url = new URL(String(value || ''));
-    return ['http:', 'https:'].includes(url.protocol) && !BLOCKED_PROTOCOLS.has(url.protocol);
+    return url.protocol === 'http:' || url.protocol === 'https:';
   } catch { return false; }
 }
 
@@ -51,14 +49,18 @@ export async function ensurePageAgent(tabId, chromeApi = chrome) {
     // Agent is not loaded yet or navigation replaced it.
   }
   await chromeApi.scripting.executeScript({ target: { tabId }, files: ['page-agent-bootstrap.js'] });
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    await new Promise(resolve => setTimeout(resolve, 20));
+  // Bounded backoff gives slower module imports time to finish without polling
+  // indefinitely. Revalidate the task tab so a navigation cannot inherit approval.
+  const retryDelays = [20, 40, 80, 120, 160, 200, 200, 200];
+  for (const delay of retryDelays) {
+    await new Promise(resolve => setTimeout(resolve, delay));
+    await getTaskTab(tabId, chromeApi);
     try {
       const response = await chromeApi.tabs.sendMessage(tabId, { type: 'SIGHTLINE_PING' });
       if (response?.ok) return response;
-    } catch { /* retry briefly while module loads */ }
+    } catch { /* Bootstrap is still importing; retry within the fixed budget. */ }
   }
-  throw new Error('Sightline page agent did not become ready.');
+  throw codedError('Sightline page agent did not become ready after bounded startup retries.', 'PAGE_AGENT_NOT_READY');
 }
 
 export async function observeTab(tabId, chromeApi = chrome) {
