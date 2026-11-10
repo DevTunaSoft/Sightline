@@ -7,6 +7,7 @@ namespace Sightline.Windows;
 
 public sealed class Win32WindowDiscovery : IDesktopWindowDiscovery
 {
+    public static Win32WindowDiscovery Instance { get; } = new();
     public IReadOnlyList<DesktopWindowInfo> Discover(WindowDiscoveryOptions? options = null)
     {
         var effective = options ?? new WindowDiscoveryOptions();
