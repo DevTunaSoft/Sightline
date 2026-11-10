@@ -20,7 +20,7 @@ try
 {
     try { process.WaitForInputIdle(5000); } catch { }
 
-    var session = new WindowsAutomationSession(
+    await using var session = new WindowsAutomationSession(
         leaseCapacity: 256,
         resolutionBudget: new ObservationBudget(256, 20, TimeSpan.FromMilliseconds(750)));
 
