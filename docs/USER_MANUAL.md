@@ -1,225 +1,120 @@
 # Sightline Beginner User Manual
 
-This guide assumes you do not want to write code.
+## What Sightline is becoming
 
-## What Sightline is
+Sightline is being built as a lightweight Windows application that can see and understand software, safely act through Windows UI Automation, and use the existing Chrome/Edge extension as its browser companion.
 
-Sightline is a browser side panel that can:
-1. see the webpage you are looking at,
+The current usable alpha remains the browser extension. The standalone Windows application is an engineering preview and is **not yet an end-user release**.
+
+## Current browser alpha
+
+The extension can:
+1. observe the webpage you are looking at,
 2. understand buttons, fields, links, text, and page state,
-3. use local AI when reasoning is needed,
-4. perform browser actions,
-5. verify what happened,
+3. use local Ollama AI when reasoning is needed,
+4. perform bounded browser actions,
+5. verify supported effects,
 6. stop when something becomes unsafe or unclear.
 
-## Install the current alpha
-
-### Chrome
+### Install in Chrome
 
 1. Download or clone the Sightline repository.
-2. Open Chrome.
-3. Type `chrome://extensions` into the address bar.
-4. Turn **Developer mode** on.
-5. Click **Load unpacked**.
-6. Choose the `extension` folder inside Sightline.
-7. Pin Sightline if you want quick access.
+2. Open `chrome://extensions`.
+3. Turn **Developer mode** on.
+4. Click **Load unpacked**.
+5. Select the repository's `extension` folder.
+6. Pin Sightline if desired.
 
-### Edge
+### Install in Edge
 
-Use the same steps, starting at `edge://extensions`.
+Use the same process from `edge://extensions`.
 
-## Before using AI: test the browser plumbing
+## Test browser plumbing first
 
-1. Double-click:
+1. Double-click `tools\start-browser-acceptance.cmd`.
+2. Open Sightline on the local test page.
+3. Click **Run browser self-test**.
+4. Confirm the reported checks pass before troubleshooting AI.
 
-   ```text
-   tools\start-browser-acceptance.cmd
-   ```
+## Local AI for the browser alpha
 
-2. A local test page opens.
-3. Open Sightline on that page.
-4. Click **Run browser self-test**.
-5. You should see PASS lines for:
-   - page observation
-   - sensitive-field redaction
-   - same-origin iframe access
-   - opaque cross-origin iframe boundary
-   - typing
-   - clicking
-   - state verification
-   - destructive-action confirmation gate
-   - cross-origin confirmation gate
+Sightline currently supports a local Ollama endpoint.
 
-If this fails, fix the browser-extension problem before troubleshooting Ollama.
+1. Install and start Ollama.
+2. Install a compatible local model.
+3. Configure Ollama to allow Sightline's exact extension origin.
+4. Restart Ollama.
+5. In Sightline, load installed models and run **Test local AI**.
 
-## Set up Ollama
+Do not use a wildcard extension origin unless you intentionally want every installed extension to contact Ollama.
 
-1. Install Ollama.
-2. Start Ollama.
-3. Install a local vision model. Initial recommendation:
+## Browser task modes
 
-   ```text
-   ollama pull gemma3:4b
-   ```
+**Observe** explains what Sightline sees without changing the page.
 
-4. Go to your browser's extensions page and copy Sightline's extension ID.
-5. Set Ollama's allowed origin to the exact extension origin:
+**Assist** allows ordinary actions while consequential actions stop for review.
 
-   ```text
-   chrome-extension://YOUR_ACTUAL_EXTENSION_ID
-   ```
+**Autonomous** allows bounded multi-step execution but does not bypass safety gates.
 
-6. Fully restart Ollama.
+## Pause and Cancel
 
-Do not use a wildcard extension origin unless you intentionally want every installed extension to be able to contact Ollama.
+**Pause** stops execution while retaining a sanitized session checkpoint.
 
-## Test local AI
+**Cancel** stops the task and removes its resumable checkpoint.
 
-Inside Sightline:
-
-1. Click **Load installed models**.
-2. Select your local vision model.
-3. Click **Test local AI**.
-
-This checks:
-- Sightline can reach Ollama from the extension
-- the model is installed
-- the model declares vision support
-- a tiny local image inference succeeds
-
-No real screenshot is used for that test.
-
-## The three modes
-
-### Observe
-
-Use this when you want Sightline to explain what it sees without changing the page.
-
-### Assist
-
-Use this for most early testing.
-
-Sightline can perform ordinary actions, but dangerous actions stop for review.
-
-### Autonomous
-
-Sightline can perform a bounded multi-step task by itself.
-
-Autonomous does **not** mean unrestricted. Safety gates still apply.
-
-## Starting a task
-
-1. Open the webpage you want to work with.
-2. Open Sightline.
-3. Choose a mode.
-4. Type the goal.
-5. Click **Run task**.
-
-Sightline pins the task to that browser tab. Switching to another tab will not redirect the task.
-
-## Pause vs Cancel
-
-### Pause
-
-Pause stops execution and keeps a sanitized session checkpoint.
-
-Use **Run task** again to resume.
-
-The checkpoint does not store typed text, screenshots, or full navigation URLs.
-
-### Cancel
-
-Cancel stops execution and removes the resumable checkpoint.
-
-Use this when you do not want the old task to return.
+Typed text, screenshots, and credentials are not intended to be stored in the browser checkpoint.
 
 ## Confirmations
 
-Sightline asks for confirmation before high-impact actions such as:
-- deleting or moving data to Trash
-- sending/publishing
-- purchases/payments
-- account/security changes
-- leaving the current website origin
+Sightline stops for confirmation before high-impact browser actions such as destructive changes, sending/publishing, payments, account/security changes, or cross-origin navigation.
 
-If the page changes while you are reading the confirmation, the confirmation becomes invalid and Sightline re-plans instead of clicking the old target.
+If state changes while the confirmation is open, the old confirmation is invalidated rather than blindly reused.
 
 ## Yahoo Mail
 
-### First: readiness check
+Use **Yahoo readiness** before a real Yahoo task. It is read-only.
 
-1. Sign into Yahoo yourself.
-2. Open Yahoo Mail.
-3. Open Sightline.
-4. Click **Yahoo readiness**.
+Sightline is designed to stop for login, MFA, CAPTCHA, account recovery, or security challenges and let you handle them directly.
 
-This is read-only.
+Permanent deletion remains more restricted than moving mail to Trash.
 
-Sightline checks whether it can see the mail search control and reports optional search/filter/select/Trash/count information.
+## Windows engineering preview
 
-If Yahoo displays MFA, CAPTCHA, login, account recovery, or a security challenge, Sightline stops and lets you handle it.
+The Windows foundation currently includes:
+- bounded UI Automation observation,
+- session-scoped element references,
+- stale-reference rejection,
+- semantic UIA Invoke and SetValue code paths,
+- SetValue readback verification,
+- bounded diagnostics,
+- resource counters for RAM/handles/threads,
+- automated Windows build and safety tests.
 
-### Safe destructive behavior
+It does **not** yet have a normal end-user GUI, installer, complete focus protection, or real-desktop acceptance evidence.
 
-For a request like:
+### Developer verification
 
-```text
-Find my old Amazon emails and move them to Trash.
+On Windows with the .NET 8 SDK:
+
+```powershell
+.\tools\test-windows.ps1
 ```
 
-Sightline is designed to:
-1. search/filter first,
-2. determine the visible result scope/count when possible,
-3. show sample messages,
-4. stop for confirmation,
-5. move mail to Trash,
-6. verify Yahoo shows evidence of the change.
+The script restores, builds, runs the Windows/core safety tests, captures a lightweight process-resource baseline, and writes bounded evidence under:
 
-Sightline blocks an apparently unfiltered Inbox-wide Trash action unless your original task explicitly requested a whole-Inbox action.
+```text
+.artifacts\windows-foundation
+```
 
-**Empty Trash / Delete Forever** is a different, more dangerous action. Sightline blocks it unless the original task explicitly asked for permanent deletion, and it still requires confirmation.
+This is an engineering verification path, not the final user experience.
 
-## Vision fallback
+## Diagnostics
 
-Sightline normally uses lightweight semantic page information.
+Browser reports are exportable from the extension and intentionally omit sensitive action payloads/screenshots.
 
-If the planner genuinely needs visual layout/image information, it may request a screenshot-based local vision pass.
+The Windows foundation now records bounded, sanitized structured UIA diagnostics in memory. An optional rotating JSONL sink is implemented with fixed queue/file/retention limits and secret redaction, but persistent logging is not yet exposed as a normal end-user setting. A user-facing diagnostics viewer is still planned.
 
-Limits:
-- maximum two vision fallbacks per task
-- maximum one for the same unchanged page state
-- task tab must be visible/active
-- screenshot is not stored in the resume checkpoint
+## Current warning
 
-The progress log tells you when vision is being used.
-
-## Exporting diagnostics
-
-After a task or self-test, click **Export agent report (.json)**.
-
-The report contains bounded diagnostic events/timings.
-
-It intentionally excludes:
-- typed action text
-- screenshots
-- full task action payloads
-- passwords/tokens
-
-## If something fails
-
-Use the gates in this order:
-
-1. **Run browser self-test**
-2. **Test local AI**
-3. **Yahoo readiness**
-4. Then test a real task
-
-That tells us whether the problem is:
-- browser plumbing
-- Ollama/CORS/model
-- Yahoo page structure/login
-- autonomous planning/execution
-
-## Current alpha warning
-
-Sightline 0.2.0-alpha is still under active validation. Do not use it for irreversible production workflows until the remaining release gates are completed.
+Sightline is still pre-production. Do not use it for irreversible production workflows until the corresponding real-machine release gates have evidence.
+\n### Interactive Windows engineering acceptance\n\nOn a real interactive Windows development machine, the controlled WPF vertical-slice can be exercised with:\n\n```powershell\n.\\tools\\test-windows.ps1 -Interactive\n```\n\nThis is intended for development acceptance only. It does not automate arbitrary desktop applications yet.\n

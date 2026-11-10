@@ -261,7 +261,7 @@ test('browser task uses one vision fallback when semantic planner explicitly req
     tabs:{
       query:async()=>[{id:7,url:before.url,active:true,windowId:1}],
       get:async()=>({id:7,url:before.url,active:true,windowId:1}),
-      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJD'; },
+      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJDREVGR0hJSktMTU5PUA=='; },
       sendMessage:async(_id,msg)=>{
         if(msg.type==='SIGHTLINE_PING') return {ok:true};
         if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:before};
@@ -299,7 +299,7 @@ test('same semantic snapshot cannot trigger repeated vision inference', async ()
     tabs:{
       query:async()=>[{id:7,url:snapshot.url,active:true,windowId:1}],
       get:async()=>({id:7,url:snapshot.url,active:true,windowId:1}),
-      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJD'; },
+      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJDREVGR0hJSktMTU5PUA=='; },
       sendMessage:async(_id,msg)=>{
         if(msg.type==='SIGHTLINE_PING') return {ok:true};
         if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
@@ -326,7 +326,7 @@ test('resumed task cannot reset exhausted vision budget', async () => {
   const chromeApi={
     tabs:{
       get:async()=>({id:7,url:snapshot.url,active:true,windowId:1}),
-      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJD'; },
+      captureVisibleTab:async()=>{ captures+=1; return 'data:image/jpeg;base64,QUJDREVGR0hJSktMTU5PUA=='; },
       sendMessage:async(_id,msg)=>{
         if(msg.type==='SIGHTLINE_PING') return {ok:true};
         if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};

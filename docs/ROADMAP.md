@@ -1,109 +1,76 @@
 # Sightline Engineering Roadmap
 
-## v0.1 — Visual intelligence prototype
+Last updated: 2026-11-10
 
-Status: **Prototype implemented; real-browser acceptance pending**
+## Product direction
 
-- Manifest V3 side panel
-- Current-tab capture
-- Shared-screen capture
-- Local video analysis
-- Local Ollama vision API
-- Vision-capable model discovery
-- Periodic scene observations
-- Conversational visual Q&A
-- Markdown/JSON note export
-- Scene-change fingerprinting
-- Input/model validation
-- Unit and fuzz testing
+Sightline is a **lightweight standalone Windows application** with the existing Chrome/Edge extension retained as its browser companion.
 
-## v0.2 — Browser action engine
+Core rule: **structured information before pixels; deterministic software before AI.**
 
-Status: **Next**
+## Phase 0 — Baseline and reconciliation
+Status: **AUTOMATED BASELINE PASS; REAL BROWSER ACCEPTANCE REMAINS**
 
-### Action protocol
-Implement a strict typed schema for:
-- read
-- click
-- type
-- clear
-- select
-- scroll
-- navigate
-- wait
-- verify
+Browser alpha preserved, CI repaired, Windows duplication audit completed.
 
-Never execute model-generated JavaScript or arbitrary shell/code.
+## Phase 1 — Windows Foundation v0
+Status: **AUTOMATED FOUNDATION PASS; REAL DESKTOP ACCEPTANCE REMAINS**
 
-### Semantic page state
-Build a compact page representation using visible DOM/accessibility information:
-- role
-- accessible name
-- visible text
-- control state
-- input type
-- bounding box
-- stable element identifier
+Implemented: .NET split, bounded/fail-closed UIA observation, element leases, cancellation/budgets, WPF fixture/runner, Windows CI, resource telemetry.
 
-Exclude/redact passwords, hidden sensitive fields, tokens, and unnecessary personal data.
+## Phase 2 — Diagnostics and automated acceptance
+Status: **SUBSTANTIALLY IMPLEMENTED**
 
-### Executor
-- Resolve semantic targets
-- Execute one bounded action
-- Re-observe after every action
-- Verify expected state change
-- Detect stale elements/navigation
-- Retry safely when appropriate
-- Re-plan when state differs from expectation
+Implemented: structured bounded diagnostics, rotating/redacted file sink, stress tests, acceptance harness, resource/soak evidence.
 
-### Autonomous task loop
-Goal → Plan → Observe → Act → Verify → Continue/Recover/Stop
+Remaining: crash/recovery bundle, broader fault injection, real interactive evidence.
 
-Controls:
-- action-count ceiling
-- task timeout
-- repeated-state detection
-- loop/stall detection
-- cancellation
-- structured action log
-- explicit completion criteria
+## Phase 3 — Safe Windows actions
+Status: **PARTIAL**
 
-## v0.3 — Yahoo Mail workflow
+Implemented: Invoke, SetValue/readback, live re-resolution, stale rejection, focus verification, user-activity lease, typed failures.
 
-First real-world adapter:
-- search inbox using Yahoo UI
-- inspect matching messages
-- select matching results
-- move messages to Trash
-- verify action result
-- preview query/count/sample before bulk destructive action
-- never store Yahoo credentials
+Next: moving-target/geometry protection and additional semantic patterns only as needed.
 
-## v0.4 — Reliability and security hardening
+## Phase 4 — Reliability and recovery
+Status: **PARTIAL**
 
-- prompt-injection adversarial fixtures
-- malformed model-action fuzzing
-- stale DOM tests
-- duplicate-label ambiguity tests
-- hidden/disabled element tests
-- navigation race tests
-- interrupted task recovery
-- action replay prevention
-- audit trail
-- permission minimization
-- regression suite
+Implemented: process/window/snapshot identity binding and bounded UIA circuit breaker.
 
-## v0.5 — Desktop companion exploration
+Next: checkpoints, idempotency, unknown-effect reconciliation, crash-loop protection, transactional file operations, Windows task resume/cancel/pause.
 
-Evaluate a Windows companion for applications outside the browser. Browser DOM automation remains preferred for webpages because it is more reliable than coordinate-only visual clicking.
+## Phase 5 — Deterministic Windows capabilities
 
-## Release gates
+Add incrementally with tests/resource evidence: process/window discovery, launch/attach, filesystem, clipboard, File Explorer, Notepad.
 
-No production-ready claim until:
-- automated tests pass
-- real Chrome/Edge extension acceptance passes
-- live local Ollama vision inference passes
-- Yahoo workflow passes on a real account using non-destructive fixtures first
-- destructive-action confirmation behavior is verified
-- recovery/stall behavior is verified
-- documentation reflects actual behavior
+## Phase 6 — Browser integration
+
+Bounded IPC from `Sightline.exe` to the existing extension; preserve DOM-first browser execution.
+
+## Phase 7 — Vision/OCR
+
+Only after semantic automation is reliable: ROI-first capture, privacy masking, Windows OCR, optional local vision, DPI/window-bound capture leases.
+
+## Phase 8 — Lightweight local intelligence
+
+Optional tiny quantized GGUF runtime for bounded interpretation/routing; larger Ollama/local endpoint only for difficult reasoning/vision. Require lazy loading, bounded context/KV cache, streaming, cancellation, unload policy, and graceful OOM behavior.
+
+## Phase 9 — Learned deterministic workflows
+
+AI discovers -> Sightline verifies -> learns -> compiles -> deterministic reuse.
+
+## Phase 10 — Hardening
+
+Fuzzing, fault injection, races, mixed DPI/monitors, sleep/wake/lock, elevation, active-UIA soak, security/privacy, upgrade/migration.
+
+## Phase 11 — Production lifecycle
+
+Lightweight GUI/activity monitor, self-test, installer/uninstaller, safe update/rollback, safe mode, diagnostic export, release acceptance.
+
+## Resource policy
+
+Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
+
+## Existing browser acceptance gates
+
+Installed Chrome, installed Edge, extension-origin Ollama, and real Yahoo controlled acceptance remain required.

@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: sightline-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -23,9 +27,49 @@ jobs:
       - name: Validate source and run tests
         run: npm run check
 
+  windows-foundation:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore Windows foundation
+        run: dotnet restore windows/Sightline.Windows.sln
+      - name: Build Windows foundation
+        run: dotnet build windows/Sightline.Windows.sln -c Release --no-restore
+      - name: Test Windows core
+        run: dotnet test windows/tests/Sightline.Core.Tests/Sightline.Core.Tests.csproj -c Release --no-build --logger "trx;LogFileName=sightline-core.trx"
+      - name: Test Windows safety layer
+        run: dotnet test windows/tests/Sightline.Windows.Tests/Sightline.Windows.Tests.csproj -c Release --no-build --logger "trx;LogFileName=sightline-windows.trx"
+      - name: Capture Windows process resource baseline
+        shell: pwsh
+        run: dotnet windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll --resource | Out-File -Encoding utf8 windows/windows-resource.json
+      - name: Capture idle Windows automation-session resource baseline
+        shell: pwsh
+        run: dotnet windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll --resource-session | Out-File -Encoding utf8 windows/windows-session-resource.json
+      - name: Capture repeated-session resource trend
+        shell: pwsh
+        run: dotnet windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll --resource-soak | Out-File -Encoding utf8 windows/windows-session-soak.json
+      - name: Upload Windows test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sightline-windows-test-results-${{ github.sha }}
+          path: |
+            windows/tests/Sightline.Core.Tests/TestResults/
+            windows/tests/Sightline.Windows.Tests/TestResults/
+            windows/windows-resource.json
+            windows/windows-session-resource.json
+            windows/windows-session-soak.json
+          if-no-files-found: warn
+          retention-days: 14
 
   package-extension:
-    needs: test
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
