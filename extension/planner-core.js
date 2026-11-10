@@ -93,7 +93,7 @@ export function parsePlannerDecision(raw, snapshot) {
   if (action.ref) {
     const target = snapshot?.elements?.find(element => element.ref === action.ref);
     if (!target) throw new Error('Planner referenced an element not present in the current snapshot.');
-    if (target.sensitive && ['read','type','clear','verify','select','check','uncheck'].includes(action.action)) throw new Error('Planner targeted a sensitive field.');
+    if (target.sensitive && ['read','type','clear','verify','select','check','uncheck','click'].includes(action.action)) throw new Error('Planner targeted a sensitive field.');
   }
   return { done: false, action };
 }
