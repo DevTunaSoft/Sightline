@@ -1,6 +1,5 @@
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
-using FlaUI.UIA3;
 using Sightline.Core;
 
 namespace Sightline.Windows;
@@ -11,18 +10,21 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
     private readonly FlaUiElementResolver _resolver;
     private readonly UiaRuntimeOptions _runtimeOptions;
     private readonly UiaCircuitBreaker _circuitBreaker;
+    private readonly DiagnosticRecorder? _diagnostics;
 
     public FlaUiActionExecutor(
         ElementLeaseRegistry<WindowsElementLocator> leases,
         ObservationBudget? resolutionBudget = null,
         UiaRuntimeOptions? runtimeOptions = null,
-        UiaCircuitBreaker? circuitBreaker = null)
+        UiaCircuitBreaker? circuitBreaker = null,
+        DiagnosticRecorder? diagnostics = null)
     {
         _leases = leases ?? throw new ArgumentNullException(nameof(leases));
         _resolver = new FlaUiElementResolver(resolutionBudget);
         _runtimeOptions = runtimeOptions ?? UiaRuntimeOptions.Default;
         _runtimeOptions.Validate();
         _circuitBreaker = circuitBreaker ?? new UiaCircuitBreaker();
+        _diagnostics = diagnostics;
     }
 
     public ValueTask<ActionReceipt> ExecuteAsync(
@@ -33,6 +35,7 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(action);
         cancellationToken.ThrowIfCancellationRequested();
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
 
         if (!_leases.TryResolve(
                 snapshot.SnapshotId,
@@ -42,11 +45,17 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 out var locator) ||
             locator is null)
         {
-            return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Element reference is stale."));
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.StateChanged, "Element reference is stale.")));
         }
 
         if (!_circuitBreaker.TryEnter(snapshot.ProcessId))
-            return ValueTask.FromResult(Fail(SightlineErrorCode.UiaUnavailable, "UI Automation circuit is temporarily open."));
+        {
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.UiaUnavailable, "UI Automation circuit is temporarily open.")));
+        }
 
         try
         {
@@ -54,28 +63,21 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             using var automation = FlaUiAutomationFactory.Create(_runtimeOptions);
             var window = application.GetMainWindow(automation);
             if (window is null)
-            {
-                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
-                return ValueTask.FromResult(Fail(SightlineErrorCode.WindowNotFound, "Target window is unavailable."));
-            }
+                return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
+                    SightlineErrorCode.WindowNotFound, "Target window is unavailable."));
 
             if (window.Properties.NativeWindowHandle.ValueOrDefault != snapshot.WindowHandle)
-            {
-                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
-                return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target window identity changed."));
-            }
+                return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
+                    SightlineErrorCode.StateChanged, "Target window identity changed."));
 
             var element = _resolver.ResolveUnique(window, automation, locator, cancellationToken);
             if (element is null)
-            {
-                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
-                return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target element changed or is ambiguous."));
-            }
+                return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
+                    SightlineErrorCode.StateChanged, "Target element changed or is ambiguous."));
+
             if (!Safe(() => element.IsEnabled, false))
-            {
-                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
-                return ValueTask.FromResult(Fail(SightlineErrorCode.ControlNotActionable, "Target control is disabled."));
-            }
+                return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
+                    SightlineErrorCode.ControlNotActionable, "Target control is disabled."));
 
             var receipt = action.Kind switch
             {
@@ -83,18 +85,69 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 SemanticActionKind.SetValue => SetValue(element, action.Value),
                 _ => Fail(SightlineErrorCode.ControlNotActionable, "Unsupported semantic action.")
             };
+
             _circuitBreaker.RecordSuccess(snapshot.ProcessId);
-            return ValueTask.FromResult(receipt);
+            return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started, receipt));
         }
         catch (OperationCanceledException)
         {
+            _circuitBreaker.RecordNeutral(snapshot.ProcessId);
+            RecordCancelled(action, snapshot.ProcessId, started);
             throw;
         }
         catch
         {
             _circuitBreaker.RecordFailure(snapshot.ProcessId);
-            return ValueTask.FromResult(Fail(SightlineErrorCode.UiaUnavailable, "UI Automation rejected the requested action."));
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.UiaUnavailable, "UI Automation rejected the requested action.")));
         }
+    }
+
+    private ActionReceipt HealthyFailure(
+        SemanticAction action,
+        int processId,
+        long started,
+        SightlineErrorCode code,
+        string detail)
+    {
+        _circuitBreaker.RecordSuccess(processId);
+        return Recorded(action, processId, started, Fail(code, detail));
+    }
+
+    private ActionReceipt Recorded(
+        SemanticAction action,
+        int processId,
+        long started,
+        ActionReceipt receipt)
+    {
+        _diagnostics?.Record(new DiagnosticEvent(
+            DateTimeOffset.UtcNow,
+            receipt.Ok ? "INFO" : "WARN",
+            "uia.action",
+            Capability: "Windows.UIAutomation",
+            Operation: action.Kind.ToString(),
+            TargetRef: action.Ref,
+            DurationMs: (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+            Result: receipt.Ok ? (receipt.Verified ? "VERIFIED" : "ACCEPTED") : "FAIL",
+            ErrorCode: receipt.ErrorCode?.ToString(),
+            Detail: $"process={processId};verified={receipt.Verified}"));
+        return receipt;
+    }
+
+    private void RecordCancelled(SemanticAction action, int processId, long started)
+    {
+        _diagnostics?.Record(new DiagnosticEvent(
+            DateTimeOffset.UtcNow,
+            "INFO",
+            "uia.action",
+            Capability: "Windows.UIAutomation",
+            Operation: action.Kind.ToString(),
+            TargetRef: action.Ref,
+            DurationMs: (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+            Result: "CANCELLED",
+            ErrorCode: SightlineErrorCode.UserInterrupted.ToString(),
+            Detail: $"process={processId}"));
     }
 
     private static ActionReceipt Invoke(AutomationElement element)
