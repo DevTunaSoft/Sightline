@@ -183,3 +183,38 @@ test('cancellation during a slow checkpoint prevents late mutation', async () =>
   assert.equal(executed,0);
   assert.equal(result.timeline.length,1);
 });
+
+test('crash during effect verification leaves a persisted unknown action', async () => {
+  const checkpoints=[];
+  const result=await runTaskLoop({
+    goal:'one consequential action',
+    observe:async()=>({snapshotId:'s1'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:async()=>({ok:true}),
+    verify:async()=>{throw new Error('verification disconnected');},
+    onCheckpoint:async state=>checkpoints.push(state.timeline.map(item=>({...item}))),
+  });
+  assert.equal(result.code,'UNKNOWN_EFFECT');
+  assert.equal(result.timeline.at(-1).receipt.code,'UNKNOWN_EFFECT');
+  assert.equal(checkpoints.length,1);
+  assert.equal(checkpoints[0][0].receipt.code,'UNKNOWN_EFFECT');
+});
+
+test('verification that cannot confirm effect is recorded and stops replanning', async () => {
+  const checkpoints=[];
+  let plans=0;
+  const result=await runTaskLoop({
+    goal:'send once',
+    observe:async()=>({snapshotId:'s1'}),
+    plan:async()=>{plans++;return {action:{action:'click',ref:'@e1'}};},
+    execute:async()=>({ok:true}),
+    verify:async()=>({ok:false,fatal:false}),
+    onCheckpoint:async state=>checkpoints.push(state.timeline.map(item=>({...item}))),
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'NO_VERIFIED_EFFECT');
+  assert.equal(plans,1);
+  assert.equal(checkpoints.length,2);
+  assert.equal(checkpoints[0][0].receipt.code,'UNKNOWN_EFFECT');
+  assert.equal(checkpoints[1][0].receipt.code,'NO_VERIFIED_EFFECT');
+});
