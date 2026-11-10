@@ -36,7 +36,7 @@ export function hasExplicitCriticalIntent(goal) {
 
 export function classifyActionRisk(action, target = {}, context = {}) {
   if (!action || typeof action !== 'object') return { level: 'blocked', reason: 'Invalid action.' };
-  if (target?.sensitive && ['read','type','clear','verify','select','check','uncheck'].includes(action.action)) {
+  if (target?.sensitive && ['read','type','clear','verify','select','check','uncheck','click'].includes(action.action)) {
     return { level: 'blocked', reason: 'Sensitive fields cannot be read or manipulated by autonomous browser control.' };
   }
   if (action.action === 'pressKey') {
