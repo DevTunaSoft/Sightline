@@ -19,7 +19,12 @@ function isVisible(element) {
   if (!element || element.nodeType !== 1) return false;
   const view = element.ownerDocument?.defaultView;
   const style = view?.getComputedStyle?.(element);
-  if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) return false;
+  if (style) {
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    // Empty or unavailable opacity is not zero. Never hide otherwise visible elements.
+    const opacity = String(style.opacity ?? '').trim();
+    if (opacity !== '' && Number(opacity) === 0) return false;
+  }
   const rect = element.getBoundingClientRect?.();
   return Boolean(rect && rect.width > 0 && rect.height > 0);
 }
