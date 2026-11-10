@@ -77,3 +77,26 @@ test('session and mail-abuse controls are consequential', () => {
     assert.equal(gate.confirmationRequired,true,name);
   }
 });
+
+test('sensitive-field actions cannot be authorized by confirmation', () => {
+  for(const action of ['read','type','clear','verify','select','check','uncheck']) {
+    const risk=classifyActionRisk({action,ref:'@e1'},{sensitive:true});
+    assert.equal(risk.level,'blocked',action);
+    const gate=gateAction({action,ref:'@e1'},{sensitive:true},'autonomous');
+    assert.equal(gate.allowed,false,action);
+    assert.equal(gate.confirmationRequired,false,action);
+  }
+  assert.equal(classifyActionRisk({action:'pressKey',key:'Enter'},{sensitive:true}).level,'blocked');
+});
+test('key handlers with meaningful side effects require approval', () => {
+  for(const key of ['Enter','Backspace','Delete']) {
+    const gate=gateAction({action:'pressKey',key},{},'autonomous');
+    assert.equal(gate.allowed,false,key);
+    assert.equal(gate.confirmationRequired,true,key);
+  }
+});
+test('expanded destructive labels require confirmation', () => {
+  for(const name of ['Discard','Deactivate','Disable','Revoke','Reset','Overwrite','Cancel subscription','Clear all']) {
+    assert.equal(classifyActionRisk({action:'click',ref:'@e1'},{name,role:'button'}).level,'high',name);
+  }
+});
