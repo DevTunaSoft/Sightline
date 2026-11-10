@@ -53,3 +53,14 @@ These are evidence points, not production ceilings. Active-UIA and real-machine 
 ## Safety boundary
 
 An element action is allowed only after a complete unique bounded re-resolution. If node, depth, or time limits truncate the scan, Sightline fails closed rather than assuming the first matching control is unique.
+
+## Action approval safety checkpoint (2026-11-10)
+
+The Windows UIA mutation entrypoint now requires a trusted `IDesktopActionApproval`. Without one, `Invoke` and `SetValue` fail closed with `ConfirmationRequired` before attaching to a process. Approval callback exceptions also deny. The interactive WPF acceptance runner has a narrowly scoped test-only approval tied to its disposable test process and known controls.
+
+**This is NOT a shipped confirmation dialog or user authorization lifecycle.** Production callers must implement a secure user-approval workflow binding the exact task, target, action, snapshot/window identity and expiry, with single-use semantics; page text/model output must never supply approval. The existing fallback is deny by default. Real Windows operation remains UNVERIFIED on this change.
+
+If UI Automation throws or is interrupted after a mutation begins, the executor now reports `UnknownEffect` rather than suggesting the action did not happen. A durable write-ahead ledger and recovery reconciliation are still required before autonomous retries.
+
+Security changes and their synthetic tests are committed on `develop` but were **NOT RUN** in this hosted environment (no .NET SDK and unavailable GitHub DNS). Execute `.\tools\test-windows.ps1` on a supported Windows machine and retain evidence before considering the fix accepted.
+
