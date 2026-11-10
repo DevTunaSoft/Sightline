@@ -37,16 +37,12 @@ export const yahooMailSkill = Object.freeze({
     const dateControls = named(/\b(date|before|after|older|newer|since)\b/i, ['textbox', 'combobox', 'button', 'menuitem']);
     const selectAll = named(/select\s+all|all\s+(?:messages?|mail)/i, ['checkbox', 'button', 'menuitem']);
     const trash = named(/move.*trash|\btrash\b|\bdelete\b/i, ['button', 'menuitem', 'link']);
-    const countPatterns = [
-      /\b(\d{1,7})\s+(?:search\s+)?results?\b/i,
-      /\b(\d{1,7})\s+(?:messages?|emails?)\b/i,
-      /\b(?:showing|of)\s+(\d{1,7})\b/i,
-    ];
-    let visibleCount = null;
-    for (const pattern of countPatterns) {
-      const match = text.match(pattern);
-      if (match) { visibleCount = Number(match[1]); break; }
-    }
+    // A page range is not a total. Prefer explicit "Showing 1-50 of 300".
+    // Do not manufacture a count if the page's scope is ambiguous.
+    const totalMatch = text.match(/\bshowing\s+\d{1,7}\s*[-–]\s*\d{1,7}\s+of\s+(\d{1,7})\b/i);
+    const resultMatch = text.match(/\b(\d{1,7})\s+(?:search\s+)?results?\b/i);
+    const visibleCount = totalMatch ? Number(totalMatch[1]) :
+      resultMatch ? Number(resultMatch[1]) : null;
     const excluded = /inbox|sent|draft|spam|trash|archive|settings|contacts|calendar|compose|search|select all|delete|move/i;
     const messageSamples = [];
     const seen = new Set();
