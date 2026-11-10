@@ -17,7 +17,7 @@ if (args.Length != 2 || args[0] != "--observe" || !int.TryParse(args[1], out var
 
 try
 {
-    var session = new WindowsAutomationSession();
+    await using var session = new WindowsAutomationSession();
     var snapshot = await session.Observer.ObserveAsync(processId, new ObservationBudget());
     Console.WriteLine($"Snapshot {snapshot.SnapshotId}: {snapshot.Elements.Count} elements; truncated={snapshot.Truncated}");
     foreach (var element in snapshot.Elements.Take(25))
