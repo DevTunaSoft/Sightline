@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sightline.Windows.TestTarge
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sightline.Windows.Tests", "tests\Sightline.Windows.Tests\Sightline.Windows.Tests.csproj", "{FAF70C32-A69B-49DB-C60B-41AF4EF8F606}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sightline.Windows.Acceptance", "tests\Sightline.Windows.Acceptance\Sightline.Windows.Acceptance.csproj", "{0B071D43-B7AC-4AEC-D71C-52B05F090707}"
+EndProject
 Global
   GlobalSection(SolutionConfigurationPlatforms) = preSolution
     Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,9 @@ Global
     {FAF70C32-A69B-49DB-C60B-41AF4EF8F606}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {FAF70C32-A69B-49DB-C60B-41AF4EF8F606}.Release|Any CPU.ActiveCfg = Release|Any CPU
     {FAF70C32-A69B-49DB-C60B-41AF4EF8F606}.Release|Any CPU.Build.0 = Release|Any CPU
+    {0B071D43-B7AC-4AEC-D71C-52B05F090707}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {0B071D43-B7AC-4AEC-D71C-52B05F090707}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {0B071D43-B7AC-4AEC-D71C-52B05F090707}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {0B071D43-B7AC-4AEC-D71C-52B05F090707}.Release|Any CPU.Build.0 = Release|Any CPU
   EndGlobalSection
 EndGlobal

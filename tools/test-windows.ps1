@@ -1,7 +1,8 @@
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
-    [string]$EvidenceDir = ".artifacts/windows-foundation"
+    [string]$EvidenceDir = ".artifacts/windows-foundation",
+    [switch]$Interactive
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +23,7 @@ $status = [ordered]@{
     coreTests = "NOT RUN"
     windowsSafetyTests = "NOT RUN"
     resourceProbe = "NOT RUN"
+    interactiveAcceptance = "NOT RUN"
 }
 
 try {
@@ -46,6 +48,14 @@ try {
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($resourceJson)) { throw "Resource probe failed." }
     $resourceJson | Set-Content -Encoding utf8 (Join-Path $evidence "resource.json")
     $status.resourceProbe = "PASS"
+
+    if ($Interactive) {
+        $runner = Join-Path $root "windows/tests/Sightline.Windows.Acceptance/bin/$Configuration/net8.0-windows/Sightline.Windows.Acceptance.dll"
+        $target = Join-Path $root "windows/tests/Sightline.Windows.TestTarget/bin/$Configuration/net8.0-windows/Sightline.Windows.TestTarget.exe"
+        & dotnet $runner $target
+        if ($LASTEXITCODE -ne 0) { throw "Interactive Windows acceptance failed." }
+        $status.interactiveAcceptance = "PASS"
+    }
 }
 catch {
     $status.failure = $_.Exception.Message
