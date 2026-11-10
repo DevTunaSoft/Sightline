@@ -22,3 +22,8 @@ test('rejects malformed refs, huge text, excessive waits and arbitrary keys', ()
   bad({action:'wait',ms:999999});
   bad({action:'pressKey',key:'F12'});
 });
+
+test('Delete key is disabled by the typed action protocol', () => {
+  bad({action:'pressKey',key:'Delete'});
+  assert.equal(good({action:'pressKey',key:'Enter'}).key,'Enter');
+});
