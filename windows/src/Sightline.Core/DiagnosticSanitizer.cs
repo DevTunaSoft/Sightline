@@ -5,7 +5,7 @@ namespace Sightline.Core;
 public static class DiagnosticSanitizer
 {
     private static readonly Regex SecretAssignment = new(
-        @"(?i)\b(password|passwd|authorization|cookie|api[_-]?key|token|access[_-]?token|refresh[_-]?token|secret|mfa|otp)\s*[:=]\s*[^\s,;]+",
+        @"(?i)(?<prefix>\b(password|passwd|authorization|cookie|api[_-]?key|token|access[_-]?token|refresh[_-]?token|secret|mfa|otp)\b[""']?\s*[:=]\s*)(?:""(?<double>[^""]*)""|'(?<single>[^']*)'|(?<bare>[^\s,;}]+))",
         RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
     private static readonly Regex BearerToken = new(
@@ -50,8 +50,10 @@ public static class DiagnosticSanitizer
         normalized = BearerToken.Replace(normalized, "Bearer [REDACTED]");
         normalized = SecretAssignment.Replace(normalized, match =>
         {
-            var separator = match.Value.Contains('=') ? "=" : ":";
-            return $"{match.Groups[1].Value}{separator}[REDACTED]";
+            var prefix = match.Groups["prefix"].Value;
+            if (match.Groups["double"].Success) return $"{prefix}\"[REDACTED]\"";
+            if (match.Groups["single"].Success) return $"{prefix}'[REDACTED]'";
+            return $"{prefix}[REDACTED]";
         });
 
         return normalized.Length <= maxChars ? normalized : normalized[..maxChars];
