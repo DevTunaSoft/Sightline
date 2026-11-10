@@ -79,7 +79,7 @@ test('session and mail-abuse controls are consequential', () => {
 });
 
 test('sensitive-field actions cannot be authorized by confirmation', () => {
-  for(const action of ['read','type','clear','verify','select','check','uncheck']) {
+  for(const action of ['read','type','clear','verify','select','check','uncheck','click']) {
     const risk=classifyActionRisk({action,ref:'@e1'},{sensitive:true});
     assert.equal(risk.level,'blocked',action);
     const gate=gateAction({action,ref:'@e1'},{sensitive:true},'autonomous');
