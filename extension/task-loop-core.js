@@ -53,7 +53,7 @@ export async function runTaskLoop({ goal, observe, plan, execute, verify, signal
   const timeline = [...resumeTimeline];
   // A persisted unknown/in-flight action could have changed the page before a
   // crash. Never ask the planner to repeat it automatically.
-  if (timeline.some(item => item?.receipt?.code === 'UNKNOWN_EFFECT' || item?.receipt?.code === 'ACTION_IN_FLIGHT')) {
+  if (timeline.some(item => ['UNKNOWN_EFFECT', 'ACTION_IN_FLIGHT', 'NO_VERIFIED_EFFECT'].includes(item?.receipt?.code))) {
     return { ok: false, code: 'ACTION_RECONCILIATION_REQUIRED', timeline };
   }
   const checkpoint = async snapshotId => {
