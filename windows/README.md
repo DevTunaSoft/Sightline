@@ -64,3 +64,7 @@ If UI Automation throws or is interrupted after a mutation begins, the executor 
 
 Security changes and their synthetic tests are committed on `develop` but were **NOT RUN** in this hosted environment (no .NET SDK and unavailable GitHub DNS). Execute `.\tools\test-windows.ps1` on a supported Windows machine and retain evidence before considering the fix accepted.
 
+
+## Typed Windows action limits
+
+`DesktopActionValidation` rejects unsupported enum kinds, blank or oversized element references (128 characters maximum), Invoke payloads containing a value, and SetValue without a value or exceeding 4,000 characters. Validation runs before provider access or approval policy, and does not log rejected payloads. Exact .NET tests still require a real SDK/CI run on the latest commit.
