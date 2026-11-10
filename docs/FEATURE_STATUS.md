@@ -28,6 +28,7 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Bounded top-level window discovery | Implemented / automated-test verified | Win32 EnumWindows, capped results/title length, optional visibility/untitled filters, no polling. |
 | Windows sensitive-control metadata/SetValue gate | Implemented / tests added, **NOT RUN** on latest code | Password/credential metadata redaction and deny-by-default actions; live UIA unverified. |
 | Windows mutation approval boundary | Implemented / tests added, **NOT RUN** on latest code | No approval provider means no Invoke/SetValue. No end-user confirmation UI or single-use approval implementation yet. |
+| Windows typed action validation | Implemented / tests added, **NOT RUN** | 128-character max ref, 4,000-character max SetValue, typed payload validation before provider access. |
 | Windows unknown-effect status | Implemented / **UNVERIFIED** | Mutation-phase exceptions and cancellations report UnknownEffect; crash-proof journaling/reconciliation remains missing. |
 | Real Windows UIA actions | **Not yet verified** | Requires interactive desktop. |
 | Browser companion IPC | Not yet implemented | Existing extension preserved. |
