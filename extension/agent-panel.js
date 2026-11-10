@@ -97,17 +97,16 @@ function resolveConfirmation(value) {
 }
 
 async function markCheckpointForReview() {
-  if (!state.checkpoint) return;
-  try {
-    state.checkpoint = await saveTaskCheckpoint({ ...state.checkpoint, requiresReview: true, status: 'interrupted' }, chrome);
-  } catch {
-    // Checkpoint failure must never authorize or block the confirmation itself.
-  }
+  if (!state.checkpoint) throw new Error('No durable checkpoint exists for this action.');
+  state.checkpoint = await saveTaskCheckpoint({
+    ...state.checkpoint, requiresReview: true, status: 'interrupted',
+  }, chrome);
 }
 
-function requestConfirmation({ action, target, risk, skill, preview }) {
+async function requestConfirmation({ action, target, risk, skill, preview }) {
   if (state.pendingConfirmation) resolveConfirmation(false);
-  void markCheckpointForReview();
+  // Do not display an approval card until the replay-protection record is saved.
+  await markCheckpointForReview();
   return new Promise(resolve => {
     state.pendingConfirmation = resolve;
     const targetName = target?.name || target?.role || action?.ref || 'this control';
@@ -277,7 +276,8 @@ async function runTask() {
     try {
       state.checkpoint = await saveTaskCheckpoint({
         taskId: state.taskId, goal, mode: ui.mode.value, model: ui.model.value, status: 'running',
-        timeline: state.resume?.timeline || [], actionsUsed: state.resume?.actionsUsed || 0, visionFallbacksUsed: state.resume?.visionFallbacksUsed || 0, requiresReview: false,
+        timeline: state.resume?.timeline || [], actionsUsed: state.resume?.actionsUsed || 0, visionFallbacksUsed: state.resume?.visionFallbacksUsed || 0,
+        requiresReview: (state.resume?.timeline || []).some(item => item?.receipt?.code === 'UNKNOWN_EFFECT'),
       }, chrome);
     } catch (checkpointError) {
       addProgress('Checkpoint', `Task blocked because its recovery record could not be saved: ${checkpointError.message}`);
@@ -301,7 +301,8 @@ async function runTask() {
           state.checkpoint = await saveTaskCheckpoint({
             taskId: state.taskId, goal, mode: ui.mode.value, model: ui.model.value, status: 'running',
             timeline: checkpointState.timeline, actionsUsed: checkpointState.actionsUsed, visionFallbacksUsed: checkpointState.visionFallbacksUsed, tabId: checkpointState.tabId, taskOrigin: checkpointState.taskOrigin,
-            lastSnapshotId: checkpointState.snapshotId, requiresReview: false,
+            lastSnapshotId: checkpointState.snapshotId,
+            requiresReview: checkpointState.timeline.some(item => item?.receipt?.code === 'UNKNOWN_EFFECT'),
           }, chrome);
         } catch (checkpointError) {
           addProgress('Checkpoint', `Recovery save failed; stopping before further actions: ${checkpointError.message}`);
