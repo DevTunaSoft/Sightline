@@ -10,23 +10,32 @@ if (args.Length == 1 && args[0] == "--resource")
 
 if (args.Length == 1 && args[0] == "--resource-soak")
 {
-    const int cycles = 100;
-    const int sampleEvery = 10;
-    var start = ProcessResourceSampler.CaptureCurrent();
-    var samples = new List<object>(cycles / sampleEvery);
+    const int warmupCycles = 100;
+    const int measuredCycles = 1000;
+    const int sampleEvery = 100;
 
+    static async ValueTask CycleAsync()
+    {
+        await using var session = new WindowsAutomationSession();
+    }
+
+    for (var i = 0; i < warmupCycles; i++)
+        await CycleAsync();
+
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+    GC.Collect();
+
+    var start = ProcessResourceSampler.CaptureCurrent();
+    var samples = new List<object>(measuredCycles / sampleEvery);
     long peakWorkingSet = start.WorkingSetBytes;
     long peakPrivateMemory = start.PrivateMemoryBytes;
     var peakHandles = start.HandleCount;
     var peakThreads = start.ThreadCount;
 
-    for (var i = 1; i <= cycles; i++)
+    for (var i = 1; i <= measuredCycles; i++)
     {
-        await using (var session = new WindowsAutomationSession())
-        {
-            // Foundation soak intentionally performs no UIA work. It measures
-            // repeated construction/disposal cost without requiring a desktop.
-        }
+        await CycleAsync();
 
         if (i % sampleEvery != 0)
             continue;
@@ -39,12 +48,19 @@ if (args.Length == 1 && args[0] == "--resource-soak")
         samples.Add(new { Cycle = i, Sample = sample });
     }
 
+    var beforeFinalGc = ProcessResourceSampler.CaptureCurrent();
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+    GC.Collect();
     var end = ProcessResourceSampler.CaptureCurrent();
+
     Console.WriteLine(JsonSerializer.Serialize(new
     {
-        Cycles = cycles,
+        WarmupCycles = warmupCycles,
+        MeasuredCycles = measuredCycles,
         SampleEvery = sampleEvery,
         Start = start,
+        BeforeFinalGc = beforeFinalGc,
         End = end,
         Peak = new
         {
@@ -53,7 +69,7 @@ if (args.Length == 1 && args[0] == "--resource-soak")
             HandleCount = peakHandles,
             ThreadCount = peakThreads
         },
-        Delta = new
+        RetainedDelta = new
         {
             WorkingSetBytes = end.WorkingSetBytes - start.WorkingSetBytes,
             PrivateMemoryBytes = end.PrivateMemoryBytes - start.PrivateMemoryBytes,
