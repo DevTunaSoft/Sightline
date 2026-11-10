@@ -40,8 +40,11 @@ Implemented: process/window/snapshot identity binding and bounded UIA circuit br
 Next: checkpoints, idempotency, unknown-effect reconciliation, crash-loop protection, transactional file operations, Windows task resume/cancel/pause.
 
 ## Phase 5 — Deterministic Windows capabilities
+Status: **STARTED**
 
-Add incrementally with tests/resource evidence: process/window discovery, launch/attach, filesystem, clipboard, File Explorer, Notepad.
+Implemented: bounded top-level window discovery using Win32 EnumWindows with hard result/title limits and no polling.
+
+Next: explicit application launch/attach, bounded process metadata, filesystem, clipboard, File Explorer, Notepad.
 
 ## Phase 6 — Browser integration
 
