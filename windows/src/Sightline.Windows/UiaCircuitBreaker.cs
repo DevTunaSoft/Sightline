@@ -119,8 +119,18 @@ public sealed class UiaCircuitBreaker
         if (_entries.Count < _options.MaxProcesses)
             return;
 
-        var oldest = _entries.Aggregate((left, right) =>
-            left.Value.Touch <= right.Value.Touch ? left : right).Key;
-        _entries.Remove(oldest);
+        var oldestProcessId = 0;
+        var oldestTouch = long.MaxValue;
+        foreach (var pair in _entries)
+        {
+            if (pair.Value.Touch >= oldestTouch)
+                continue;
+
+            oldestProcessId = pair.Key;
+            oldestTouch = pair.Value.Touch;
+        }
+
+        if (oldestProcessId != 0)
+            _entries.Remove(oldestProcessId);
     }
 }
