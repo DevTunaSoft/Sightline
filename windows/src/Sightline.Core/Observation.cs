@@ -111,7 +111,9 @@ public sealed class BoundedTraversal<T>
                 queue.Enqueue((child, current.Depth + 1));
             }
 
-            if (truncated)
+            // A full queue means more children existed than the budget permits.
+            // Continue consuming already-admitted nodes; never grow the queue past MaxNodes.
+            if (truncated && queue.Count == 0)
                 break;
         }
 
