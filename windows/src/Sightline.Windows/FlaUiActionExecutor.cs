@@ -11,13 +11,15 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
     private readonly UiaRuntimeOptions _runtimeOptions;
     private readonly UiaCircuitBreaker _circuitBreaker;
     private readonly DiagnosticRecorder? _diagnostics;
+    private readonly IDesktopActionApproval? _approval;
 
     public FlaUiActionExecutor(
         ElementLeaseRegistry<WindowsElementLocator> leases,
         ObservationBudget? resolutionBudget = null,
         UiaRuntimeOptions? runtimeOptions = null,
         UiaCircuitBreaker? circuitBreaker = null,
-        DiagnosticRecorder? diagnostics = null)
+        DiagnosticRecorder? diagnostics = null,
+        IDesktopActionApproval? approval = null)
     {
         _leases = leases ?? throw new ArgumentNullException(nameof(leases));
         _resolver = new FlaUiElementResolver(resolutionBudget);
@@ -25,6 +27,7 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         _runtimeOptions.Validate();
         _circuitBreaker = circuitBreaker ?? new UiaCircuitBreaker();
         _diagnostics = diagnostics;
+        _approval = approval;
     }
 
     public ValueTask<ActionReceipt> ExecuteAsync(
@@ -59,6 +62,16 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 Fail(SightlineErrorCode.PermissionDenied, "Sensitive control actions are not permitted.")));
         }
 
+        // All desktop mutations require a trusted, action-specific host approval.
+        // No Windows approval UI has been shipped; default is intentionally DENY.
+        // Snapshot/window/element identity must still be revalidated after approval.
+        if (_approval?.IsApproved(snapshot, action) != true)
+        {
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.ConfirmationRequired, "Explicit trusted Windows action approval is required.")));
+        }
+
         if (!_circuitBreaker.TryEnter(snapshot.ProcessId))
         {
             return ValueTask.FromResult(Recorded(
@@ -66,6 +79,7 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 Fail(SightlineErrorCode.UiaUnavailable, "UI Automation circuit is temporarily open.")));
         }
 
+        var mutationStarted = false;
         try
         {
             using var application = Application.Attach(snapshot.ProcessId);
@@ -97,6 +111,9 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
                     SightlineErrorCode.ControlNotActionable, "Target control is disabled."));
 
+            // Once the provider call begins, any exception may mean the mutation
+            // succeeded. Never classify that situation as safe-to-retry.
+            mutationStarted = true;
             var receipt = action.Kind switch
             {
                 SemanticActionKind.Invoke => Invoke(element),
@@ -110,6 +127,9 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         catch (OperationCanceledException)
         {
             _circuitBreaker.RecordNeutral(snapshot.ProcessId);
+            if (mutationStarted)
+                return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started,
+                    Fail(SightlineErrorCode.UnknownEffect, "Action was interrupted after mutation began; reconcile before retry.")));
             RecordCancelled(action, snapshot.ProcessId, started);
             throw;
         }
@@ -118,7 +138,9 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             _circuitBreaker.RecordFailure(snapshot.ProcessId);
             return ValueTask.FromResult(Recorded(
                 action, snapshot.ProcessId, started,
-                Fail(SightlineErrorCode.UiaUnavailable, "UI Automation rejected the requested action.")));
+                mutationStarted
+                    ? Fail(SightlineErrorCode.UnknownEffect, "UI Automation failed after mutation began; reconcile before retry.")
+                    : Fail(SightlineErrorCode.UiaUnavailable, "UI Automation rejected the requested action.")));
         }
     }
 
