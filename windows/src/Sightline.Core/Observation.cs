@@ -92,13 +92,20 @@ public sealed class BoundedTraversal<T>
 
             if (result.Count >= budget.MaxNodes)
             {
-                truncated = queue.Count > 0 || current.Depth < budget.MaxDepth;
-                truncationReason = truncated ? "nodes" : null;
+                // Exhausting the node budget cannot prove the tree is complete.
+                truncated = true;
+                truncationReason = "nodes";
                 break;
             }
 
             if (current.Depth >= budget.MaxDepth)
+            {
+                // Do not query descendants past the depth budget. Conservatively
+                // report partial coverage so action resolution fails closed.
+                truncated = true;
+                truncationReason ??= "depth";
                 continue;
+            }
 
             foreach (var child in children(current.Node))
             {
