@@ -74,9 +74,25 @@ export const yahooMailSkill = Object.freeze({
 
     const text = String(snapshot?.visibleText || '');
     const path = (() => { try { return new URL(snapshot?.url || '').pathname; } catch { return ''; } })();
-    const searchEvidence = /\/search(?:\/|$)/i.test(path) ||
-      /\bsearch\s+results?\b|\bresults?\s+for\b|\bmatching\s+(?:messages?|mail)\b/i.test(text);
+    const hints = this.analyzeSnapshot(snapshot);
+    // Text from messages is untrusted and cannot establish destructive scope.
+    // Both the current search route and an actual search control are required.
+    const searchEvidence = /\/search(?:\/|$)/i.test(path) &&
+      Boolean(hints.searchRef) && Number.isFinite(hints.visibleCount);
     const explicitWholeInbox = /\bentire\s+inbox\b|\bempty\s+(?:my\s+)?inbox\b|\b(?:delete|trash|remove)\s+(?:all|every)\s+(?:messages?|emails?|mail)\s+(?:in|from)\s+(?:my\s+)?inbox\b/i.test(String(goal || ''));
+
+    // Selecting every message without a bounded count has unknown scope.
+    // It must not be authorized by route text or an Inbox-wide checkbox alone.
+    const selectedAll = (snapshot?.elements || []).some(element =>
+      element?.role === 'checkbox' &&
+      /select\s+all|all\s+(?:messages?|mail)/i.test(String(element?.name || '')) &&
+      element?.state?.checked === true);
+    if (selectedAll && !searchEvidence) {
+      return {
+        applicable: true, allowed: false, code: 'DESTRUCTIVE_SCOPE_UNVERIFIED',
+        reason: 'Selected-all scope cannot be verified against bounded search results.',
+      };
+    }
 
     if (!searchEvidence && !explicitWholeInbox) {
       return {
