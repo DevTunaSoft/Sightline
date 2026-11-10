@@ -87,7 +87,15 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
                 var name = Safe(() => node.Name);
                 var automationId = Safe(() => node.AutomationId);
                 var controlType = Safe(() => node.ControlType.ToString()) ?? "Unknown";
-                var elementRef = _leases.Register(new WindowsElementLocator(automationId, name, controlType));
+                // A provider refusing IsPassword metadata is treated as sensitive.
+                var isPassword = Safe(() => node.Properties.IsPassword.Value, true);
+                var sensitive = SensitiveControlPolicy.IsSensitive(isPassword, name, automationId);
+                if (sensitive)
+                {
+                    name = null;
+                    automationId = null;
+                }
+                var elementRef = _leases.Register(new WindowsElementLocator(automationId, name, controlType, sensitive));
 
                 elements.Add(new SemanticElement(
                     Ref: elementRef,
