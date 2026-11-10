@@ -52,7 +52,9 @@ public enum SightlineErrorCode
     ResourceLimitExceeded,
     VerificationFailed,
     PermissionDenied,
-    UiaUnavailable
+    UiaUnavailable,
+    ConfirmationRequired,
+    UnknownEffect
 }
 
 public sealed class BoundedTraversal<T>
