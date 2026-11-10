@@ -89,6 +89,7 @@ test('adapter blocks all sensitive reference operations and active-key dispatch'
   const adapter=setup(el,{Event:globalThis.Event,KeyboardEvent:globalThis.KeyboardEvent});
   for(const action of [
     {action:'read',ref:'@e1'},
+    {action:'click',ref:'@e1'},
     {action:'type',ref:'@e1',text:'x'},
     {action:'clear',ref:'@e1'},
     {action:'select',ref:'@e1',value:'x'},
@@ -111,4 +112,26 @@ test('select refuses non-select inputs before changing value', async () => {
   assert.equal(result.ok,false);
   assert.equal(result.code,'NOT_SELECTABLE');
   assert.equal(el.value,'unchanged');
+});
+
+test('value setter works when inherited beyond the immediate prototype', async () => {
+  const root = { set value(value) { this._value = value; }, get value() { return this._value || ''; } };
+  const intermediate = Object.create(root);
+  const el = fakeElement({tagName:'INPUT'});
+  Object.setPrototypeOf(el, intermediate);
+  el.value = '';
+  el.isConnected = true; el.disabled = false;
+  el.getAttribute = () => null;
+  el.dispatchEvent = () => true;
+  const result = await executeValidatedAction({action:'type',ref:'@e1',text:'updated'},setup(el));
+  assert.equal(result.ok,true);
+  assert.equal(el.value,'updated');
+});
+
+test('sensitive uncheck never triggers a click', async () => {
+  const el=fakeElement({attrs:{type:'password'},checked:true,toggleOnClick:true});
+  const result=await executeValidatedAction({action:'uncheck',ref:'@e1'},setup(el));
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'SENSITIVE_FIELD');
+  assert.equal(el.clicked,undefined);
 });
