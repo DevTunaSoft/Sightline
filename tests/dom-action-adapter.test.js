@@ -119,7 +119,8 @@ test('value setter works when inherited beyond the immediate prototype', async (
   const intermediate = Object.create(root);
   const el = fakeElement({tagName:'INPUT'});
   Object.setPrototypeOf(el, intermediate);
-  el.value = '';
+  delete el.value;
+  el._value = '';
   el.isConnected = true; el.disabled = false;
   el.getAttribute = () => null;
   el.dispatchEvent = () => true;
