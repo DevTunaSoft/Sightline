@@ -181,6 +181,18 @@ public sealed class FoundationTests
         Assert.True(sanitized.Detail!.Length <= 160);
     }
 
+    [Theory]
+    [InlineData("{\"password\": \"canaryJson\"}", "canaryJson")]
+    [InlineData("\"token\":\"canaryToken\"", "canaryToken")]
+    [InlineData("password='canarySingle'", "canarySingle")]
+    [InlineData("password : canaryPlain", "canaryPlain")]
+    public void Diagnostic_sanitizer_redacts_quoted_and_unquoted_assignments(string input, string secret)
+    {
+        var result = DiagnosticSanitizer.SanitizeDetail(input);
+        Assert.DoesNotContain(secret, result);
+        Assert.Contains("[REDACTED]", result);
+    }
+
     [Fact]
     public async Task Diagnostic_file_sink_rotates_with_fixed_retention_and_redaction()
     {
