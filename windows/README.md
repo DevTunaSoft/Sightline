@@ -56,3 +56,7 @@ It does **not** prove interactive desktop UIA behavior. Real observation/actions
 ## Current resource evidence
 
 CI run #238 measured 24,117,248 bytes working set, 7,778,304 bytes private memory, 183 handles, and 8 threads for the lightweight process probe. The idle session sample added 2 handles and 0 threads; RSS/private deltas were negative due to normal process-sampling/GC noise. These are evidence points, not production limits. Repeated active-UIA soak testing is still required.
+
+## Fail-closed action resolution
+
+Element actions require a complete, unique UIA re-resolution scan. If the node, depth, or time budget truncates the scan, Sightline rejects the action rather than assuming the first matching control is unique. Increase a bounded resolution budget or narrow the target window when a legitimate action cannot be resolved. This prevents acting on a similarly named control outside the observed region. Core regression tests cover depth and exact-node budget exhaustion; real interactive desktop validation is still required.
