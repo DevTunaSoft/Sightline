@@ -73,6 +73,20 @@ public sealed class FoundationTests
         Assert.Equal("nodes", reason);
     }
 
+    [Fact]
+    public void Desktop_action_validation_rejects_unbounded_or_unsupported_requests()
+    {
+        Assert.True(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.Invoke, "w:42:g1:e1")));
+        Assert.True(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.SetValue, "w:42:g1:e1", "test")));
+        Assert.False(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.Invoke, "w:42:g1:e1", "unexpected")));
+        Assert.False(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.SetValue, "w:42:g1:e1")));
+        Assert.False(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.SetValue, "w:42:g1:e1",
+            new string('X', DesktopActionValidation.MaxValueChars + 1))));
+        Assert.False(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.Invoke, new string('w', DesktopActionValidation.MaxRefChars + 1))));
+        Assert.False(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.Invoke, " ")));
+        Assert.False(DesktopActionValidation.IsValid(new SemanticAction((SemanticActionKind)999, "w:42:g1:e1")));
+    }
+
     [Theory]
     [InlineData(true, "Input", "NormalField", true)]
     [InlineData(false, "Password", "InputBox", true)]
