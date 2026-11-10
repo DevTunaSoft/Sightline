@@ -1,5 +1,16 @@
 # Sightline Engineering Handoff
 
+### Browser crash-safe checkpoint hardening — 2026-11-10
+
+**Scope:** Audit findings #15, #16 and #17, plus the browser portion of #9. Source commits include `8e9e4d6` (write-ahead record), `fc7bf05` (stop on failed persistence), `4a322c4` (sanitized error timeline), `d85e845` (review persistence before confirmation), `0ba5039` (stop on unverified effects), and subsequent tests through `b69d2bd`.
+
+**Behavior changed:** `runTaskLoop` records each action with `UNKNOWN_EFFECT` and awaits the checkpoint **before** executing it. If saving fails, the action is not performed. If execution throws or an outcome cannot be determined, the in-flight record remains and the task stops. If saving the completed receipt fails, the operation is classified as uncertain rather than silently retrying. On task restoration, unknown/in-flight/no-verified-effect records return `ACTION_RECONCILIATION_REQUIRED` before observation, planning or execution. The panel refuses to start without the initial checkpoint, propagates checkpoint persistence failures, and does not open a high-impact approval card until the review save finishes. The checkpoint is bounded to 40 sanitized entries, without typed values or navigated URLs.
+
+**Regression coverage added, but NOT RUN:** `tests/task-loop-core.test.js` covers write-before-execute order, pre-/post-execution checkpoint failures, execution exceptions, no replay of unknown and unverified actions. `tests/task-checkpoint.test.js` covers persisted secret-free unknown action and review state. `tests/browser-task-runner.test.js` covers storage failure and resume without running browser operations. Older tests were not removed.
+
+**Evidence:** GitHub source/test commits are recorded; GitHub readbacks are required at the latest revision. Node 22 exists locally but checkout/clone cannot resolve github.com, so JS suite execution is **BLOCKED/NOT RUN**; no installed Chrome/Edge real crash-fault acceptance. This is **fail-closed preservation and manual reconciliation**, not automated idempotent effect recovery. Windows write-ahead journaling and real acceptance remain outstanding. Next tasks: run `npm run check` on `develop`, examine failing tests, perform controlled browser crash/restart recovery, implement durable effect reconciliation where safe. Avoid any automatic replay of uncertain destructive operations.
+
+
 ### Browser observer and action hardening — 2026-11-10
 
 Reviewed five new source observations against `develop`, with source+regression changes through commit `3ee180b`. **All changes are committed; tests NOT RUN / UNVERIFIED.**
