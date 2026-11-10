@@ -83,6 +83,18 @@ public sealed class UiaCircuitBreaker
             _entries.Remove(processId);
     }
 
+    public void RecordNeutral(int processId)
+    {
+        if (processId <= 0)
+            return;
+
+        lock (_gate)
+        {
+            if (_entries.TryGetValue(processId, out var entry))
+                entry.ProbeInFlight = false;
+        }
+    }
+
     public void RecordFailure(int processId)
     {
         if (processId <= 0)
