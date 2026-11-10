@@ -21,8 +21,10 @@ Status language:
 | Semantic SetValue action | Implemented / compile verified | Uses UIA Value pattern with exact value readback verification. |
 | Stale snapshot/window/ref rejection | Implemented / automated-test verified | Rejected before live process/UIA access. |
 | Bounded diagnostics ledger | Implemented / automated-test verified | Fixed-capacity in-memory ring behavior. |
-| Persistent bounded diagnostic sink | Implemented / automated-test verified | Nonblocking bounded queue, rotating JSONL, fixed retention, secret redaction; not yet wired as default app logging. |
-| Process resource sampler | Implemented / automated-test verified | Baseline on windows-latest: 24,039,424 B working set; 7,659,520 B private; 183 handles; 8 threads. |
+| Structured UIA diagnostics | Implemented / automated-test verified | Shared 256-event sanitized ledger records operation/ref/duration/result only; SetValue text is regression-tested absent. |
+| Persistent bounded diagnostic sink | Implemented / automated-test verified | Optional nonblocking bounded queue, rotating JSONL, fixed retention, secret redaction; 10,000-event burst test passes. |
+| Process resource sampler | Implemented / automated-test verified | Current run #238 process baseline: 24,117,248 B working set; 7,778,304 B private; 183 handles; 8 threads. |
+| Idle automation-session resource probe | Implemented / automated-test verified | Run #238: no positive RSS/private delta in this noisy single sample; +2 handles; +0 threads. Evidence only, not a production ceiling. |
 | Repeated lease-cycle soak | Implemented / automated-test verified | 1,000 snapshot cycles remain bounded to current snapshot entries. |
 | WPF deterministic test target | Implemented / compile verified | Interactive UIA acceptance remains pending. |
 | Windows resource/acceptance script | Implemented | `tools/test-windows.ps1`; non-interactive path verified in CI. |
