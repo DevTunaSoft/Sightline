@@ -49,10 +49,10 @@ Resource-probe CI is **PASS**. Measured on `windows-latest`: 24,039,424 bytes wo
 - exact SetValue readback verification
 - stale snapshot/window/ref rejection before live UIA access
 - fixed-capacity diagnostics ledger
-- bounded redacted rotating diagnostic file sink (queue/file/retention caps; latest CI gate pending)
+- bounded redacted rotating diagnostic file sink (queue/file/retention caps; **PASS** in CI run #234; 10,000-event stress gate pending)
 - process resource sampler
 - repeated lease-cycle soak coverage
-- Core architecture dependency guard against FlaUI/Windows/model/browser runtime leakage (latest CI gate pending)
+- Core architecture dependency guard against FlaUI/Windows/model/browser runtime leakage (**PASS** in CI run #232)
 - deterministic WPF test target
 - separate Windows safety test project
 - `tools/test-windows.ps1` acceptance/resource harness
