@@ -94,6 +94,35 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public void Repeated_snapshot_cycles_do_not_accumulate_leases()
+    {
+        var leases = new ElementLeaseRegistry<string>(32);
+
+        for (var cycle = 0; cycle < 1000; cycle++)
+        {
+            leases.BeginSnapshot($"s{cycle}", 10, 20);
+            for (var i = 0; i < 16; i++)
+                leases.Register($"{cycle}:{i}");
+
+            Assert.Equal(16, leases.Count);
+        }
+
+        Assert.Equal(1000, leases.Generation);
+        Assert.Equal(16, leases.Count);
+    }
+
+    [Fact]
+    public void Resource_sampler_returns_bounded_process_counters()
+    {
+        var sample = ProcessResourceSampler.CaptureCurrent();
+
+        Assert.True(sample.WorkingSetBytes > 0);
+        Assert.True(sample.PrivateMemoryBytes > 0);
+        Assert.True(sample.HandleCount >= 0);
+        Assert.True(sample.ThreadCount > 0);
+    }
+
+    [Fact]
     public void Invalid_observation_budget_is_rejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
