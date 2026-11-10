@@ -112,7 +112,7 @@ This is an engineering verification path, not the final user experience.
 
 Browser reports are exportable from the extension and intentionally omit sensitive action payloads/screenshots.
 
-The Windows foundation currently uses bounded in-memory diagnostics. Persistent rotating logs and a user-facing diagnostics viewer are still planned.
+The Windows foundation now records bounded, sanitized structured UIA diagnostics in memory. An optional rotating JSONL sink is implemented with fixed queue/file/retention limits and secret redaction, but persistent logging is not yet exposed as a normal end-user setting. A user-facing diagnostics viewer is still planned.
 
 ## Current warning
 
