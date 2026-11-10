@@ -38,6 +38,7 @@ Hosted CI does not substitute for interactive desktop acceptance.
 - zero-polling Win32 user-activity lease
 - bounded per-process UIA circuit breaker
 - fixed-capacity diagnostics and optional bounded rotating/redacted JSONL sink
+- bounded top-level Win32 window discovery with capped title/result budgets
 - deterministic WPF fixture + interactive acceptance runner
 - working-set/private-memory/managed-heap/allocation/handle/thread probes
 

@@ -41,6 +41,7 @@ Lightweight standalone Windows application plus the existing Chrome/Edge browser
 - bounded structured diagnostics + rotating/redacted file sink
 - resource sampler with managed heap and total allocation
 - repeated-session resource soak
+- bounded top-level Win32 window discovery exposed through the long-lived automation session
 - deterministic WPF target and acceptance harness
 
 ## Resource findings
@@ -67,11 +68,12 @@ Memory growth remains a defect. Do not introduce unbounded queues, caches, logs,
 1. keep allocation/resource regression guards green
 2. run `.\tools\test-windows.ps1 -Interactive` on a real Windows desktop
 3. moving-target/geometry protection before any physical-input fallback
-4. deterministic process/window/filesystem capabilities
-5. checkpoint + unknown-effect reconciliation contracts
-6. bounded browser companion IPC
-7. vision/OCR
-8. tiny local GGUF runtime
+4. extend deterministic Windows capabilities from bounded window discovery into explicit launch/attach and process metadata
+5. add filesystem capability after process/window behavior is stable
+6. checkpoint + unknown-effect reconciliation contracts
+7. bounded browser companion IPC
+8. vision/OCR
+9. tiny local GGUF runtime
 
 ## Recovery
 

@@ -25,6 +25,7 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Idle allocation optimization | Implemented / automated-test verified | ~92.5% measured allocation reduction in run #251. |
 | WPF test target | Implemented / compile verified | Interactive acceptance pending. |
 | Interactive acceptance runner | Implemented / compile verified | `tools/test-windows.ps1 -Interactive`. |
+| Bounded top-level window discovery | Implemented / automated-test verified | Win32 EnumWindows, capped results/title length, optional visibility/untitled filters, no polling. |
 | Real Windows UIA actions | **Not yet verified** | Requires interactive desktop. |
 | Browser companion IPC | Not yet implemented | Existing extension preserved. |
 | Tiny local GGUF runtime | Not yet implemented | Planned after deterministic routing foundation. |
