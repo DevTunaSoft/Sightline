@@ -5,7 +5,7 @@ namespace Sightline.Core;
 public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
 {
     private readonly int _capacity;
-    private readonly Dictionary<string, TLocator> _current;
+    private Dictionary<string, TLocator>? _current;
     private readonly object _gate = new();
     private long _nextRef;
     private long _generation;
@@ -19,11 +19,10 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
             throw new ArgumentOutOfRangeException(nameof(capacity));
 
         _capacity = capacity;
-        _current = new Dictionary<string, TLocator>(Math.Min(capacity, 256), StringComparer.Ordinal);
     }
 
     public int Capacity => _capacity;
-    public int Count { get { lock (_gate) return _current.Count; } }
+    public int Count { get { lock (_gate) return _current?.Count ?? 0; } }
     public long Generation { get { lock (_gate) return _generation; } }
 
     public void BeginSnapshot(string snapshotId, int processId, long windowHandle)
@@ -35,7 +34,7 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
 
         lock (_gate)
         {
-            _current.Clear();
+            _current?.Clear();
             _snapshotId = snapshotId;
             _processId = processId;
             _windowHandle = windowHandle;
@@ -50,6 +49,7 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
         {
             if (_snapshotId is null)
                 throw new InvalidOperationException("BeginSnapshot must be called before registering elements.");
+            _current ??= new Dictionary<string, TLocator>(StringComparer.Ordinal);
             if (_current.Count >= _capacity)
                 throw new InvalidOperationException(SightlineErrorCode.ResourceLimitExceeded.ToString());
 
@@ -79,7 +79,7 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
                 return false;
             }
 
-            return _current.TryGetValue(elementRef, out locator);
+            return _current is not null && _current.TryGetValue(elementRef, out locator);
         }
     }
 }
