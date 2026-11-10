@@ -8,6 +8,63 @@ if (args.Length == 1 && args[0] == "--resource")
     return 0;
 }
 
+if (args.Length == 1 && args[0] == "--resource-soak")
+{
+    const int cycles = 100;
+    const int sampleEvery = 10;
+    var start = ProcessResourceSampler.CaptureCurrent();
+    var samples = new List<object>(cycles / sampleEvery);
+
+    long peakWorkingSet = start.WorkingSetBytes;
+    long peakPrivateMemory = start.PrivateMemoryBytes;
+    var peakHandles = start.HandleCount;
+    var peakThreads = start.ThreadCount;
+
+    for (var i = 1; i <= cycles; i++)
+    {
+        await using (var session = new WindowsAutomationSession())
+        {
+            // Foundation soak intentionally performs no UIA work. It measures
+            // repeated construction/disposal cost without requiring a desktop.
+        }
+
+        if (i % sampleEvery != 0)
+            continue;
+
+        var sample = ProcessResourceSampler.CaptureCurrent();
+        peakWorkingSet = Math.Max(peakWorkingSet, sample.WorkingSetBytes);
+        peakPrivateMemory = Math.Max(peakPrivateMemory, sample.PrivateMemoryBytes);
+        peakHandles = Math.Max(peakHandles, sample.HandleCount);
+        peakThreads = Math.Max(peakThreads, sample.ThreadCount);
+        samples.Add(new { Cycle = i, Sample = sample });
+    }
+
+    var end = ProcessResourceSampler.CaptureCurrent();
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        Cycles = cycles,
+        SampleEvery = sampleEvery,
+        Start = start,
+        End = end,
+        Peak = new
+        {
+            WorkingSetBytes = peakWorkingSet,
+            PrivateMemoryBytes = peakPrivateMemory,
+            HandleCount = peakHandles,
+            ThreadCount = peakThreads
+        },
+        Delta = new
+        {
+            WorkingSetBytes = end.WorkingSetBytes - start.WorkingSetBytes,
+            PrivateMemoryBytes = end.PrivateMemoryBytes - start.PrivateMemoryBytes,
+            HandleCount = end.HandleCount - start.HandleCount,
+            ThreadCount = end.ThreadCount - start.ThreadCount
+        },
+        Samples = samples
+    }));
+    return 0;
+}
+
 if (args.Length == 1 && args[0] == "--resource-session")
 {
     var before = ProcessResourceSampler.CaptureCurrent();
@@ -31,7 +88,7 @@ if (args.Length == 1 && args[0] == "--resource-session")
 if (args.Length != 2 || args[0] != "--observe" || !int.TryParse(args[1], out var processId))
 {
     Console.WriteLine("Sightline Windows Foundation v0");
-    Console.WriteLine("Usage: Sightline.App --observe <process-id> | --resource | --resource-session");
+    Console.WriteLine("Usage: Sightline.App --observe <process-id> | --resource | --resource-session | --resource-soak");
     return 2;
 }
 
