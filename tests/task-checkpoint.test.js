@@ -90,3 +90,18 @@ test('clear is serialized after pending save and cannot resurrect cancelled task
   await Promise.all([save,clear]);
   assert.equal(await loadTaskCheckpoint(chromeApi),null);
 });
+
+test('in-flight action survives sanitized storage without disclosing typed data', async () => {
+  const api=fakeChrome();
+  await saveTaskCheckpoint({
+    taskId:'t-inflight',goal:'Search for receipts',actionsUsed:1,requiresReview:true,
+    timeline:[{n:1,snapshotId:'snapshot1',
+      action:{action:'type',ref:'@e2',text:'synthetic private words'},
+      receipt:{ok:false,code:'UNKNOWN_EFFECT'}}],
+  },api);
+  const loaded=await loadTaskCheckpoint(api);
+  assert.equal(loaded.timeline[0].receipt.code,'UNKNOWN_EFFECT');
+  assert.equal(loaded.requiresReview,true);
+  assert.equal(loaded.actionsUsed,1);
+  assert.doesNotMatch(JSON.stringify(api.data),/synthetic private words/);
+});
