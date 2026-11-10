@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runBrowserTask } from '../extension/browser-task-runner.js';
+import { runBrowserTask, verifyBrowserReceipt } from '../extension/browser-task-runner.js';
 
 function fakeChrome() {
   let state=0;
@@ -556,4 +556,17 @@ test('browser runner blocks resumed uncertain action without executing', async (
   assert.equal(result.code,'ACTION_RECONCILIATION_REQUIRED');
   assert.equal(queries,0);
   assert.equal(executions,0);
+});
+
+test('site-specific failed or inconclusive verification cannot be called successful', () => {
+  assert.deepEqual(verifyBrowserReceipt({ok:true,siteVerification:{applicable:true,verified:false}}),
+    {ok:false,code:'NO_VERIFIED_EFFECT'});
+  assert.deepEqual(verifyBrowserReceipt({ok:true,siteVerification:{applicable:true,verified:null}}),
+    {ok:false,code:'NO_VERIFIED_EFFECT'});
+  assert.deepEqual(verifyBrowserReceipt({ok:true,siteVerification:{applicable:true,verified:true}}),
+    {ok:true});
+  assert.deepEqual(verifyBrowserReceipt({ok:true,siteVerification:{applicable:false,verified:null}}),
+    {ok:true});
+  assert.deepEqual(verifyBrowserReceipt({ok:false,code:'ACTION_BLOCKED'}),
+    {ok:false,code:'ACTION_BLOCKED'});
 });
