@@ -16,7 +16,8 @@ public sealed record DiagnosticEvent(
 
 public sealed class BoundedDiagnosticLedger
 {
-    private readonly DiagnosticEvent?[] _buffer;
+    private DiagnosticEvent?[]? _buffer;
+    private readonly int _capacity;
     private readonly object _gate = new();
     private int _next;
     private int _count;
@@ -25,19 +26,20 @@ public sealed class BoundedDiagnosticLedger
     {
         if (capacity is < 16 or > 8192)
             throw new ArgumentOutOfRangeException(nameof(capacity));
-        _buffer = new DiagnosticEvent[capacity];
+        _capacity = capacity;
     }
 
-    public int Capacity => _buffer.Length;
+    public int Capacity => _capacity;
 
     public void Add(DiagnosticEvent item)
     {
         ArgumentNullException.ThrowIfNull(item);
         lock (_gate)
         {
+            _buffer ??= new DiagnosticEvent[_capacity];
             _buffer[_next] = item;
-            _next = (_next + 1) % _buffer.Length;
-            if (_count < _buffer.Length) _count++;
+            _next = (_next + 1) % _capacity;
+            if (_count < _capacity) _count++;
         }
     }
 
@@ -45,10 +47,14 @@ public sealed class BoundedDiagnosticLedger
     {
         lock (_gate)
         {
+            if (_count == 0)
+                return Array.Empty<DiagnosticEvent>();
+
+            var buffer = _buffer!;
             var result = new DiagnosticEvent[_count];
-            var start = (_next - _count + _buffer.Length) % _buffer.Length;
+            var start = (_next - _count + _capacity) % _capacity;
             for (var i = 0; i < _count; i++)
-                result[i] = _buffer[(start + i) % _buffer.Length]!;
+                result[i] = buffer[(start + i) % _capacity]!;
             return result;
         }
     }
