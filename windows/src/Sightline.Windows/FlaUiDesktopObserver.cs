@@ -9,10 +9,15 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
 {
     private static long _snapshotSequence;
     private readonly ElementLeaseRegistry<WindowsElementLocator> _leases;
+    private readonly UiaRuntimeOptions _runtimeOptions;
 
-    public FlaUiDesktopObserver(ElementLeaseRegistry<WindowsElementLocator>? leases = null)
+    public FlaUiDesktopObserver(
+        ElementLeaseRegistry<WindowsElementLocator>? leases = null,
+        UiaRuntimeOptions? runtimeOptions = null)
     {
         _leases = leases ?? new ElementLeaseRegistry<WindowsElementLocator>();
+        _runtimeOptions = runtimeOptions ?? UiaRuntimeOptions.Default;
+        _runtimeOptions.Validate();
     }
 
     public ElementLeaseRegistry<WindowsElementLocator> Leases => _leases;
@@ -28,7 +33,7 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
             : budget with { MaxNodes = _leases.Capacity };
 
         using var application = Application.Attach(processId);
-        using var automation = new UIA3Automation();
+        using var automation = FlaUiAutomationFactory.Create(_runtimeOptions);
         var window = application.GetMainWindow(automation)
             ?? throw new InvalidOperationException(SightlineErrorCode.WindowNotFound.ToString());
 

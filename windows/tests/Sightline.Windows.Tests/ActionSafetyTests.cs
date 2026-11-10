@@ -71,4 +71,15 @@ public sealed class ActionSafetyTests
         Assert.False(receipt.Ok);
         Assert.Equal(SightlineErrorCode.StateChanged, receipt.ErrorCode);
     }
+    [Fact]
+    public void Uia_runtime_options_reject_unbounded_or_tiny_timeouts()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new UiaRuntimeOptions(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10)).Validate());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new UiaRuntimeOptions(TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(5)).Validate());
+
+        UiaRuntimeOptions.Default.Validate();
+    }
 }

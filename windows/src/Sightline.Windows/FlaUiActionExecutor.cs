@@ -9,13 +9,17 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
 {
     private readonly ElementLeaseRegistry<WindowsElementLocator> _leases;
     private readonly FlaUiElementResolver _resolver;
+    private readonly UiaRuntimeOptions _runtimeOptions;
 
     public FlaUiActionExecutor(
         ElementLeaseRegistry<WindowsElementLocator> leases,
-        ObservationBudget? resolutionBudget = null)
+        ObservationBudget? resolutionBudget = null,
+        UiaRuntimeOptions? runtimeOptions = null)
     {
         _leases = leases ?? throw new ArgumentNullException(nameof(leases));
         _resolver = new FlaUiElementResolver(resolutionBudget);
+        _runtimeOptions = runtimeOptions ?? UiaRuntimeOptions.Default;
+        _runtimeOptions.Validate();
     }
 
     public ValueTask<ActionReceipt> ExecuteAsync(
@@ -39,7 +43,7 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         }
 
         using var application = Application.Attach(snapshot.ProcessId);
-        using var automation = new UIA3Automation();
+        using var automation = FlaUiAutomationFactory.Create(_runtimeOptions);
         var window = application.GetMainWindow(automation);
         if (window is null)
             return ValueTask.FromResult(Fail(SightlineErrorCode.WindowNotFound, "Target window is unavailable."));

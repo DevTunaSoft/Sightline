@@ -8,12 +8,15 @@ public sealed class WindowsAutomationSession
 
     public WindowsAutomationSession(
         int leaseCapacity = 1024,
-        ObservationBudget? resolutionBudget = null)
+        ObservationBudget? resolutionBudget = null,
+        UiaRuntimeOptions? runtimeOptions = null)
     {
         _leases = new ElementLeaseRegistry<WindowsElementLocator>(leaseCapacity);
-        Observer = new FlaUiDesktopObserver(_leases);
-        Actions = new FlaUiActionExecutor(_leases, resolutionBudget);
-        Focus = new FlaUiFocusVerifier(_leases, resolutionBudget);
+        var options = runtimeOptions ?? UiaRuntimeOptions.Default;
+        options.Validate();
+        Observer = new FlaUiDesktopObserver(_leases, options);
+        Actions = new FlaUiActionExecutor(_leases, resolutionBudget, options);
+        Focus = new FlaUiFocusVerifier(_leases, resolutionBudget, options);
     }
 
     public IDesktopObserver Observer { get; }
