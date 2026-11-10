@@ -47,6 +47,7 @@ dotnet test windows/tests/Sightline.Windows.Tests/Sightline.Windows.Tests.csproj
 
 ## Verification boundary
 
-Hosted Windows CI verifies restore, compile, non-interactive safety tests, and the WPF target build.
+Hosted Windows CI verifies restore, compile, non-interactive safety tests, the WPF target build, and a lightweight resource probe. The current CI resource baseline is ~22.9 MiB working set / ~7.3 MiB private memory, 183 handles, and 8 threads.
 
 It does **not** prove interactive desktop UIA behavior. Real observation/actions, focus behavior, DPI, elevation, user interference, and long-run leak behavior remain real-machine gates.
+\n## Real desktop vertical-slice acceptance\n\nOn an interactive Windows development machine, run:\n\n```powershell\n.\\tools\\test-windows.ps1 -Interactive\n```\n\nThat launches the controlled WPF fixture and attempts bounded observe -> SetValue/readback -> re-observe -> Invoke -> result readback. A PASS from hosted CI alone does not substitute for this run.\n

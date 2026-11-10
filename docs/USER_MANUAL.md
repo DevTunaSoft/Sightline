@@ -100,7 +100,7 @@ On Windows with the .NET 8 SDK:
 .\tools\test-windows.ps1
 ```
 
-The script restores, builds, runs the Windows/core safety tests, and writes bounded evidence under:
+The script restores, builds, runs the Windows/core safety tests, captures a lightweight process-resource baseline, and writes bounded evidence under:
 
 ```text
 .artifacts\windows-foundation
@@ -117,3 +117,4 @@ The Windows foundation currently uses bounded in-memory diagnostics. Persistent 
 ## Current warning
 
 Sightline is still pre-production. Do not use it for irreversible production workflows until the corresponding real-machine release gates have evidence.
+\n### Interactive Windows engineering acceptance\n\nOn a real interactive Windows development machine, the controlled WPF vertical-slice can be exercised with:\n\n```powershell\n.\\tools\\test-windows.ps1 -Interactive\n```\n\nThis is intended for development acceptance only. It does not automate arbitrary desktop applications yet.\n

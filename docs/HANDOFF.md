@@ -30,7 +30,7 @@ Latest fully verified checkpoint before the resource-probe commit:
 - WPF test target compilation: **PASS**
 - real interactive Windows UIA acceptance: **UNVERIFIED**
 
-The newest resource-probe commit is awaiting its own CI result and must not be called verified until that run completes.
+Resource-probe CI is **PASS**. Measured on `windows-latest`: 24,039,424 bytes working set (~22.9 MiB), 7,659,520 bytes private memory (~7.3 MiB), 183 handles, and 8 threads. These are baseline measurements, not production ceilings.
 
 ## Windows foundation implemented
 
