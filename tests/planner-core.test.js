@@ -43,3 +43,21 @@ test('planner may request bounded vision fallback only with explicit reason', ()
     /requires a reason/
   );
 });
+
+test('planner rejects sensitive verify, select, check and uncheck targets', () => {
+  for(const action of [
+    {action:'read',ref:'@e2'},
+    {action:'type',ref:'@e2',text:'x'},
+    {action:'clear',ref:'@e2'},
+    {action:'verify',ref:'@e2',expect:'secret'},
+    {action:'select',ref:'@e2',value:'x'},
+    {action:'check',ref:'@e2'},
+    {action:'uncheck',ref:'@e2'},
+  ]) {
+    assert.throws(
+      () => parsePlannerDecision(JSON.stringify({done:false,action}),snapshot),
+      /sensitive/,
+      action.action
+    );
+  }
+});
