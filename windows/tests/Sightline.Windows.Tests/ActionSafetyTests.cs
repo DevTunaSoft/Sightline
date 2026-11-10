@@ -53,6 +53,25 @@ public sealed class ActionSafetyTests
         Assert.Equal(SightlineErrorCode.ConfirmationRequired, receipt.ErrorCode);
     }
 
+    [Fact]
+    public async Task Approval_provider_exception_fails_closed_before_attaching_to_process()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator("ApplyButton", "Apply", "Button"));
+        var executor = new FlaUiActionExecutor(leases, approval: new ThrowingApproval());
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"), new SemanticAction(SemanticActionKind.Invoke, reference));
+        Assert.Equal(SightlineErrorCode.ConfirmationRequired, receipt.ErrorCode);
+        Assert.False(receipt.Ok);
+    }
+
+    private sealed class ThrowingApproval : IDesktopActionApproval
+    {
+        public bool IsApproved(SemanticSnapshot snapshot, SemanticAction action) =>
+            throw new InvalidOperationException("synthetic approval failure");
+    }
+
     private sealed class DenyingApproval : IDesktopActionApproval
     {
         public bool IsApproved(SemanticSnapshot snapshot, SemanticAction action) => false;
