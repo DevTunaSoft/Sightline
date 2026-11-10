@@ -146,6 +146,8 @@ public sealed class FoundationTests
 
         Assert.True(sample.WorkingSetBytes > 0);
         Assert.True(sample.PrivateMemoryBytes > 0);
+        Assert.True(sample.ManagedHeapBytes >= 0);
+        Assert.True(sample.TotalAllocatedBytes >= sample.ManagedHeapBytes);
         Assert.True(sample.HandleCount >= 0);
         Assert.True(sample.ThreadCount > 0);
     }
