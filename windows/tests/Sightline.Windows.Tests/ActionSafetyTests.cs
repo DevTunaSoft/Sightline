@@ -57,6 +57,42 @@ public sealed class ActionSafetyTests
         Assert.Equal(SightlineErrorCode.StateChanged, receipt.ErrorCode);
     }
 
+    [Theory]
+    [InlineData(SemanticActionKind.Invoke)]
+    [InlineData(SemanticActionKind.SetValue)]
+    public async Task Sensitive_leases_are_rejected_before_live_process_access(SemanticActionKind kind)
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var elementRef = leases.Register(new WindowsElementLocator(null, null, "Edit", IsSensitive: true));
+        var executor = new FlaUiActionExecutor(leases);
+
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"),
+            new SemanticAction(kind, elementRef, "should-not-be-sent"));
+
+        Assert.False(receipt.Ok);
+        Assert.False(receipt.Verified);
+        Assert.Null(receipt.Readback);
+        Assert.Equal(SightlineErrorCode.PermissionDenied, receipt.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Credential_named_controls_are_denied_before_provider_attach()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var elementRef = leases.Register(new WindowsElementLocator("new_password", "New password", "Edit"));
+        var executor = new FlaUiActionExecutor(leases);
+
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"),
+            new SemanticAction(SemanticActionKind.SetValue, elementRef, "synthetic-value"));
+
+        Assert.Equal(SightlineErrorCode.PermissionDenied, receipt.ErrorCode);
+        Assert.Null(receipt.Readback);
+    }
+
     [Fact]
     public async Task Focus_verifier_rejects_stale_ref_before_live_process_access()
     {
