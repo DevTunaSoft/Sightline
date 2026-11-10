@@ -5,7 +5,7 @@ const ACTION_TYPES = new Set([
 const REF_PATTERN = /^@e[1-9]\d{0,4}$/;
 const MAX_TEXT = 4000;
 const MAX_WAIT_MS = 15000;
-const SAFE_KEYS = new Set(['Enter', 'Escape', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Backspace', 'Delete']);
+const SAFE_KEYS = new Set(['Enter', 'Escape', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Backspace']);
 
 function fail(reason) { return { ok: false, reason }; }
 function pass(action) { return { ok: true, action: Object.freeze(action) }; }
