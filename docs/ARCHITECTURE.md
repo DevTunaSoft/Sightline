@@ -2,153 +2,120 @@
 
 ## Design principle
 
-**Deterministic software before AI. DOM before vision.**
+**Structured information before pixels. Deterministic software before AI.**
 
-Sightline separates observation, reasoning, execution, verification, safety, site skills, persistence, and diagnostics so model output never directly controls the browser.
+Sightline is a lightweight standalone Windows application with a Chrome/Edge companion extension. The Windows process owns orchestration, safety, checkpoints, diagnostics, model routing, and cross-surface tasks. The extension remains the preferred browser DOM executor.
 
-## Main flow
+## Dependency direction
 
 ```text
-User goal
+Sightline.App
+   |-- Sightline.Core
+   |-- Sightline.Windows --> FlaUI/UIA3 + Win32
    |
-   v
-Side panel
-   |
-   v
-Task runner
-   |
-   +--> Semantic observer --> bounded snapshot
-   |                          |
-   |                          v
-   |                     Local planner
-   |                          |
-   |          +---------------+---------------+
-   |          |                               |
-   |          v                               v
-   |     Typed action                   Vision fallback
-   |          |                         (bounded/local)
-   |          +---------------+---------------+
-   |                          |
-   v                          v
-Safety / site policy --> deterministic executor
-                              |
-                              v
-                      live re-observation
-                              |
-                              v
-                     verification / recovery
-                              |
-                              v
-                        complete / re-plan
+   +-- future adapters
+       |-- Browser companion
+       |-- Vision/OCR
+       |-- Models
+       |-- Storage
+       +-- Skills
 ```
 
-## Components
+Rules:
+- Core must not depend on FlaUI, browser implementations, or model runtimes.
+- Windows automation must not call a model directly.
+- Browser/Windows adapters cannot bypass central safety policy.
+- Heavy/optional capabilities are lazy and disposable where practical.
 
-### Semantic observer
+## Execution path
 
-- visible controls
-- accessible names/roles
-- bounded visible text
-- state (checked/disabled/read-only/etc.)
-- value lengths, not raw textbox values
-- same-origin iframe traversal
-- opaque cross-origin frame reporting
-- stable semantic snapshot identity
-- hard size/count budgets
+```text
+Goal
+ -> classify minimum required capabilities
+ -> observe
+ -> plan
+ -> validate safety/state
+ -> execute deterministic action
+ -> live readback/verify
+ -> checkpoint
+ -> next action / recover / stop
+```
 
-### Planner
+For consequential actions, an unknown effect is never blindly retried.
 
-Ollama JSON-only planner.
+## Windows observation
 
-Planner output may be:
-- completion
-- one typed action
-- bounded request for visual fallback
+Foundation v0 uses FlaUI UIA3 behind `Sightline.Windows`.
 
-No JavaScript/selectors/shell commands are accepted from the model.
+Observation is always bounded by:
+- node count
+- depth
+- elapsed time
+- cancellation
 
-### Action protocol
+Default provisional budget: 750 nodes, depth 30, 600 ms. These values are subject to measured tuning.
 
-Supported primitives are validated before execution:
-- read
-- click
-- type
-- clear
-- select
-- check/uncheck
-- scroll
-- navigate
-- press key
-- wait
-- verify
+Large unbounded UIA subtree requests are prohibited.
 
-### Executor
+## Element identity
 
-Resolves current semantic refs and operates DOM controls deterministically.
+Element references are session-scoped semantic handles, not permanent truth. Future leases bind refs to process/window generation and UIA identity. References are revalidated before mutation and are never silently reused for a different element.
 
-The page is re-observed immediately before execution to reject stale plans.
+## Windows action hierarchy
 
-### Safety gate
+1. filesystem/process/native API
+2. UI Automation patterns
+3. application-specific adapter
+4. ROI OCR/vision
+5. verified physical input fallback
 
-Classifies:
-- sensitive fields
-- destructive controls
-- irreversible deletion
-- cross-origin navigation/link activation
-- Observe-mode mutation
-- site-specific destructive scope
+Coordinate-first automation is not an architectural default.
 
-### Recovery
+## Browser companion
 
-- stale snapshot/ref re-plan
-- task timeout
-- action ceiling
-- repeated-state stall
-- repeated-action stall
-- planner timeout
-- malformed JSON one-repair limit
-- closed-tab resume cleanup
-- unapproved-origin stop
+The existing MV3 extension is preserved. It provides bounded semantic DOM observation, deterministic actions, local planner integration, safety gates, Yahoo skill logic, checkpoints, and browser acceptance tooling.
 
-### Site skills
+A future IPC adapter will connect it to the Windows orchestrator. Sightline will not initially replace the user's Chrome/Edge profile with an embedded browser.
 
-Yahoo Mail is the first site skill.
+## AI
 
-Site-specific logic stays outside the generic executor.
+AI is optional.
 
-### Persistence
+- Level 0: deterministic code, UIA, Win32, filesystem, DOM, compiled workflows
+- Level 1: small local quantized model for bounded interpretation/routing
+- Level 2: Ollama/local endpoint for harder planning or vision
 
-`chrome.storage.session` stores a bounded sanitized checkpoint:
-- task ID
-- goal
-- mode/model
-- action count
-- vision-fallback count
-- task tab ID
-- task origin only
-- bounded sanitized action history
+The standalone app must remain useful when models are unavailable.
 
-It does not store typed action payloads or screenshots.
+## Diagnostics
 
-Writes/clears are serialized and revisioned to prevent cancellation races.
+Diagnostics are a product subsystem:
+- bounded in-memory ledger
+- structured events
+- correlation IDs
+- rotating/retained file output
+- privacy redaction
+- crash/recovery evidence
+- resource measurements
 
-### Diagnostics
+Foundation v0 starts with a fixed-capacity ledger. Persistent logging is added only with explicit size/retention/backpressure rules.
 
-In-memory bounded ledger + timing summaries.
+## Resource architecture
 
-Exported reports contain sanitized evidence rather than raw action payloads.
+- no Electron
+- event-driven instead of polling
+- no heavyweight model permanently embedded in the core
+- bounded queues/caches/snapshots/logs
+- dispose superseded observations promptly
+- ROI capture rather than full-screen vision when possible
+- heavy workers isolated/disposable when justified
+- memory, handles, threads, CPU, and cleanup are acceptance metrics
 
-## Trust boundaries
+## Trust
 
-- webpage content: untrusted
-- screenshots: untrusted
-- model output: untrusted
-- typed action validator: trusted
-- executor/safety policy: trusted
-- user confirmation: trusted but revalidated against live page state
+Trust order:
+user command > trusted local policy > OS/app metadata > webpage content > OCR > model inference.
 
-## Current deployment
+Screen/web/model content is untrusted data and cannot override user or safety policy.
 
-Manifest V3 Chrome/Edge extension with a side panel and local Ollama loopback API.
-
-A future Windows companion is a later roadmap phase and is not required for browser-page automation.
+Secrets such as passwords, tokens, cookies, MFA codes, and encryption keys must not enter model context or ordinary diagnostics.
