@@ -1,6 +1,12 @@
 # Sightline
 
-**Local-first visual AI copilot for understanding and acting on webpages, screens, and video.**
+**See. Understand. Act.**
+
+> **Developer and AI takeover:** Start with [Project Brief and Developer Takeover](docs/PROJECT_BRIEF_AND_TAKEOVER.md). It records the full Windows + browser vision, safety/resource rules, current branch topology, evidence requirements, and exact continuation steps.
+>
+> **Branch awareness (2026-11-10):** `main` contains the earlier browser documentation baseline; the expanded browser implementation is on `develop`, and the standalone Windows foundation is in [open PR #6](https://github.com/DevTunaSoft/Sightline/pull/6) (`feature/windows-foundation-v0`, targeting `develop`). Do **not** treat open-PR functionality as merged or production-ready.
+
+**Local-first Windows visual AI assistant with a Chrome/Edge browser companion.**
 
 Sightline is being built as a privacy-first browser agent that combines visual understanding with controlled browser automation.
 
