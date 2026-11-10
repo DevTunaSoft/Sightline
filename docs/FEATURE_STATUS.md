@@ -26,6 +26,9 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | WPF test target | Implemented / compile verified | Interactive acceptance pending. |
 | Interactive acceptance runner | Implemented / compile verified | `tools/test-windows.ps1 -Interactive`. |
 | Bounded top-level window discovery | Implemented / automated-test verified | Win32 EnumWindows, capped results/title length, optional visibility/untitled filters, no polling. |
+| Windows sensitive-control metadata/SetValue gate | Implemented / tests added, **NOT RUN** on latest code | Password/credential metadata redaction and deny-by-default actions; live UIA unverified. |
+| Windows mutation approval boundary | Implemented / tests added, **NOT RUN** on latest code | No approval provider means no Invoke/SetValue. No end-user confirmation UI or single-use approval implementation yet. |
+| Windows unknown-effect status | Implemented / **UNVERIFIED** | Mutation-phase exceptions and cancellations report UnknownEffect; crash-proof journaling/reconciliation remains missing. |
 | Real Windows UIA actions | **Not yet verified** | Requires interactive desktop. |
 | Browser companion IPC | Not yet implemented | Existing extension preserved. |
 | Tiny local GGUF runtime | Not yet implemented | Planned after deterministic routing foundation. |
