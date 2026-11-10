@@ -132,6 +132,63 @@ public sealed class FoundationTests
         Assert.False(lease.IsStillValid(new UserActivityStamp(101)));
     }
 
+
+    [Fact]
+    public void Diagnostic_sanitizer_redacts_secrets_and_caps_detail()
+    {
+        var item = new DiagnosticEvent(
+            DateTimeOffset.UtcNow,
+            "INFO",
+            "auth",
+            Detail: "password=hunter2 token:abc123 Authorization: Bearer abc.def.ghi " + new string('x', 400));
+
+        var sanitized = DiagnosticSanitizer.Sanitize(item, 160);
+
+        Assert.DoesNotContain("hunter2", sanitized.Detail);
+        Assert.DoesNotContain("abc123", sanitized.Detail);
+        Assert.DoesNotContain("abc.def.ghi", sanitized.Detail);
+        Assert.Contains("[REDACTED]", sanitized.Detail);
+        Assert.True(sanitized.Detail!.Length <= 160);
+    }
+
+    [Fact]
+    public async Task Diagnostic_file_sink_rotates_with_fixed_retention_and_redaction()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"sightline-diag-{Guid.NewGuid():N}");
+        try
+        {
+            await using (var sink = new BoundedDiagnosticFileSink(new DiagnosticFileOptions(
+                directory,
+                QueueCapacity: 128,
+                MaxFileBytes: 4096,
+                MaxFiles: 2,
+                MaxDetailChars: 256)))
+            {
+                for (var i = 0; i < 100; i++)
+                {
+                    sink.TryWrite(new DiagnosticEvent(
+                        DateTimeOffset.UtcNow,
+                        "INFO",
+                        "rotation-test",
+                        TaskId: $"t{i}",
+                        Detail: $"token=secret-{i} {new string('a', 180)}"));
+                }
+            }
+
+            var files = Directory.GetFiles(directory, "sightline*.jsonl");
+            Assert.InRange(files.Length, 1, 2);
+
+            var combined = string.Join('\n', files.Select(File.ReadAllText));
+            Assert.DoesNotContain("secret-", combined);
+            Assert.Contains("[REDACTED]", combined);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public void Invalid_observation_budget_is_rejected()
     {
