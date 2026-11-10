@@ -78,14 +78,19 @@ public sealed class BoundedDiagnosticFileSink : IAsyncDisposable
 
         try
         {
-            var sanitized = DiagnosticSanitizer.Sanitize(item, _options.MaxDetailChars);
-            if (_channel.Writer.TryWrite(sanitized))
-                return true;
+            return TryWriteSanitized(DiagnosticSanitizer.Sanitize(item, _options.MaxDetailChars));
         }
         catch
         {
-            // Diagnostics are best-effort and must never fail the application.
+            Interlocked.Increment(ref _droppedEvents);
+            return false;
         }
+    }
+
+    internal bool TryWriteSanitized(DiagnosticEvent item)
+    {
+        if (_channel.Writer.TryWrite(item))
+            return true;
 
         Interlocked.Increment(ref _droppedEvents);
         return false;
