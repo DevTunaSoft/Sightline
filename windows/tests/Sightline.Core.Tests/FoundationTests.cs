@@ -73,6 +73,20 @@ public sealed class FoundationTests
         Assert.Equal("nodes", reason);
     }
 
+    [Theory]
+    [InlineData(true, "Input", "NormalField", true)]
+    [InlineData(false, "Password", "InputBox", true)]
+    [InlineData(false, "Input", "new_password", true)]
+    [InlineData(false, "Payment", "card-number", true)]
+    [InlineData(false, "Shipping address", "AddressBox", false)]
+    [InlineData(false, "Compass selector", "MappingPin", false)]
+    [InlineData(false, "Search", "QueryBox", false)]
+    public void Sensitive_control_metadata_is_classified_without_overblocking(
+        bool isPassword, string name, string automationId, bool expected)
+    {
+        Assert.Equal(expected, SensitiveControlPolicy.IsSensitive(isPassword, name, automationId));
+    }
+
     [Fact]
     public void Diagnostic_ledger_is_bounded_and_ordered()
     {
