@@ -6,6 +6,7 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
 {
     private readonly int _capacity;
     private readonly Dictionary<string, TLocator> _current;
+    private readonly object _gate = new();
     private long _nextRef;
     private long _generation;
     private string? _snapshotId;
@@ -22,8 +23,8 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
     }
 
     public int Capacity => _capacity;
-    public int Count => _current.Count;
-    public long Generation => _generation;
+    public int Count { get { lock (_gate) return _current.Count; } }
+    public long Generation { get { lock (_gate) return _generation; } }
 
     public void BeginSnapshot(string snapshotId, int processId, long windowHandle)
     {
@@ -32,25 +33,31 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
         if (processId <= 0)
             throw new ArgumentOutOfRangeException(nameof(processId));
 
-        _current.Clear();
-        _snapshotId = snapshotId;
-        _processId = processId;
-        _windowHandle = windowHandle;
-        _generation++;
+        lock (_gate)
+        {
+            _current.Clear();
+            _snapshotId = snapshotId;
+            _processId = processId;
+            _windowHandle = windowHandle;
+            _generation++;
+        }
     }
 
     public string Register(TLocator locator)
     {
         ArgumentNullException.ThrowIfNull(locator);
-        if (_snapshotId is null)
-            throw new InvalidOperationException("BeginSnapshot must be called before registering elements.");
-        if (_current.Count >= _capacity)
-            throw new InvalidOperationException(SightlineErrorCode.ResourceLimitExceeded.ToString());
+        lock (_gate)
+        {
+            if (_snapshotId is null)
+                throw new InvalidOperationException("BeginSnapshot must be called before registering elements.");
+            if (_current.Count >= _capacity)
+                throw new InvalidOperationException(SightlineErrorCode.ResourceLimitExceeded.ToString());
 
-        var sequence = Interlocked.Increment(ref _nextRef);
-        var elementRef = $"w:{_processId}:g{_generation}:e{sequence}";
-        _current.Add(elementRef, locator);
-        return elementRef;
+            var sequence = Interlocked.Increment(ref _nextRef);
+            var elementRef = $"w:{_processId}:g{_generation}:e{sequence}";
+            _current.Add(elementRef, locator);
+            return elementRef;
+        }
     }
 
     public bool TryResolve(
@@ -60,16 +67,19 @@ public sealed class ElementLeaseRegistry<TLocator> where TLocator : class
         string elementRef,
         out TLocator? locator)
     {
-        locator = null;
-        if (_snapshotId is null ||
-            !string.Equals(_snapshotId, snapshotId, StringComparison.Ordinal) ||
-            processId != _processId ||
-            windowHandle != _windowHandle ||
-            string.IsNullOrWhiteSpace(elementRef))
+        lock (_gate)
         {
-            return false;
-        }
+            locator = null;
+            if (_snapshotId is null ||
+                !string.Equals(_snapshotId, snapshotId, StringComparison.Ordinal) ||
+                processId != _processId ||
+                windowHandle != _windowHandle ||
+                string.IsNullOrWhiteSpace(elementRef))
+            {
+                return false;
+            }
 
-        return _current.TryGetValue(elementRef, out locator);
+            return _current.TryGetValue(elementRef, out locator);
+        }
     }
 }
