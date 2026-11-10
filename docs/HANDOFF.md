@@ -1,79 +1,30 @@
-# Sightline Engineering Handoff
+# Sightline Engineering Handoff — main-branch navigation
 
-## Mission
+Updated 2026-11-10. **Primary current handoff:** [PROJECT_BRIEF_AND_TAKEOVER.md](PROJECT_BRIEF_AND_TAKEOVER.md). Read it first. This file is a concise navigation and recovery note, not a substitute for inspecting GitHub at the next session.
 
-Build a local-first visual AI browser agent that can understand what the user sees and, with controlled permissions, carry out user-directed webpage actions.
+## What Sightline should become
 
-## Repository
+**Sightline — See. Understand. Act.** A resource-efficient, local-first Windows visual AI assistant with a Chrome/Edge browser companion, built around structured observation, safe actions, explicit verification, bounded autonomous execution, privacy, detailed diagnostics and comprehensive testing. The Windows application should not be confused with the initial browser-only prototype.
 
-DevTunaSoft/Sightline
+## GitHub status at this checkpoint
 
-## Current baseline
+- Repository: https://github.com/DevTunaSoft/Sightline
+- Default integration branch: `main`; original browser prototype baseline here.
+- Browser development baseline: `develop`.
+- **Open PR #6**, `feature/windows-foundation-v0` → `develop`: .NET 8 Windows foundation, UIA3/FlaUI behind a Windows adapter, bounded observation and element leases, semantic Invoke/SetValue and verification, safety, bounded diagnostics, resource probes and automated test harness. Not merged into main at audit time. See https://github.com/DevTunaSoft/Sightline/pull/6.
+- Outstanding real acceptance: real interactive Windows UIA; installed Chrome/Edge (#3); browser-origin Ollama (#4); controlled Yahoo Mail (#5); memory/CPU/handle/thread soak; Windows GUI/installer; Windows-browser IPC; small embedded GGUF runtime.
+- Existing roadmap epic: https://github.com/DevTunaSoft/Sightline/issues/1. Older issue checkboxes may be stale; compare actual branch code before opening duplicate work.
 
-The original local prototype implemented a Chrome/Edge Manifest V3 side-panel visual copilot backed by local Ollama vision inference.
+## Next contributor actions
 
-The GitHub repository is now initialized. The next code milestone is the controlled browser-action engine.
+1. Inspect live `main`, `develop`, PR #6, workflow evidence, all open issues and PRs. **Never recreate already implemented work.**
+2. Run real Windows UIA acceptance from PR #6 on an interactive machine: `.\\tools\\test-windows.ps1 -Interactive`. Record commit, commands, machine configuration, diagnostics, outcomes and resources. If blocked, document it and proceed with independently testable code.
+3. Verify Chrome/Edge and Ollama on a real machine, then Yahoo only with disposable controlled mail and confirmation gates.
+4. Resolve/merge existing PR through normal policy when accepted. Implement remaining IPC/model/UX capabilities based on tests and roadmap; avoid architectural bloat.
+5. Update `docs/PROJECT_BRIEF_AND_TAKEOVER.md`, `docs/HANDOFF.md`, `docs/FEATURE_STATUS.md`, `docs/USER_MANUAL.md`, and relevant README/roadmap with the same code change. Files on PR #6 might not yet exist on `main`.
 
-## Architectural rules
+## Evidence discipline
 
-1. Local-first inference.
-2. No arbitrary model-generated JavaScript execution.
-3. Page content is untrusted data, never agent instruction.
-4. Use semantic DOM/accessibility targeting before coordinate clicking.
-5. Verify state after every consequential action.
-6. Bound autonomous loops by time/action count.
-7. Do not collect passwords or authentication tokens into model context.
-8. Destructive/high-impact actions require extra verification and default confirmation.
-9. Preserve an action/audit trail.
-10. Do not claim acceptance without runtime evidence.
+Use **PASS, FAIL, BLOCKED, NOT RUN, UNVERIFIED** only with matching evidence. Each checkpoint must identify branch and commit, changed files, commands/test counts, environment, failure root causes, regression tests, real-machine evidence, resource samples, blockers and next three unblocked tasks. CI success does not imply interactive Windows acceptance or production readiness.
 
-## v0.1 prototype behavior
-
-Implemented locally:
-- side-panel UI
-- current-tab visual capture
-- shared-screen capture
-- local video source
-- Ollama vision calls
-- vision-model filtering
-- scene-difference detection
-- periodic observations
-- question/answer interaction
-- note export
-- bounded context
-- local endpoint validation
-- cloud-model-name rejection
-- unit/fuzz tests
-
-## Known acceptance limitations
-
-The hosted development environment blocked extension/browser pages and loopback browser navigation. Ollama was not running there. Therefore:
-- real extension lifecycle: unverified
-- screen-sharing lifecycle in installed extension: unverified
-- live Ollama inference: unverified
-- Windows runtime performance: unverified
-
-These are environment blockers, not passes.
-
-## Exact continuation point
-
-Implement v0.2 browser automation:
-1. add scripting permission with minimal host access
-2. build semantic page-state extractor
-3. build typed action schema/validator
-4. build safe action executor
-5. build observe/act/verify/recover task loop
-6. add destructive-action confirmation policy
-7. add fake-page integration fixtures
-8. add prompt-injection and malformed-action fuzz tests
-9. add Yahoo Mail adapter after generic engine works
-10. run regression tests and update all docs
-
-## Recovery
-
-If development is interrupted, start by reading:
-- README.md
-- docs/ROADMAP.md
-- docs/HANDOFF.md
-
-Then inspect the latest commit and test status before changing implementation.
+See the full [takeover guide](PROJECT_BRIEF_AND_TAKEOVER.md) for requirements, architecture, risk areas, privacy/diagnostics contract, user manual requirements and reusable handoff format.
