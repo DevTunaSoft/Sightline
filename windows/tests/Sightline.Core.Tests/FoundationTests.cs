@@ -282,6 +282,31 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public async Task Diagnostic_recorder_keeps_only_sanitized_bounded_events()
+    {
+        await using var recorder = new DiagnosticRecorder(16);
+
+        for (var i = 0; i < 40; i++)
+        {
+            recorder.Record(new DiagnosticEvent(
+                DateTimeOffset.UtcNow,
+                "INFO",
+                "uia.action",
+                Capability: "Windows.UIAutomation",
+                Operation: "SetValue",
+                TargetRef: $"w:10:g1:e{i}",
+                Result: "VERIFIED",
+                Detail: $"password=secret-{i} process=10"));
+        }
+
+        var snapshot = recorder.Snapshot();
+        Assert.Equal(16, snapshot.Count);
+        Assert.Equal("w:10:g1:e24", snapshot[0].TargetRef);
+        Assert.Equal("w:10:g1:e39", snapshot[^1].TargetRef);
+        Assert.All(snapshot, item => Assert.DoesNotContain("secret-", item.Detail));
+    }
+
+    [Fact]
     public void Invalid_observation_budget_is_rejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
