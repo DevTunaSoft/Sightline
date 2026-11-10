@@ -22,7 +22,8 @@ try
 
     await using var session = new WindowsAutomationSession(
         leaseCapacity: 256,
-        resolutionBudget: new ObservationBudget(256, 20, TimeSpan.FromMilliseconds(750)));
+        resolutionBudget: new ObservationBudget(256, 20, TimeSpan.FromMilliseconds(750)),
+        actionApproval: new TestTargetApproval(process.Id));
 
     var snapshot = await ObserveUntilAsync(
         session.Observer,
@@ -119,4 +120,21 @@ static async Task<SemanticSnapshot> ObserveUntilAsync(
     }
 
     throw new InvalidOperationException("Timed out waiting for deterministic test state.", lastError);
+}
+
+sealed class TestTargetApproval(int processId) : IDesktopActionApproval
+{
+    // Only the dedicated disposable WPF fixture may be modified.
+    // Production Sightline intentionally has no default approval policy.
+    public bool IsApproved(SemanticSnapshot snapshot, SemanticAction action)
+    {
+        if (snapshot.ProcessId != processId || snapshot.WindowHandle == 0 || snapshot.Truncated)
+            return false;
+        var target = snapshot.Elements.SingleOrDefault(e => e.Ref == action.Ref);
+        if (target is null || !target.IsEnabled)
+            return false;
+        return (action.Kind == SemanticActionKind.SetValue &&
+                target.AutomationId == "InputBox" && action.Value == "SightlineAcceptance") ||
+               (action.Kind == SemanticActionKind.Invoke && target.AutomationId == "ApplyButton");
+    }
 }
