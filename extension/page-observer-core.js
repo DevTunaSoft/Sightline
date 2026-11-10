@@ -61,14 +61,23 @@ const SENSITIVE_AUTOCOMPLETE = new Set([
   'current-password', 'new-password', 'one-time-code',
   'cc-number', 'cc-csc', 'cc-exp', 'cc-exp-month', 'cc-exp-year',
 ]);
-const SENSITIVE_NAME_PATTERN = /(pass(word)?|passwd|pin|otp|one.?time|cvv|cvc|security.?code|card.?number|credit.?card|token|secret)/i;
+const SENSITIVE_NAME_PATTERN = /(?:^|\s)(?:password|passwd|passcode|passphrase|pin|otp|one time code|cvv|cvc|security code|card number|credit card|token|secret)(?:\s|$)/;
+
+function normalizedFieldName(value) {
+  return String(value || '').slice(0, 256)
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+    .replace(/[_\-./]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
 
 export function isSensitiveField(input = '') {
   if (typeof input === 'string') return input.toLowerCase() === 'password';
   const type = String(input?.type || '').toLowerCase();
   const autocomplete = String(input?.autocomplete || '').toLowerCase();
   const name = String(input?.name || '');
-  return type === 'password' || SENSITIVE_AUTOCOMPLETE.has(autocomplete) || SENSITIVE_NAME_PATTERN.test(name);
+  return type === 'password' || SENSITIVE_AUTOCOMPLETE.has(autocomplete) || SENSITIVE_NAME_PATTERN.test(normalizedFieldName(name));
 }
 
 export function fnv1aHash(value) {
