@@ -8,7 +8,7 @@ const SECRET_PATTERN = /(password|passwd|authorization|bearer|api[_-]?key|token|
 const FAILURE_CLASSES = new Set(['CODE', 'TEST', 'ENVIRONMENT', 'EXTERNAL_SERVICE', 'PERMISSION', 'HARDWARE', 'DESIGN', 'USER_CANCELLED', 'UNKNOWN']);
 
 function bounded(value, max) {
-  return String(value ?? '').replace(/s+/g, ' ').trim().slice(0, max);
+  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
 export function sanitizeDiagnosticValue(value, depth = 0) {
