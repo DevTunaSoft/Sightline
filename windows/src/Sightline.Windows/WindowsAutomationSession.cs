@@ -23,6 +23,7 @@ public sealed class WindowsAutomationSession : IAsyncDisposable
         Focus = new FlaUiFocusVerifier(_leases, resolutionBudget, options, _circuitBreaker, Diagnostics);
         UserActivity = new Win32UserActivityDetector();
         WindowDiscovery = Win32WindowDiscovery.Instance;
+        ProcessInspector = WindowsProcessInspector.Instance;
     }
 
     public IDesktopObserver Observer { get; }
@@ -30,6 +31,7 @@ public sealed class WindowsAutomationSession : IAsyncDisposable
     public IDesktopFocusVerifier Focus { get; }
     public IUserActivityDetector UserActivity { get; }
     public IDesktopWindowDiscovery WindowDiscovery { get; }
+    public IDesktopProcessInspector ProcessInspector { get; }
     public DiagnosticRecorder Diagnostics { get; }
     public int LeaseCapacity => _leases.Capacity;
 
