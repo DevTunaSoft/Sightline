@@ -62,3 +62,89 @@ test('task loop resumes with prior action budget and checkpoint callback', async
   assert.equal(checkpoint.actionsUsed,3);
   assert.equal(checkpoint.timeline.length,3);
 });
+
+test('write-ahead checkpoint is persisted before executing the action', async () => {
+  const checkpoints=[];
+  let executed=0;
+  const result=await runTaskLoop({
+    goal:'one action',
+    observe:async()=>({snapshotId:'s1'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:async()=>{
+      assert.equal(checkpoints.length,1);
+      assert.equal(checkpoints[0].timeline.at(-1).receipt.code,'UNKNOWN_EFFECT');
+      executed++;
+      return {ok:true};
+    },
+    verify:async()=>({done:true}),
+    onCheckpoint:async state=>checkpoints.push(state),
+  });
+  assert.equal(result.ok,true);
+  assert.equal(executed,1);
+  assert.equal(checkpoints.length,2);
+  assert.equal(checkpoints[1].timeline.at(-1).receipt.ok,true);
+});
+
+test('failure to persist write-ahead record blocks execution', async () => {
+  let executed=0;
+  const result=await runTaskLoop({
+    goal:'stop before action',
+    observe:async()=>({snapshotId:'s1'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:async()=>{executed++; return {ok:true};},
+    verify:async()=>({ok:true}),
+    onCheckpoint:async()=>{throw new Error('storage unavailable');},
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'CHECKPOINT_WRITE_FAILED');
+  assert.equal(executed,0);
+  assert.equal(result.timeline.at(-1).receipt.code,'UNKNOWN_EFFECT');
+});
+
+test('an exception during execution retains unknown-effect record', async () => {
+  const checkpoints=[];
+  const result=await runTaskLoop({
+    goal:'unknown mutation',
+    observe:async()=>({snapshotId:'s1'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:async()=>{throw new Error('provider disconnected after click');},
+    verify:async()=>({ok:true}),
+    onCheckpoint:async checkpoint=>checkpoints.push(checkpoint),
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'UNKNOWN_EFFECT');
+  assert.equal(result.timeline.length,1);
+  assert.equal(result.timeline[0].receipt.code,'UNKNOWN_EFFECT');
+  assert.equal(checkpoints.length,1);
+});
+
+test('resume with unknown-effect history cannot replan or replay', async () => {
+  let calls=0;
+  const result=await runTaskLoop({
+    goal:'resume',
+    observe:async()=>{calls++;return {snapshotId:'new'};},
+    plan:async()=>{calls++;return {action:{action:'click',ref:'@e1'}};},
+    execute:async()=>{calls++;return {ok:true};},
+    verify:async()=>{calls++;return {ok:true};},
+    resume:{actionsUsed:1,timeline:[{n:1,snapshotId:'old',action:{action:'click',ref:'@e1'},receipt:{ok:false,code:'UNKNOWN_EFFECT'}}]},
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'ACTION_RECONCILIATION_REQUIRED');
+  assert.equal(calls,0);
+});
+
+test('post-action checkpoint failure stops with unknown effect instead of retrying', async () => {
+  let executed=0, writes=0;
+  const result=await runTaskLoop({
+    goal:'stop after action',
+    observe:async()=>({snapshotId:'s1'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:async()=>{executed++;return {ok:true};},
+    verify:async()=>({ok:true}),
+    onCheckpoint:async()=>{writes++;if(writes===2)throw new Error('disk full');},
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'CHECKPOINT_WRITE_FAILED');
+  assert.equal(executed,1);
+  assert.equal(result.timeline.at(-1).receipt.code,'UNKNOWN_EFFECT');
+});
