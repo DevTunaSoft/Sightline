@@ -515,3 +515,45 @@ test('unscoped Yahoo Trash is blocked before user confirmation is offered', asyn
   assert.equal(result.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
   assert.equal(confirmCalls,0);
 });
+
+test('browser runner stops before side effect when recovery persistence fails', async () => {
+  let executions=0, plans=0;
+  const snapshot={snapshotId:'s1',url:'https://example.com/',elements:[{ref:'@e1',role:'button',name:'Submit',sensitive:false}]};
+  const chromeApi={tabs:{
+    query:async()=>[{id:7,url:snapshot.url}],
+    get:async()=>({id:7,url:snapshot.url}),
+    sendMessage:async(_id,msg)=>{
+      if(msg.type==='SIGHTLINE_PING') return {ok:true};
+      if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot};
+      if(msg.type==='SIGHTLINE_EXECUTE'){executions++;return {ok:true,receipt:{ok:true},snapshot};}
+    },
+  },scripting:{executeScript:async()=>{}}};
+  const fetchImpl=async()=>new Response(JSON.stringify({message:{content:plans++===0
+    ? '{"done":false,"action":{"action":"click","ref":"@e1"}}'
+    : '{"done":true}'}}),{status:200});
+  const result=await runBrowserTask({
+    goal:'Submit once',model:'gemma3:4b',chromeApi,fetchImpl,
+    onCheckpoint:async()=>{throw new Error('session storage unavailable');},
+  });
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'CHECKPOINT_WRITE_FAILED');
+  assert.equal(executions,0);
+  assert.equal(result.timeline[0].receipt.code,'UNKNOWN_EFFECT');
+});
+
+test('browser runner blocks resumed uncertain action without executing', async () => {
+  let queries=0,executions=0;
+  const chromeApi={tabs:{
+    get:async()=>{queries++;return {id:7,url:'https://example.com/'};},
+    sendMessage:async()=>{executions++;throw new Error('should never run');},
+  }};
+  const result=await runBrowserTask({
+    goal:'Resume safely',model:'gemma3:4b',chromeApi,
+    resume:{tabId:7,taskOrigin:'https://example.com',actionsUsed:1,
+      timeline:[{n:1,action:{action:'click',ref:'@e1'},receipt:{ok:false,code:'UNKNOWN_EFFECT'}}]},
+    fetchImpl:async()=>{throw new Error('planner should never run');},
+  });
+  assert.equal(result.code,'ACTION_RECONCILIATION_REQUIRED');
+  assert.equal(queries,0);
+  assert.equal(executions,0);
+});
