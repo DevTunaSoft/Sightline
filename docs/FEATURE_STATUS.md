@@ -21,12 +21,13 @@ Status language:
 | Semantic SetValue action | Implemented / compile verified | Uses UIA Value pattern with exact value readback verification. |
 | Stale snapshot/window/ref rejection | Implemented / automated-test verified | Rejected before live process/UIA access. |
 | Bounded diagnostics ledger | Implemented / automated-test verified | Fixed-capacity in-memory ring behavior. |
+| Persistent bounded diagnostic sink | Implemented / automated-test verified | Nonblocking bounded queue, rotating JSONL, fixed retention, secret redaction; not yet wired as default app logging. |
 | Process resource sampler | Implemented / automated-test verified | Baseline on windows-latest: 24,039,424 B working set; 7,659,520 B private; 183 handles; 8 threads. |
 | Repeated lease-cycle soak | Implemented / automated-test verified | 1,000 snapshot cycles remain bounded to current snapshot entries. |
 | WPF deterministic test target | Implemented / compile verified | Interactive UIA acceptance remains pending. |
 | Windows resource/acceptance script | Implemented | `tools/test-windows.ps1`; non-interactive path verified in CI. |
 | Interactive WPF vertical-slice runner | Implemented | `tools/test-windows.ps1 -Interactive`; real-desktop execution still pending. |\n| Real Windows interactive UIA observation/actions | **Not yet verified** | Must be exercised on a real interactive Windows desktop. |
-| UIA focus verification | Implemented / automated-test verified | One focus request + same-element HasKeyboardFocus readback; no polling loop. |\n| User-interference yield | Not yet implemented | Required before future physical keyboard/mouse input. |
+| UIA focus verification | Implemented / automated-test verified | One focus request + same-element HasKeyboardFocus readback; no polling loop. |\n| User-activity lease | Implemented / automated-test verified | Win32 last-input timestamp snapshot; zero polling/hooks. Physical input fallback itself is not implemented yet. |
 | UIA circuit breaker | Not yet implemented | Planned after action/readback foundation. |
 | Browser companion IPC | Not yet implemented | Existing extension is preserved separately. |
 | Tiny local GGUF runtime | Not yet implemented | Planned after deterministic Windows automation foundation. |
