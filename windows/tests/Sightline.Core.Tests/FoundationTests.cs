@@ -122,6 +122,16 @@ public sealed class FoundationTests
         Assert.True(sample.ThreadCount > 0);
     }
 
+
+    [Fact]
+    public void User_activity_lease_invalidates_on_new_input_stamp()
+    {
+        var lease = new UserActivityLease(new UserActivityStamp(100));
+
+        Assert.True(lease.IsStillValid(new UserActivityStamp(100)));
+        Assert.False(lease.IsStillValid(new UserActivityStamp(101)));
+    }
+
     [Fact]
     public void Invalid_observation_budget_is_rejected()
     {

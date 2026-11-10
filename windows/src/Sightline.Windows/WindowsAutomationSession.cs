@@ -17,10 +17,12 @@ public sealed class WindowsAutomationSession
         Observer = new FlaUiDesktopObserver(_leases, options);
         Actions = new FlaUiActionExecutor(_leases, resolutionBudget, options);
         Focus = new FlaUiFocusVerifier(_leases, resolutionBudget, options);
+        UserActivity = new Win32UserActivityDetector();
     }
 
     public IDesktopObserver Observer { get; }
     public IDesktopActionExecutor Actions { get; }
     public IDesktopFocusVerifier Focus { get; }
+    public IUserActivityDetector UserActivity { get; }
     public int LeaseCapacity => _leases.Capacity;
 }
