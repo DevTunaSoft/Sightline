@@ -1,5 +1,12 @@
 # Sightline Engineering Handoff
 
+### Browser confirmation and verification correctness — 2026-11-10
+
+**Source on `develop`:** `40987f4` and `0673305`; regression test `abd3141`. Confirmation context is cleared at the beginning and in `finally` for each browser action invocation so failed/throwing actions cannot leave stale confirmation context attached to a later action. `verifyBrowserReceipt` rejects site-specific checks that are explicitly false or inconclusive, rather than accepting generic `receipt.ok` as proof of effect. Synthetic regression tests cover failed/inconclusive/passing site checks.
+
+**Limitations:** Only actions with an applicable site-specific verifier gain this stronger effect requirement. Generic clicks and dynamic pages still lack a universal structural-effect oracle; do not claim complete audit #13/#14 resolution. Tests **NOT RUN** and installed-browser acceptance **UNVERIFIED** at this checkpoint. Prior browser crash/write-ahead mitigation was already implemented on this branch; it was not recreated.
+
+
 ### Browser crash-safe checkpoint hardening — 2026-11-10
 
 **Scope:** Audit findings #15, #16 and #17, plus the browser portion of #9. Source commits include `8e9e4d6` (write-ahead record), `fc7bf05` (stop on failed persistence), `4a322c4` (sanitized error timeline), `d85e845` (review persistence before confirmation), `0ba5039` (stop on unverified effects), and subsequent tests through `b69d2bd`.
