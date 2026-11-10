@@ -41,6 +41,9 @@ jobs:
         run: dotnet test windows/tests/Sightline.Core.Tests/Sightline.Core.Tests.csproj -c Release --no-build --logger "trx;LogFileName=sightline-core.trx"
       - name: Test Windows safety layer
         run: dotnet test windows/tests/Sightline.Windows.Tests/Sightline.Windows.Tests.csproj -c Release --no-build --logger "trx;LogFileName=sightline-windows.trx"
+      - name: Capture Windows process resource baseline
+        shell: pwsh
+        run: dotnet windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll --resource | Out-File -Encoding utf8 windows/windows-resource.json
       - name: Upload Windows test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,6 +52,7 @@ jobs:
           path: |
             windows/tests/Sightline.Core.Tests/TestResults/
             windows/tests/Sightline.Windows.Tests/TestResults/
+            windows/windows-resource.json
           if-no-files-found: warn
           retention-days: 14
 
