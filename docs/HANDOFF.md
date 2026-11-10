@@ -1,5 +1,18 @@
 # Sightline Engineering Handoff
 
+### Browser observer and action hardening — 2026-11-10
+
+Reviewed five new source observations against `develop`, with source+regression changes through commit `3ee180b`. **All changes are committed; tests NOT RUN / UNVERIFIED.**
+
+1. `page-observer.js`: empty/whitespace/undefined CSS opacity is no longer coerced to zero. Truly zero opacity, hidden display/visibility and zero-sized elements still fail observation. Deterministic `tests/page-observer-visibility.test.js` was added.
+2. `browser-bridge.js`: strict http/https allowlist now stands alone without redundant prohibited-scheme set. Agent bootstrap uses a bounded 8-delay backoff (20–200 ms), revalidating the task tab before retry; tests cover slower readiness and rejected schemes. No background polling or dependency added.
+3. `dom-action-adapter.js`, `safety-gate.js`, `planner-core.js`: sensitive `click` is now refused at execution, risk-gating and planning boundaries; a previously missed sensitive `uncheck` guard was also added, with tests.
+4. `dom-action-adapter.js`: value assignment now searches a capped (12-level) prototype chain for an inherited `value` setter and falls back to direct assignment; regression test exercises a setter above the immediate prototype.
+5. Browser tests updated in `tests/dom-action-adapter.test.js`, `tests/safety-gate.test.js`, `tests/planner-core.test.js`, and `tests/browser-bridge.test.js`.
+
+**Verification status:** PASS — GitHub source/test commits and readbacks. BLOCKED — local `git ls-remote` reports DNS resolution failure for github.com. NOT RUN — `npm run check` / installed Chrome and Edge smoke tests on exact updated commit. Remaining concerns: values in sensitive fields must never appear in general document text, focus/keyboard authorization still needs live tests, confirmation and crash recovery remain high priority in audit issue #9.
+
+
 ### Browser sensitive-name classifier — 2026-11-10
 
 Audit #12 addressed in `develop` through `57f3533`: detection now matches normalized name tokens instead of arbitrary substrings, preventing ordinary fields such as `shipping`, `mapping` and `compass` from being treated as passwords. CamelCase, underscore and dash credential names remain recognized. Input-name inspection is capped at 256 characters. Targeted tests added in `tests/page-observer-core.test.js`; **full JavaScript suite NOT RUN / UNVERIFIED** on the latest branch.
