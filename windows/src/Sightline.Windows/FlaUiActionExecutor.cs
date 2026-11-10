@@ -50,6 +50,15 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 Fail(SightlineErrorCode.StateChanged, "Element reference is stale.")));
         }
 
+        // Never attach to a provider for a known-sensitive control.
+        // This also blocks aliases after sensitive observation metadata was redacted.
+        if (locator.IsSensitive || SensitiveControlPolicy.IsSensitive(false, locator.Name, locator.AutomationId))
+        {
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.PermissionDenied, "Sensitive control actions are not permitted.")));
+        }
+
         if (!_circuitBreaker.TryEnter(snapshot.ProcessId))
         {
             return ValueTask.FromResult(Recorded(
@@ -74,6 +83,15 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             if (element is null)
                 return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
                     SightlineErrorCode.StateChanged, "Target element changed or is ambiguous."));
+
+            // Re-check against the live provider before any side effect.
+            // Unknown password metadata is not permission to act.
+            var isPassword = Safe(() => element.Properties.IsPassword.Value, true);
+            var liveName = SafeText(() => element.Name);
+            var liveAutomationId = SafeText(() => element.AutomationId);
+            if (SensitiveControlPolicy.IsSensitive(isPassword, liveName, liveAutomationId))
+                return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
+                    SightlineErrorCode.PermissionDenied, "Sensitive control actions are not permitted."));
 
             if (!Safe(() => element.IsEnabled, false))
                 return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
@@ -185,6 +203,12 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             Verified: verified,
             Readback: readback,
             Detail: verified ? "Value readback matched." : "Value readback did not match.");
+    }
+
+    private static string? SafeText(Func<string?> read)
+    {
+        try { return read(); }
+        catch { return null; }
     }
 
     private static ActionReceipt Fail(SightlineErrorCode code, string detail) =>
