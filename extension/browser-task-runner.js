@@ -8,6 +8,14 @@ import { skillPlannerContext, verifySkillActionEffect, checkSkillDestructiveScop
 import { DiagnosticLedger } from './diagnostics-core.js';
 import { TimingBook } from './performance-core.js';
 
+export function verifyBrowserReceipt(receipt) {
+  if (receipt?.ok !== true) return { ok: false, code: receipt?.code || 'ACTION_FAILED' };
+  // Site-specific verification must not be overridden by a generic success receipt.
+  if (receipt.siteVerification?.applicable === true && receipt.siteVerification.verified !== true)
+    return { ok: false, code: 'NO_VERIFIED_EFFECT' };
+  return { ok: true };
+}
+
 const MAX_VISION_FALLBACKS_PER_TASK = 2;
 const MAX_VISUAL_CONTEXT_CHARS = 3000;
 
@@ -240,13 +248,7 @@ export async function runBrowserTask({
     }
   };
 
-  const verify = async ({ receipt }) => {
-    if (receipt?.ok !== true) return { ok: false, code: receipt?.code || 'ACTION_FAILED' };
-    // A site-specific verifier must not be overridden by a generic ok receipt.
-    if (receipt.siteVerification?.applicable === true && receipt.siteVerification.verified !== true)
-      return { ok: false, code: 'NO_VERIFIED_EFFECT' };
-    return { ok: true };
-  };
+  const verify = async ({ receipt }) => verifyBrowserReceipt(receipt);
   try {
     const checkpoint = state => {
       // Preserve sanitized progress even if planning, storage or a provider fails.
