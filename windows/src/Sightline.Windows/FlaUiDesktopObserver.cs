@@ -10,14 +10,17 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
     private static long _snapshotSequence;
     private readonly ElementLeaseRegistry<WindowsElementLocator> _leases;
     private readonly UiaRuntimeOptions _runtimeOptions;
+    private readonly UiaCircuitBreaker _circuitBreaker;
 
     public FlaUiDesktopObserver(
         ElementLeaseRegistry<WindowsElementLocator>? leases = null,
-        UiaRuntimeOptions? runtimeOptions = null)
+        UiaRuntimeOptions? runtimeOptions = null,
+        UiaCircuitBreaker? circuitBreaker = null)
     {
         _leases = leases ?? new ElementLeaseRegistry<WindowsElementLocator>();
         _runtimeOptions = runtimeOptions ?? UiaRuntimeOptions.Default;
         _runtimeOptions.Validate();
+        _circuitBreaker = circuitBreaker ?? new UiaCircuitBreaker();
     }
 
     public ElementLeaseRegistry<WindowsElementLocator> Leases => _leases;
@@ -32,10 +35,19 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
             ? budget
             : budget with { MaxNodes = _leases.Capacity };
 
-        using var application = Application.Attach(processId);
-        using var automation = FlaUiAutomationFactory.Create(_runtimeOptions);
-        var window = application.GetMainWindow(automation)
-            ?? throw new InvalidOperationException(SightlineErrorCode.WindowNotFound.ToString());
+        if (!_circuitBreaker.TryEnter(processId))
+            throw new InvalidOperationException($"{SightlineErrorCode.UiaUnavailable}: circuit open.");
+
+        try
+        {
+            using var application = Application.Attach(processId);
+            using var automation = FlaUiAutomationFactory.Create(_runtimeOptions);
+            var window = application.GetMainWindow(automation);
+            if (window is null)
+            {
+                _circuitBreaker.RecordSuccess(processId);
+                throw new InvalidOperationException(SightlineErrorCode.WindowNotFound.ToString());
+            }
 
         var walker = automation.TreeWalkerFactory.GetControlViewWalker();
         IEnumerable<AutomationElement> Children(AutomationElement parent)
@@ -79,14 +91,32 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
                 Depth: depth));
         }
 
-        return ValueTask.FromResult(new SemanticSnapshot(
-            SnapshotId: snapshotId,
-            ProcessId: processId,
-            WindowHandle: handle,
-            CapturedAt: DateTimeOffset.UtcNow,
-            Elements: elements,
-            Truncated: truncated,
-            TruncationReason: reason));
+            var snapshot = new SemanticSnapshot(
+                SnapshotId: snapshotId,
+                ProcessId: processId,
+                WindowHandle: handle,
+                CapturedAt: DateTimeOffset.UtcNow,
+                Elements: elements,
+                Truncated: truncated,
+                TruncationReason: reason);
+
+            _circuitBreaker.RecordSuccess(processId);
+            return ValueTask.FromResult(snapshot);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException ex) when (
+            string.Equals(ex.Message, SightlineErrorCode.WindowNotFound.ToString(), StringComparison.Ordinal))
+        {
+            throw;
+        }
+        catch
+        {
+            _circuitBreaker.RecordFailure(processId);
+            throw;
+        }
     }
 
     private static string? Safe(Func<string?> read)

@@ -5,6 +5,7 @@ namespace Sightline.Windows;
 public sealed class WindowsAutomationSession
 {
     private readonly ElementLeaseRegistry<WindowsElementLocator> _leases;
+    private readonly UiaCircuitBreaker _circuitBreaker;
 
     public WindowsAutomationSession(
         int leaseCapacity = 1024,
@@ -12,11 +13,12 @@ public sealed class WindowsAutomationSession
         UiaRuntimeOptions? runtimeOptions = null)
     {
         _leases = new ElementLeaseRegistry<WindowsElementLocator>(leaseCapacity);
+        _circuitBreaker = new UiaCircuitBreaker();
         var options = runtimeOptions ?? UiaRuntimeOptions.Default;
         options.Validate();
-        Observer = new FlaUiDesktopObserver(_leases, options);
-        Actions = new FlaUiActionExecutor(_leases, resolutionBudget, options);
-        Focus = new FlaUiFocusVerifier(_leases, resolutionBudget, options);
+        Observer = new FlaUiDesktopObserver(_leases, options, _circuitBreaker);
+        Actions = new FlaUiActionExecutor(_leases, resolutionBudget, options, _circuitBreaker);
+        Focus = new FlaUiFocusVerifier(_leases, resolutionBudget, options, _circuitBreaker);
         UserActivity = new Win32UserActivityDetector();
     }
 

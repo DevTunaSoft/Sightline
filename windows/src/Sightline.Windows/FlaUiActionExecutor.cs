@@ -10,16 +10,19 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
     private readonly ElementLeaseRegistry<WindowsElementLocator> _leases;
     private readonly FlaUiElementResolver _resolver;
     private readonly UiaRuntimeOptions _runtimeOptions;
+    private readonly UiaCircuitBreaker _circuitBreaker;
 
     public FlaUiActionExecutor(
         ElementLeaseRegistry<WindowsElementLocator> leases,
         ObservationBudget? resolutionBudget = null,
-        UiaRuntimeOptions? runtimeOptions = null)
+        UiaRuntimeOptions? runtimeOptions = null,
+        UiaCircuitBreaker? circuitBreaker = null)
     {
         _leases = leases ?? throw new ArgumentNullException(nameof(leases));
         _resolver = new FlaUiElementResolver(resolutionBudget);
         _runtimeOptions = runtimeOptions ?? UiaRuntimeOptions.Default;
         _runtimeOptions.Validate();
+        _circuitBreaker = circuitBreaker ?? new UiaCircuitBreaker();
     }
 
     public ValueTask<ActionReceipt> ExecuteAsync(
@@ -42,29 +45,46 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Element reference is stale."));
         }
 
-        using var application = Application.Attach(snapshot.ProcessId);
-        using var automation = FlaUiAutomationFactory.Create(_runtimeOptions);
-        var window = application.GetMainWindow(automation);
-        if (window is null)
-            return ValueTask.FromResult(Fail(SightlineErrorCode.WindowNotFound, "Target window is unavailable."));
-
-        if (window.Properties.NativeWindowHandle.ValueOrDefault != snapshot.WindowHandle)
-            return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target window identity changed."));
-
-        var element = _resolver.ResolveUnique(window, automation, locator, cancellationToken);
-        if (element is null)
-            return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target element changed or is ambiguous."));
-        if (!Safe(() => element.IsEnabled, false))
-            return ValueTask.FromResult(Fail(SightlineErrorCode.ControlNotActionable, "Target control is disabled."));
+        if (!_circuitBreaker.TryEnter(snapshot.ProcessId))
+            return ValueTask.FromResult(Fail(SightlineErrorCode.UiaUnavailable, "UI Automation circuit is temporarily open."));
 
         try
         {
-            return action.Kind switch
+            using var application = Application.Attach(snapshot.ProcessId);
+            using var automation = FlaUiAutomationFactory.Create(_runtimeOptions);
+            var window = application.GetMainWindow(automation);
+            if (window is null)
             {
-                SemanticActionKind.Invoke => ValueTask.FromResult(Invoke(element)),
-                SemanticActionKind.SetValue => ValueTask.FromResult(SetValue(element, action.Value)),
-                _ => ValueTask.FromResult(Fail(SightlineErrorCode.ControlNotActionable, "Unsupported semantic action."))
+                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
+                return ValueTask.FromResult(Fail(SightlineErrorCode.WindowNotFound, "Target window is unavailable."));
+            }
+
+            if (window.Properties.NativeWindowHandle.ValueOrDefault != snapshot.WindowHandle)
+            {
+                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
+                return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target window identity changed."));
+            }
+
+            var element = _resolver.ResolveUnique(window, automation, locator, cancellationToken);
+            if (element is null)
+            {
+                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
+                return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target element changed or is ambiguous."));
+            }
+            if (!Safe(() => element.IsEnabled, false))
+            {
+                _circuitBreaker.RecordSuccess(snapshot.ProcessId);
+                return ValueTask.FromResult(Fail(SightlineErrorCode.ControlNotActionable, "Target control is disabled."));
+            }
+
+            var receipt = action.Kind switch
+            {
+                SemanticActionKind.Invoke => Invoke(element),
+                SemanticActionKind.SetValue => SetValue(element, action.Value),
+                _ => Fail(SightlineErrorCode.ControlNotActionable, "Unsupported semantic action.")
             };
+            _circuitBreaker.RecordSuccess(snapshot.ProcessId);
+            return ValueTask.FromResult(receipt);
         }
         catch (OperationCanceledException)
         {
@@ -72,6 +92,7 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         }
         catch
         {
+            _circuitBreaker.RecordFailure(snapshot.ProcessId);
             return ValueTask.FromResult(Fail(SightlineErrorCode.UiaUnavailable, "UI Automation rejected the requested action."));
         }
     }

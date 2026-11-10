@@ -71,6 +71,48 @@ public sealed class ActionSafetyTests
         Assert.False(receipt.Ok);
         Assert.Equal(SightlineErrorCode.StateChanged, receipt.ErrorCode);
     }
+
+    [Fact]
+    public void Uia_circuit_opens_after_threshold_and_allows_one_probe_after_cooldown()
+    {
+        var now = DateTimeOffset.Parse("2026-11-10T00:00:00Z");
+        var breaker = new UiaCircuitBreaker(
+            new UiaCircuitBreakerOptions(MaxProcesses: 4, FailureThreshold: 2, Cooldown: TimeSpan.FromSeconds(5)),
+            () => now);
+
+        Assert.True(breaker.TryEnter(42));
+        breaker.RecordFailure(42);
+        Assert.True(breaker.TryEnter(42));
+        breaker.RecordFailure(42);
+        Assert.False(breaker.TryEnter(42));
+
+        now = now.AddSeconds(6);
+        Assert.True(breaker.TryEnter(42));
+        Assert.False(breaker.TryEnter(42));
+
+        breaker.RecordFailure(42);
+        Assert.False(breaker.TryEnter(42));
+
+        now = now.AddSeconds(6);
+        Assert.True(breaker.TryEnter(42));
+        breaker.RecordSuccess(42);
+        Assert.True(breaker.TryEnter(42));
+        Assert.Equal(0, breaker.TrackedProcessCount);
+    }
+
+    [Fact]
+    public void Uia_circuit_process_table_is_hard_bounded()
+    {
+        var breaker = new UiaCircuitBreaker(
+            new UiaCircuitBreakerOptions(MaxProcesses: 2, FailureThreshold: 3, Cooldown: TimeSpan.FromSeconds(5)));
+
+        breaker.RecordFailure(1);
+        breaker.RecordFailure(2);
+        breaker.RecordFailure(3);
+
+        Assert.Equal(2, breaker.TrackedProcessCount);
+    }
+
     [Fact]
     public void Uia_runtime_options_reject_unbounded_or_tiny_timeouts()
     {
