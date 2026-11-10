@@ -11,7 +11,8 @@ public sealed class WindowsAutomationSession : IAsyncDisposable
         int leaseCapacity = 1024,
         ObservationBudget? resolutionBudget = null,
         UiaRuntimeOptions? runtimeOptions = null,
-        DiagnosticFileOptions? diagnosticFileOptions = null)
+        DiagnosticFileOptions? diagnosticFileOptions = null,
+        IDesktopActionApproval? actionApproval = null)
     {
         _leases = new ElementLeaseRegistry<WindowsElementLocator>(leaseCapacity);
         _circuitBreaker = new UiaCircuitBreaker();
@@ -19,7 +20,7 @@ public sealed class WindowsAutomationSession : IAsyncDisposable
         var options = runtimeOptions ?? UiaRuntimeOptions.Default;
         options.Validate();
         Observer = new FlaUiDesktopObserver(_leases, options, _circuitBreaker, Diagnostics);
-        Actions = new FlaUiActionExecutor(_leases, resolutionBudget, options, _circuitBreaker, Diagnostics);
+        Actions = new FlaUiActionExecutor(_leases, resolutionBudget, options, _circuitBreaker, Diagnostics, actionApproval);
         Focus = new FlaUiFocusVerifier(_leases, resolutionBudget, options, _circuitBreaker, Diagnostics);
         UserActivity = new Win32UserActivityDetector();
         WindowDiscovery = Win32WindowDiscovery.Instance;
