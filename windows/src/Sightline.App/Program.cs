@@ -8,10 +8,30 @@ if (args.Length == 1 && args[0] == "--resource")
     return 0;
 }
 
+if (args.Length == 1 && args[0] == "--resource-session")
+{
+    var before = ProcessResourceSampler.CaptureCurrent();
+    await using var idleSession = new WindowsAutomationSession();
+    var withSession = ProcessResourceSampler.CaptureCurrent();
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        Before = before,
+        WithSession = withSession,
+        Delta = new
+        {
+            WorkingSetBytes = withSession.WorkingSetBytes - before.WorkingSetBytes,
+            PrivateMemoryBytes = withSession.PrivateMemoryBytes - before.PrivateMemoryBytes,
+            HandleCount = withSession.HandleCount - before.HandleCount,
+            ThreadCount = withSession.ThreadCount - before.ThreadCount
+        }
+    }));
+    return 0;
+}
+
 if (args.Length != 2 || args[0] != "--observe" || !int.TryParse(args[1], out var processId))
 {
     Console.WriteLine("Sightline Windows Foundation v0");
-    Console.WriteLine("Usage: Sightline.App --observe <process-id> | --resource");
+    Console.WriteLine("Usage: Sightline.App --observe <process-id> | --resource | --resource-session");
     return 2;
 }
 
