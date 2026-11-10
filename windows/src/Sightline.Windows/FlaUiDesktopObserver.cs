@@ -23,6 +23,9 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
     {
         budget.Validate();
         cancellationToken.ThrowIfCancellationRequested();
+        var effectiveBudget = budget.MaxNodes <= _leases.Capacity
+            ? budget
+            : budget with { MaxNodes = _leases.Capacity };
 
         using var application = Application.Attach(processId);
         using var automation = new UIA3Automation();
@@ -44,7 +47,7 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
         var nodes = traversal.Walk(
             window,
             Children,
-            budget,
+            effectiveBudget,
             cancellationToken,
             out var truncated,
             out var reason);
