@@ -15,7 +15,7 @@ const INTERACTIVE_SELECTOR = [
   '[role="textbox"]', '[role="combobox"]', '[role="menuitem"]', '[tabindex]',
 ].join(',');
 
-function isVisible(element) {
+export function isVisible(element) {
   if (!element || element.nodeType !== 1) return false;
   const view = element.ownerDocument?.defaultView;
   const style = view?.getComputedStyle?.(element);
