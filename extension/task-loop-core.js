@@ -86,6 +86,15 @@ export async function runTaskLoop({ goal, observe, plan, execute, verify, signal
       return { ok: false, code: 'CHECKPOINT_WRITE_FAILED', timeline };
     }
 
+    // Cancellation may occur while a slow storage write is in flight.
+    // Never perform the action after the user has already stopped the task.
+    if (signal?.aborted) {
+      pending.receipt = { ok: false, code: 'ABORTED' };
+      try { await checkpoint(snapshot.snapshotId); }
+      catch { pending.receipt = { ok: false, code: 'UNKNOWN_EFFECT' }; }
+      return { ok: false, code: 'ABORTED', timeline };
+    }
+
     let receipt;
     try {
       receipt = await execute(decision.action, { signal, snapshot });
