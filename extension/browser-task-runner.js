@@ -198,6 +198,7 @@ export async function runBrowserTask({
       }
     }
     if ((result?.code === 'STALE_SNAPSHOT' || result?.code === 'STALE_REF') && result?.snapshot) {
+      lastConfirmedContext = null;
       cachedSnapshot = result.snapshot;
       onProgress({ type: 'recovered', code: result.code, snapshotId: result.snapshot.snapshotId });
       return { ok: true, code: 'REPLAN_REQUIRED', recoveredFrom: result.code };
