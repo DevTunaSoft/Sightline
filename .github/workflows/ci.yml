@@ -48,6 +48,9 @@ jobs:
       - name: Capture Windows process resource baseline
         shell: pwsh
         run: dotnet windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll --resource | Out-File -Encoding utf8 windows/windows-resource.json
+      - name: Capture idle Windows automation-session resource baseline
+        shell: pwsh
+        run: dotnet windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll --resource-session | Out-File -Encoding utf8 windows/windows-session-resource.json
       - name: Upload Windows test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,6 +60,7 @@ jobs:
             windows/tests/Sightline.Core.Tests/TestResults/
             windows/tests/Sightline.Windows.Tests/TestResults/
             windows/windows-resource.json
+            windows/windows-session-resource.json
           if-no-files-found: warn
           retention-days: 14
 
