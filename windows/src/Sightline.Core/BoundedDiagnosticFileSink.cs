@@ -28,6 +28,18 @@ public sealed record DiagnosticFileOptions(
 
 public sealed class BoundedDiagnosticFileSink : IAsyncDisposable
 {
+    private sealed class WriterState
+    {
+        public WriterState(StreamWriter writer, long length)
+        {
+            Writer = writer;
+            Length = length;
+        }
+
+        public StreamWriter Writer { get; }
+        public long Length { get; set; }
+    }
+
     private readonly DiagnosticFileOptions _options;
     private readonly Channel<DiagnosticEvent> _channel;
     private readonly Task _worker;
@@ -62,19 +74,16 @@ public sealed class BoundedDiagnosticFileSink : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        DiagnosticEvent sanitized;
         try
         {
-            sanitized = DiagnosticSanitizer.Sanitize(item, _options.MaxDetailChars);
+            var sanitized = DiagnosticSanitizer.Sanitize(item, _options.MaxDetailChars);
+            if (_channel.Writer.TryWrite(sanitized))
+                return true;
         }
         catch
         {
-            Interlocked.Increment(ref _droppedEvents);
-            return false;
+            // Diagnostics are best-effort and must never fail the application.
         }
-
-        if (_channel.Writer.TryWrite(sanitized))
-            return true;
 
         Interlocked.Increment(ref _droppedEvents);
         return false;
@@ -89,30 +98,29 @@ public sealed class BoundedDiagnosticFileSink : IAsyncDisposable
 
     private async Task ProcessAsync()
     {
-        StreamWriter? writer = null;
+        WriterState? state = null;
         try
         {
             Directory.CreateDirectory(_options.DirectoryPath);
+
             await foreach (var first in _channel.Reader.ReadAllAsync().ConfigureAwait(false))
             {
-                writer = await EnsureWriterAsync(writer, first).ConfigureAwait(false);
-                await WriteAsync(writer, first).ConfigureAwait(false);
+                state = await WriteEventAsync(state, first).ConfigureAwait(false);
 
                 var batchCount = 1;
                 while (batchCount < 32 && _channel.Reader.TryRead(out var next))
                 {
-                    writer = await EnsureWriterAsync(writer, next).ConfigureAwait(false);
-                    await WriteAsync(writer, next).ConfigureAwait(false);
+                    state = await WriteEventAsync(state, next).ConfigureAwait(false);
                     batchCount++;
                 }
 
-                await writer.FlushAsync().ConfigureAwait(false);
+                await state.Writer.FlushAsync().ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
             lock (_statusGate)
-                _lastFailure = $"{ex.GetType().Name}: {ex.Message}".Trim();
+                _lastFailure = $"{ex.GetType().Name}: {ex.Message}".Trim().Truncate(512);
 
             _channel.Writer.TryComplete();
             while (_channel.Reader.TryRead(out _))
@@ -120,28 +128,40 @@ public sealed class BoundedDiagnosticFileSink : IAsyncDisposable
         }
         finally
         {
-            if (writer is not null)
-                await writer.DisposeAsync().ConfigureAwait(false);
+            if (state is not null)
+                await state.Writer.DisposeAsync().ConfigureAwait(false);
         }
     }
 
-    private async Task<StreamWriter> EnsureWriterAsync(StreamWriter? writer, DiagnosticEvent item)
+    private async Task<WriterState> WriteEventAsync(WriterState? state, DiagnosticEvent item)
     {
-        var line = Serialize(item);
+        var line = JsonSerializer.Serialize(item);
         var bytes = Encoding.UTF8.GetByteCount(line) + 1;
 
-        if (writer is not null)
+        if (state is not null && state.Length + bytes > _options.MaxFileBytes)
         {
-            await writer.FlushAsync().ConfigureAwait(false);
-            if (writer.BaseStream.Length + bytes <= _options.MaxFileBytes)
-                return writer;
-
-            await writer.DisposeAsync().ConfigureAwait(false);
-            writer = null;
+            await state.Writer.DisposeAsync().ConfigureAwait(false);
+            state = null;
             Rotate();
         }
 
+        state ??= OpenWriter();
+        await state.Writer.WriteLineAsync(line).ConfigureAwait(false);
+        state.Length += bytes;
+        return state;
+    }
+
+    private WriterState OpenWriter()
+    {
         var path = BasePath();
+
+        if (File.Exists(path))
+        {
+            var length = new FileInfo(path).Length;
+            if (length >= _options.MaxFileBytes)
+                Rotate();
+        }
+
         var stream = new FileStream(
             path,
             FileMode.Append,
@@ -150,27 +170,10 @@ public sealed class BoundedDiagnosticFileSink : IAsyncDisposable
             bufferSize: 4096,
             options: FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-        if (stream.Length + bytes > _options.MaxFileBytes && stream.Length > 0)
-        {
-            await stream.DisposeAsync().ConfigureAwait(false);
-            Rotate();
-            stream = new FileStream(
-                path,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.Read,
-                bufferSize: 4096,
-                options: FileOptions.Asynchronous | FileOptions.SequentialScan);
-        }
-
-        return new StreamWriter(stream, new UTF8Encoding(false), 4096, leaveOpen: false);
+        return new WriterState(
+            new StreamWriter(stream, new UTF8Encoding(false), 4096, leaveOpen: false),
+            stream.Length);
     }
-
-    private static Task WriteAsync(StreamWriter writer, DiagnosticEvent item) =>
-        writer.WriteLineAsync(Serialize(item));
-
-    private static string Serialize(DiagnosticEvent item) =>
-        JsonSerializer.Serialize(item);
 
     private string BasePath() => Path.Combine(_options.DirectoryPath, "sightline.jsonl");
 
@@ -198,4 +201,10 @@ public sealed class BoundedDiagnosticFileSink : IAsyncDisposable
                 File.Move(source, destination);
         }
     }
+}
+
+internal static class DiagnosticStringExtensions
+{
+    public static string Truncate(this string value, int maxChars) =>
+        value.Length <= maxChars ? value : value[..maxChars];
 }

@@ -2,10 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace Sightline.Core;
 
-public static partial class DiagnosticSanitizer
+public static class DiagnosticSanitizer
 {
     private static readonly Regex SecretAssignment = new(
-        @"(?i)\b(password|passwd|token|api[_-]?key|secret)\s*[:=]\s*[^\s,;]+",
+        @"(?i)\b(password|passwd|authorization|cookie|api[_-]?key|token|access[_-]?token|refresh[_-]?token|secret|mfa|otp)\s*[:=]\s*[^\s,;]+",
         RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
     private static readonly Regex BearerToken = new(
@@ -40,18 +40,15 @@ public static partial class DiagnosticSanitizer
             .Replace('\0', ' ')
             .Trim();
 
-        if (normalized.Length > maxChars)
-            normalized = normalized[..maxChars];
-
+        // Redact before truncating so a truncation boundary cannot preserve a partial secret.
         normalized = BearerToken.Replace(normalized, "Bearer [REDACTED]");
         normalized = SecretAssignment.Replace(normalized, match =>
         {
             var separator = match.Value.Contains('=') ? "=" : ":";
-            var name = match.Groups[1].Value;
-            return $"{name}{separator}[REDACTED]";
+            return $"{match.Groups[1].Value}{separator}[REDACTED]";
         });
 
-        return normalized;
+        return normalized.Length <= maxChars ? normalized : normalized[..maxChars];
     }
 
     private static string CleanMetadata(string value, int maxChars)
