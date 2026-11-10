@@ -103,6 +103,11 @@ async function markCheckpointForReview() {
   }, chrome);
 }
 
+function needsActionReview(timeline = []) {
+  return timeline.some(item =>
+    ['UNKNOWN_EFFECT', 'ACTION_IN_FLIGHT', 'NO_VERIFIED_EFFECT'].includes(item?.receipt?.code));
+}
+
 async function requestConfirmation({ action, target, risk, skill, preview }) {
   if (state.pendingConfirmation) resolveConfirmation(false);
   // Do not display an approval card until the replay-protection record is saved.
@@ -277,7 +282,7 @@ async function runTask() {
       state.checkpoint = await saveTaskCheckpoint({
         taskId: state.taskId, goal, mode: ui.mode.value, model: ui.model.value, status: 'running',
         timeline: state.resume?.timeline || [], actionsUsed: state.resume?.actionsUsed || 0, visionFallbacksUsed: state.resume?.visionFallbacksUsed || 0,
-        requiresReview: (state.resume?.timeline || []).some(item => item?.receipt?.code === 'UNKNOWN_EFFECT'),
+        requiresReview: needsActionReview(state.resume?.timeline || []),
       }, chrome);
     } catch (checkpointError) {
       addProgress('Checkpoint', `Task blocked because its recovery record could not be saved: ${checkpointError.message}`);
@@ -302,7 +307,7 @@ async function runTask() {
             taskId: state.taskId, goal, mode: ui.mode.value, model: ui.model.value, status: 'running',
             timeline: checkpointState.timeline, actionsUsed: checkpointState.actionsUsed, visionFallbacksUsed: checkpointState.visionFallbacksUsed, tabId: checkpointState.tabId, taskOrigin: checkpointState.taskOrigin,
             lastSnapshotId: checkpointState.snapshotId,
-            requiresReview: checkpointState.timeline.some(item => item?.receipt?.code === 'UNKNOWN_EFFECT'),
+            requiresReview: needsActionReview(checkpointState.timeline),
           }, chrome);
         } catch (checkpointError) {
           addProgress('Checkpoint', `Recovery save failed; stopping before further actions: ${checkpointError.message}`);
