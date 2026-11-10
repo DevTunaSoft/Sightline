@@ -10,8 +10,8 @@ if (args.Length != 2 || args[0] != "--observe" || !int.TryParse(args[1], out var
 
 try
 {
-    IDesktopObserver observer = new FlaUiDesktopObserver();
-    var snapshot = await observer.ObserveAsync(processId, new ObservationBudget());
+    var session = new WindowsAutomationSession();
+    var snapshot = await session.Observer.ObserveAsync(processId, new ObservationBudget());
     Console.WriteLine($"Snapshot {snapshot.SnapshotId}: {snapshot.Elements.Count} elements; truncated={snapshot.Truncated}");
     foreach (var element in snapshot.Elements.Take(25))
         Console.WriteLine($"{element.Ref} depth={element.Depth} {element.ControlType} {element.Name}");
