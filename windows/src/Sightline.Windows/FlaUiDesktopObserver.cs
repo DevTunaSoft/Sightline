@@ -7,6 +7,15 @@ namespace Sightline.Windows;
 
 public sealed class FlaUiDesktopObserver : IDesktopObserver
 {
+    private static long _snapshotSequence;
+    private readonly ElementLeaseRegistry<WindowsElementLocator> _leases;
+
+    public FlaUiDesktopObserver(ElementLeaseRegistry<WindowsElementLocator>? leases = null)
+    {
+        _leases = leases ?? new ElementLeaseRegistry<WindowsElementLocator>();
+    }
+
+    public ElementLeaseRegistry<WindowsElementLocator> Leases => _leases;
     public ValueTask<SemanticSnapshot> ObserveAsync(
         int processId,
         ObservationBudget budget,
@@ -40,23 +49,30 @@ public sealed class FlaUiDesktopObserver : IDesktopObserver
             out var truncated,
             out var reason);
 
+        var handle = window.Properties.NativeWindowHandle.ValueOrDefault;
+        var snapshotId = $"ws:{processId}:{Interlocked.Increment(ref _snapshotSequence)}";
+        _leases.BeginSnapshot(snapshotId, processId, handle);
+
         var elements = new List<SemanticElement>(nodes.Count);
-        var sequence = 0;
         foreach (var (node, depth) in nodes)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var name = Safe(() => node.Name);
+            var automationId = Safe(() => node.AutomationId);
+            var controlType = Safe(() => node.ControlType.ToString()) ?? "Unknown";
+            var elementRef = _leases.Register(new WindowsElementLocator(automationId, name, controlType));
+
             elements.Add(new SemanticElement(
-                Ref: $"w:{processId}:e{++sequence}",
-                Name: Safe(() => node.Name),
-                AutomationId: Safe(() => node.AutomationId),
-                ControlType: Safe(() => node.ControlType.ToString()) ?? "Unknown",
+                Ref: elementRef,
+                Name: name,
+                AutomationId: automationId,
+                ControlType: controlType,
                 IsEnabled: Safe(() => node.IsEnabled, false),
                 Depth: depth));
         }
 
-        var handle = window.Properties.NativeWindowHandle.ValueOrDefault;
         return ValueTask.FromResult(new SemanticSnapshot(
-            SnapshotId: $"ws:{processId}:{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
+            SnapshotId: snapshotId,
             ProcessId: processId,
             WindowHandle: handle,
             CapturedAt: DateTimeOffset.UtcNow,
