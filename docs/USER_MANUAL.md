@@ -64,6 +64,12 @@ Do not use a wildcard extension origin unless you intentionally want every insta
 
 Typed text, screenshots, and credentials are not intended to be stored in the browser checkpoint.
 
+### Unknown action result and crash recovery
+
+If Sightline reports **ACTION_RECONCILIATION_REQUIRED**, an earlier browser operation may already have changed the website before an interruption. Sightline refuses to repeat the action automatically. Inspect the site's current state yourself (for example, whether a message was moved, sent, or deleted), then use **Cancel** to close the previous checkpoint before creating a new task. An error does **not** prove that the prior action had no effect.
+
+If Sightline cannot save a safety checkpoint, it blocks the next action rather than running without recovery evidence. The safeguards are committed as experimental code but **not yet verified in installed Chrome/Edge**.
+
 ## Confirmations
 
 Sightline stops for confirmation before high-impact browser actions such as destructive changes, sending/publishing, payments, account/security changes, or cross-origin navigation.
