@@ -23,6 +23,8 @@ public sealed record DiagnosticFileOptions(
             throw new ArgumentOutOfRangeException(nameof(MaxFiles));
         if (MaxDetailChars is < 64 or > 16_384)
             throw new ArgumentOutOfRangeException(nameof(MaxDetailChars));
+        if (MaxFileBytes < (long)MaxDetailChars * 4 + 2048)
+            throw new ArgumentException("MaxFileBytes must accommodate one bounded UTF-8 diagnostic event.", nameof(MaxFileBytes));
     }
 }
 

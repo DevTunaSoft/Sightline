@@ -189,6 +189,50 @@ public sealed class FoundationTests
         }
     }
 
+
+    [Fact]
+    public void Diagnostic_file_options_reject_single_event_larger_than_file_budget()
+    {
+        var options = new DiagnosticFileOptions(
+            Path.GetTempPath(),
+            QueueCapacity: 16,
+            MaxFileBytes: 4096,
+            MaxFiles: 2,
+            MaxDetailChars: 1000);
+
+        Assert.Throws<ArgumentException>(() => options.Validate());
+    }
+
+    [Fact]
+    public async Task Diagnostic_file_failure_is_isolated_from_application()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"sightline-diag-failure-{Guid.NewGuid():N}");
+        File.WriteAllText(root, "not a directory");
+        try
+        {
+            await using var sink = new BoundedDiagnosticFileSink(new DiagnosticFileOptions(
+                root,
+                QueueCapacity: 16,
+                MaxFileBytes: 8192,
+                MaxFiles: 2,
+                MaxDetailChars: 256));
+
+            _ = sink.TryWrite(new DiagnosticEvent(
+                DateTimeOffset.UtcNow,
+                "INFO",
+                "failure-isolation",
+                Detail: "safe"));
+
+            await Task.Delay(50);
+            Assert.NotNull(sink.LastFailure);
+        }
+        finally
+        {
+            if (File.Exists(root))
+                File.Delete(root);
+        }
+    }
+
     [Fact]
     public void Invalid_observation_budget_is_rejected()
     {
