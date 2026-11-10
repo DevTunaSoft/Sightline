@@ -55,3 +55,12 @@ test('only button-like inputs may use value attributes as labels', () => {
   assert.equal(mayUseValueAsAccessibleName('textarea','textbox',''),false);
   assert.equal(mayUseValueAsAccessibleName('select','combobox',''),false);
 });
+
+test('sensitive field matching uses tokens, not substrings of everyday labels', () => {
+  for(const name of ['shipping', 'mapping', 'compass', 'passenger', 'ShippingAddress', 'MapPinboard']) {
+    assert.equal(isSensitiveField({name}),false,name);
+  }
+  for(const name of ['password', 'new_password', 'newPassword', 'Pin', 'security-code', 'cardNumber', 'oneTimeCode', 'payment_cvv']) {
+    assert.equal(isSensitiveField({name}),true,name);
+  }
+});
