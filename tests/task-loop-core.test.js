@@ -148,3 +148,20 @@ test('post-action checkpoint failure stops with unknown effect instead of retryi
   assert.equal(executed,1);
   assert.equal(result.timeline.at(-1).receipt.code,'UNKNOWN_EFFECT');
 });
+
+test('resuming after unverified page change is blocked before any work', async () => {
+  let called=false;
+  const result=await runTaskLoop({
+    goal:'do not replay',
+    observe:async()=>{called=true;return {snapshotId:'new'};},
+    plan:async()=>{called=true;return {action:{action:'click',ref:'@e1'}};},
+    execute:async()=>{called=true;return {ok:true};},
+    verify:async()=>({ok:true}),
+    resume:{actionsUsed:1,timeline:[{
+      n:1,action:{action:'click',ref:'@e1'},
+      receipt:{ok:false,code:'NO_VERIFIED_EFFECT'}
+    }]},
+  });
+  assert.equal(result.code,'ACTION_RECONCILIATION_REQUIRED');
+  assert.equal(called,false);
+});
