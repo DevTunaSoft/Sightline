@@ -49,23 +49,25 @@ public sealed class ProcessInspectionTests
     [Fact]
     public void Repeated_current_process_inspection_does_not_accumulate_handles_or_threads()
     {
+        var inspector = WindowsProcessInspector.Instance;
+
+        // Warm process/runtime metadata paths before measuring steady state.
+        for (var i = 0; i < 50; i++)
+            Assert.Equal(ProcessInspectionStatus.Available, inspector.Inspect(Environment.ProcessId).Status);
+
         using var current = Process.GetCurrentProcess();
         current.Refresh();
         var beforeHandles = current.HandleCount;
         var beforeThreads = current.Threads.Count;
 
-        var inspector = WindowsProcessInspector.Instance;
         for (var i = 0; i < 500; i++)
-        {
-            var result = inspector.Inspect(Environment.ProcessId);
-            Assert.Equal(ProcessInspectionStatus.Available, result.Status);
-        }
+            Assert.Equal(ProcessInspectionStatus.Available, inspector.Inspect(Environment.ProcessId).Status);
 
         current.Refresh();
         var afterHandles = current.HandleCount;
         var afterThreads = current.Threads.Count;
 
-        Assert.InRange(afterHandles - beforeHandles, -2, 2);
+        Assert.InRange(afterHandles - beforeHandles, -1, 1);
         Assert.InRange(afterThreads - beforeThreads, -1, 1);
     }
 }
