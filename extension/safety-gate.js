@@ -1,6 +1,6 @@
 import { fnv1aHash } from './page-observer-core.js';
 
-const HIGH_IMPACT_PATTERN = /\b(delete|remove|trash|erase|send|submit|publish|post|purchase|buy|pay|checkout|place order|confirm order|close account|security|permission|authorize|transfer|unsubscribe|logout|log out|sign out|block sender|report spam|mark as spam)\b/i;
+const HIGH_IMPACT_PATTERN = /\b(delete|remove|trash|erase|send|submit|publish|post|purchase|buy|pay|checkout|place order|confirm order|close account|security|permission|authorize|transfer|unsubscribe|logout|log out|sign out|block sender|report spam|mark as spam|discard|deactivate|disable|revoke|reset|overwrite|cancel subscription|clear all)\b/i;
 const CRITICAL_DESTRUCTIVE_PATTERN = /\b(empty\s+trash|delete\s+forever|permanent(?:ly)?\s+delete|purge|erase\s+forever)\b/i;
 const EXPLICIT_CRITICAL_INTENT = /\b(empty|clear|purge)\b.{0,30}\btrash\b|\b(delete|erase)\b.{0,20}\b(permanently|forever)\b|\bpermanent(?:ly)?\s+delete\b/i;
 
@@ -36,8 +36,12 @@ export function hasExplicitCriticalIntent(goal) {
 
 export function classifyActionRisk(action, target = {}, context = {}) {
   if (!action || typeof action !== 'object') return { level: 'blocked', reason: 'Invalid action.' };
-  if (target?.sensitive && ['read','type','clear'].includes(action.action)) {
+  if (target?.sensitive && ['read','type','clear','verify','select','check','uncheck'].includes(action.action)) {
     return { level: 'blocked', reason: 'Sensitive fields cannot be read or manipulated by autonomous browser control.' };
+  }
+  if (action.action === 'pressKey') {
+    if (target?.sensitive) return { level: 'blocked', reason: 'Keyboard events cannot target sensitive fields.' };
+    if (['Delete', 'Backspace', 'Enter'].includes(action.key)) return { level: 'high', reason: 'Key may trigger a destructive or consequential page handler.' };
   }
   const label = `${target?.name || ''} ${target?.role || ''}`.trim();
   if (action.action === 'click' && CRITICAL_DESTRUCTIVE_PATTERN.test(label)) {
