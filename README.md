@@ -8,6 +8,8 @@
 
 **Local-first Windows visual AI assistant with a Chrome/Edge browser companion.**
 
+**Requirements and verification:** [Traceability & Acceptance Matrix](docs/REQUIREMENTS_AND_ACCEPTANCE.md) maps individual requirements to owners, evidence, limitations, and release gates. Future contributors should use it alongside the [takeover guide](docs/PROJECT_BRIEF_AND_TAKEOVER.md).
+
 Sightline is being built as a privacy-first browser agent that combines visual understanding with controlled browser automation.
 
 ## Project goals
