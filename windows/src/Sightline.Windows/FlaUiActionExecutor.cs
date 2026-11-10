@@ -65,7 +65,10 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         // All desktop mutations require a trusted, action-specific host approval.
         // No Windows approval UI has been shipped; default is intentionally DENY.
         // Snapshot/window/element identity must still be revalidated after approval.
-        if (_approval?.IsApproved(snapshot, action) != true)
+        bool approved;
+        try { approved = _approval?.IsApproved(snapshot, action) == true; }
+        catch { approved = false; }
+        if (!approved)
         {
             return ValueTask.FromResult(Recorded(
                 action, snapshot.ProcessId, started,
