@@ -18,6 +18,16 @@ public sealed record ActionReceipt(
     string? Readback = null,
     string? Detail = null);
 
+/// <summary>
+/// Trusted host confirmation boundary. The production host must bind approval to
+/// the exact observed window, target and action and invalidate it on state changes.
+/// A null implementation is deny-by-default. Page/model text must never approve.
+/// </summary>
+public interface IDesktopActionApproval
+{
+    bool IsApproved(SemanticSnapshot snapshot, SemanticAction action);
+}
+
 public interface IDesktopActionExecutor
 {
     ValueTask<ActionReceipt> ExecuteAsync(
