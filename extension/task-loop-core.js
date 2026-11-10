@@ -105,19 +105,40 @@ export async function runTaskLoop({ goal, observe, plan, execute, verify, signal
     if (!receipt || typeof receipt !== 'object') {
       return { ok: false, code: 'UNKNOWN_EFFECT', timeline };
     }
-    pending.receipt = receipt;
+    // Do not persist an action as successful until its effect has been checked.
+    // A crash between execute and verify must leave the durable record unknown.
+    if (!receipt.ok) {
+      pending.receipt = receipt;
+      try { await checkpoint(snapshot.snapshotId); }
+      catch {
+        pending.receipt = { ok: false, code: 'UNKNOWN_EFFECT' };
+        return { ok: false, code: 'CHECKPOINT_WRITE_FAILED', timeline };
+      }
+      return { ok: false, code: receipt.code || 'ACTION_FAILED', timeline };
+    }
+
+    let verdict;
     try {
-      await checkpoint(snapshot.snapshotId);
+      verdict = await verify({ goal: goal.trim(), before: snapshot, action: decision.action, receipt, signal });
     } catch {
-      // A previously persisted in-flight record remains authoritative.
+      return { ok: false, code: 'UNKNOWN_EFFECT', timeline };
+    }
+    if (verdict?.done !== true && verdict?.ok !== true) {
+      pending.receipt = { ok: false, code: 'NO_VERIFIED_EFFECT' };
+      try { await checkpoint(snapshot.snapshotId); }
+      catch {
+        pending.receipt = { ok: false, code: 'UNKNOWN_EFFECT' };
+        return { ok: false, code: 'CHECKPOINT_WRITE_FAILED', timeline };
+      }
+      return { ok: false, code: verdict?.code || 'NO_VERIFIED_EFFECT', timeline };
+    }
+    pending.receipt = receipt;
+    try { await checkpoint(snapshot.snapshotId); }
+    catch {
       pending.receipt = { ok: false, code: 'UNKNOWN_EFFECT' };
       return { ok: false, code: 'CHECKPOINT_WRITE_FAILED', timeline };
     }
-    if (!receipt.ok) return { ok: false, code: receipt.code || 'ACTION_FAILED', timeline };
-
-    const verdict = await verify({ goal: goal.trim(), before: snapshot, action: decision.action, receipt, signal });
-    if (verdict?.done === true) return { ok: true, code: 'COMPLETED', result: verdict.result, timeline };
-    if (verdict?.ok === false && verdict?.fatal === true) return { ok: false, code: verdict.code || 'VERIFY_FAILED', timeline };
+    if (verdict.done === true) return { ok: true, code: 'COMPLETED', result: verdict.result, timeline };
   }
 }
 
