@@ -13,9 +13,11 @@ public sealed class WindowsAutomationSession
         _leases = new ElementLeaseRegistry<WindowsElementLocator>(leaseCapacity);
         Observer = new FlaUiDesktopObserver(_leases);
         Actions = new FlaUiActionExecutor(_leases, resolutionBudget);
+        Focus = new FlaUiFocusVerifier(_leases, resolutionBudget);
     }
 
     public IDesktopObserver Observer { get; }
     public IDesktopActionExecutor Actions { get; }
+    public IDesktopFocusVerifier Focus { get; }
     public int LeaseCapacity => _leases.Capacity;
 }

@@ -8,14 +8,14 @@ namespace Sightline.Windows;
 public sealed class FlaUiActionExecutor : IDesktopActionExecutor
 {
     private readonly ElementLeaseRegistry<WindowsElementLocator> _leases;
-    private readonly ObservationBudget _resolutionBudget;
+    private readonly FlaUiElementResolver _resolver;
 
     public FlaUiActionExecutor(
         ElementLeaseRegistry<WindowsElementLocator> leases,
         ObservationBudget? resolutionBudget = null)
     {
         _leases = leases ?? throw new ArgumentNullException(nameof(leases));
-        _resolutionBudget = resolutionBudget ?? new ObservationBudget();
+        _resolver = new FlaUiElementResolver(resolutionBudget);
     }
 
     public ValueTask<ActionReceipt> ExecuteAsync(
@@ -44,11 +44,10 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         if (window is null)
             return ValueTask.FromResult(Fail(SightlineErrorCode.WindowNotFound, "Target window is unavailable."));
 
-        var liveHandle = window.Properties.NativeWindowHandle.ValueOrDefault;
-        if (liveHandle != snapshot.WindowHandle)
+        if (window.Properties.NativeWindowHandle.ValueOrDefault != snapshot.WindowHandle)
             return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target window identity changed."));
 
-        var element = ResolveUnique(window, automation, locator, cancellationToken);
+        var element = _resolver.ResolveUnique(window, automation, locator, cancellationToken);
         if (element is null)
             return ValueTask.FromResult(Fail(SightlineErrorCode.StateChanged, "Target element changed or is ambiguous."));
         if (!Safe(() => element.IsEnabled, false))
@@ -71,69 +70,6 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         {
             return ValueTask.FromResult(Fail(SightlineErrorCode.UiaUnavailable, "UI Automation rejected the requested action."));
         }
-    }
-
-    private AutomationElement? ResolveUnique(
-        AutomationElement window,
-        UIA3Automation automation,
-        WindowsElementLocator locator,
-        CancellationToken cancellationToken)
-    {
-        var walker = automation.TreeWalkerFactory.GetControlViewWalker();
-
-        IEnumerable<AutomationElement> Children(AutomationElement parent)
-        {
-            var child = walker.GetFirstChild(parent);
-            while (child is not null)
-            {
-                yield return child;
-                child = walker.GetNextSibling(child);
-            }
-        }
-
-        var traversal = new BoundedTraversal<AutomationElement>();
-        var nodes = traversal.Walk(
-            window,
-            Children,
-            _resolutionBudget,
-            cancellationToken,
-            out _,
-            out _);
-
-        AutomationElement? match = null;
-        foreach (var (candidate, _) in nodes)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!Matches(candidate, locator))
-                continue;
-
-            if (match is not null)
-                return null;
-
-            match = candidate;
-        }
-
-        return match;
-    }
-
-    private static bool Matches(AutomationElement element, WindowsElementLocator locator)
-    {
-        var controlType = Safe(() => element.ControlType.ToString());
-        if (!string.Equals(controlType, locator.ControlType, StringComparison.Ordinal))
-            return false;
-
-        if (!string.IsNullOrEmpty(locator.AutomationId))
-        {
-            return string.Equals(
-                Safe(() => element.AutomationId),
-                locator.AutomationId,
-                StringComparison.Ordinal);
-        }
-
-        if (string.IsNullOrEmpty(locator.Name))
-            return false;
-
-        return string.Equals(Safe(() => element.Name), locator.Name, StringComparison.Ordinal);
     }
 
     private static ActionReceipt Invoke(AutomationElement element)
@@ -175,12 +111,6 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
 
     private static ActionReceipt Fail(SightlineErrorCode code, string detail) =>
         new(false, code, false, Detail: detail);
-
-    private static string? Safe(Func<string?> read)
-    {
-        try { return read(); }
-        catch { return null; }
-    }
 
     private static bool Safe(Func<bool> read, bool fallback)
     {

@@ -56,4 +56,19 @@ public sealed class ActionSafetyTests
         Assert.False(receipt.Ok);
         Assert.Equal(SightlineErrorCode.StateChanged, receipt.ErrorCode);
     }
+
+    [Fact]
+    public async Task Focus_verifier_rejects_stale_ref_before_live_process_access()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var verifier = new FlaUiFocusVerifier(leases);
+
+        var receipt = await verifier.FocusAndVerifyAsync(
+            Snapshot("fresh"),
+            "w:42:g1:e404");
+
+        Assert.False(receipt.Ok);
+        Assert.Equal(SightlineErrorCode.StateChanged, receipt.ErrorCode);
+    }
 }
