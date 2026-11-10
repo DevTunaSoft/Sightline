@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Sightline.Core;
 using Sightline.Windows;
 using Xunit;
@@ -51,23 +52,34 @@ public sealed class ProcessInspectionTests
     {
         var inspector = WindowsProcessInspector.Instance;
 
-        // Warm process/runtime metadata paths before measuring steady state.
         for (var i = 0; i < 50; i++)
             Assert.Equal(ProcessInspectionStatus.Available, inspector.Inspect(Environment.ProcessId).Status);
 
         using var current = Process.GetCurrentProcess();
-        current.Refresh();
-        var beforeHandles = current.HandleCount;
         var beforeThreads = current.Threads.Count;
+        var beforeHandles = CurrentHandleCount();
 
         for (var i = 0; i < 500; i++)
             Assert.Equal(ProcessInspectionStatus.Available, inspector.Inspect(Environment.ProcessId).Status);
 
+        var afterHandles = CurrentHandleCount();
         current.Refresh();
-        var afterHandles = current.HandleCount;
         var afterThreads = current.Threads.Count;
 
-        Assert.InRange(afterHandles - beforeHandles, -1, 1);
+        Assert.InRange((long)afterHandles - beforeHandles, -1, 1);
         Assert.InRange(afterThreads - beforeThreads, -1, 1);
     }
+
+    private static uint CurrentHandleCount()
+    {
+        Assert.True(GetProcessHandleCount(GetCurrentProcess(), out var count));
+        return count;
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern nint GetCurrentProcess();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetProcessHandleCount(nint process, out uint handleCount);
 }
