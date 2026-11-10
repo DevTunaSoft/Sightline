@@ -60,3 +60,10 @@ CI run #238 measured 24,117,248 bytes working set, 7,778,304 bytes private memor
 ## Fail-closed action resolution
 
 Element actions require a complete, unique UIA re-resolution scan. If the node, depth, or time budget truncates the scan, Sightline rejects the action rather than assuming the first matching control is unique. Increase a bounded resolution budget or narrow the target window when a legitimate action cannot be resolved. This prevents acting on a similarly named control outside the observed region. Core regression tests cover depth and exact-node budget exhaustion; real interactive desktop validation is still required.
+
+
+## Repeated-session resource soak
+
+CI now creates and disposes 100 lightweight `WindowsAutomationSession` instances and records process resource samples every 10 cycles. The probe emits start/end/peak working set, private memory, handle count, and thread count plus the bounded sample series.
+
+This is evidence, not an invented production ceiling. It is designed to expose obvious monotonic resource drift before interactive UIA soak testing is available. The probe does not touch the desktop and does not add a background service or polling loop.
