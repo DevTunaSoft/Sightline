@@ -17,12 +17,12 @@ public sealed class Win32WindowDiscovery : IDesktopWindowDiscovery
         var titleBuffer = new StringBuilder(effective.MaxTitleChars + 1);
         var stoppedByLimit = false;
 
-        bool Callback(nint handle, nint _)
+        bool Callback(nint handle, nint lParam)
         {
             if (effective.VisibleOnly && !IsWindowVisible(handle))
                 return true;
 
-            _ = GetWindowThreadProcessId(handle, out var processId);
+            GetWindowThreadProcessId(handle, out var processId);
             if (processId == 0 || processId > int.MaxValue)
                 return true;
 
@@ -47,8 +47,9 @@ public sealed class Win32WindowDiscovery : IDesktopWindowDiscovery
             return false;
         }
 
-        var completed = EnumWindows(Callback, nint.Zero);
-        GC.KeepAlive(Callback);
+        EnumWindowsProc callback = Callback;
+        var completed = EnumWindows(callback, nint.Zero);
+        GC.KeepAlive(callback);
 
         if (!completed && !stoppedByLimit)
             throw new Win32Exception(Marshal.GetLastWin32Error());
