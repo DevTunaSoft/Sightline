@@ -20,3 +20,38 @@ test('Yahoo count is unknown when text does not prove a total', () => {
     assert.equal(hints.visibleCount,null,visibleText);
   }
 });
+
+test('Yahoo refuses destructive scope established only by untrusted message text', () => {
+  const result=yahooMailSkill.checkDestructiveScope({
+    goal:'Move old messages to Trash',
+    action:{action:'click',ref:'@e3'},
+    target:{name:'Move to Trash'},
+    snapshot:{url:'https://mail.yahoo.com/d/folders/1',visibleText:'results for old messages 300 search results',elements:[]},
+  });
+  assert.equal(result.allowed,false);
+  assert.equal(result.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
+});
+test('Yahoo scoped Trash requires a search input and an explicit result count', () => {
+  const action={action:'click',ref:'@e3'};
+  const target={name:'Move to Trash'};
+  const base={url:'https://mail.yahoo.com/d/search',visibleText:'Showing 1-50 of 300',elements:[]};
+  assert.equal(yahooMailSkill.checkDestructiveScope({goal:'Trash old mail',action,target,snapshot:base}).allowed,false);
+  const scope={...base,elements:[{ref:'@e1',role:'textbox',name:'Search mail'}]};
+  assert.equal(yahooMailSkill.checkDestructiveScope({goal:'Trash old mail',action,target,snapshot:scope}).allowed,true);
+  const noCount={...scope,visibleText:'Showing 1-50'};
+  assert.equal(yahooMailSkill.checkDestructiveScope({goal:'Trash old mail',action,target,snapshot:noCount}).allowed,false);
+});
+test('Yahoo rejects selected-all on an unverified Inbox scope', () => {
+  const result=yahooMailSkill.checkDestructiveScope({
+    goal:'Trash old mail',
+    action:{action:'click',ref:'@e3'},
+    target:{name:'Delete'},
+    snapshot:{
+      url:'https://mail.yahoo.com/d/folders/1',
+      visibleText:'Inbox 80 messages',
+      elements:[{ref:'@e2',role:'checkbox',name:'Select all',state:{checked:true}}],
+    },
+  });
+  assert.equal(result.allowed,false);
+  assert.equal(result.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
+});
