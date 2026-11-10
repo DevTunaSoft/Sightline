@@ -40,6 +40,13 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         cancellationToken.ThrowIfCancellationRequested();
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
 
+        if (!DesktopActionValidation.IsValid(action))
+        {
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.ControlNotActionable, "Malformed or oversized desktop action.")));
+        }
+
         if (!_leases.TryResolve(
                 snapshot.SnapshotId,
                 snapshot.ProcessId,
