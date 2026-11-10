@@ -46,6 +46,34 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public void Depth_limited_scan_reports_incomplete_coverage()
+    {
+        var root = new Node("root", [new Node("child", [new Node("hidden", [])])]);
+        var result = new BoundedTraversal<Node>().Walk(
+            root, node => node.Children,
+            new ObservationBudget(MaxNodes: 16, MaxDepth: 1, MaxDuration: TimeSpan.FromSeconds(1)),
+            CancellationToken.None, out var truncated, out var reason);
+
+        Assert.Equal(2, result.Count);
+        Assert.True(truncated);
+        Assert.Equal("depth", reason);
+    }
+
+    [Fact]
+    public void Exact_node_budget_conservatively_reports_incomplete_coverage()
+    {
+        var root = new Node("root", Array.Empty<Node>());
+        var result = new BoundedTraversal<Node>().Walk(
+            root, node => node.Children,
+            new ObservationBudget(MaxNodes: 1, MaxDepth: 2, MaxDuration: TimeSpan.FromSeconds(1)),
+            CancellationToken.None, out var truncated, out var reason);
+
+        Assert.Single(result);
+        Assert.True(truncated);
+        Assert.Equal("nodes", reason);
+    }
+
+    [Fact]
     public void Diagnostic_ledger_is_bounded_and_ordered()
     {
         var ledger = new BoundedDiagnosticLedger(16);
