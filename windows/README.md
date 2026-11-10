@@ -2,68 +2,53 @@
 
 Status: **experimental / automated CI foundation verified; real desktop acceptance pending**
 
-This directory contains Sightline's lightweight Windows-native foundation.
+Sightline's Windows layer is intentionally lightweight: deterministic APIs/UI Automation first, AI only when needed later.
 
 ## Principles
 
-- deterministic Windows APIs/UI Automation before AI
 - structured information before pixels
-- hard-bounded observations, leases, and diagnostics
-- no Electron
-- no embedded heavyweight model
-- no coordinate input in Foundation v0
-- cancellation and explicit resource budgets
+- deterministic Windows APIs/UIA before AI
+- hard-bounded observations, leases, diagnostics, and resource probes
+- no Electron, background polling loop, or embedded heavyweight model
 - browser extension remains the browser companion
 
 ## Build and test
-
-On Windows with .NET 8 SDK:
 
 ```powershell
 .\tools\test-windows.ps1
 ```
 
-Or manually:
+For the real desktop vertical slice:
 
 ```powershell
-dotnet restore windows/Sightline.Windows.sln
-dotnet build windows/Sightline.Windows.sln -c Release --no-restore
-dotnet test windows/tests/Sightline.Core.Tests/Sightline.Core.Tests.csproj -c Release --no-build
-dotnet test windows/tests/Sightline.Windows.Tests/Sightline.Windows.Tests.csproj -c Release --no-build
+.\tools\test-windows.ps1 -Interactive
 ```
 
-## Implemented foundation
+Hosted CI does not substitute for interactive desktop acceptance.
 
-- FlaUI UIA3 adapter isolated from Core
-- bounded observation
-- session-scoped, non-reused element refs
+## Implemented
+
+- .NET 8 Core/Windows/App split
+- FlaUI UIA3 isolated outside Core
+- bounded UIA observation and fail-closed bounded target re-resolution
+- session-scoped non-reused element refs
 - stale snapshot/window/ref rejection
-- semantic Invoke
-- semantic SetValue with exact readback verification
-- fixed-capacity diagnostics
-- structured UIA diagnostics that exclude SetValue text
-- optional bounded rotating/redacted JSONL sink
-- process RAM/private-memory/handle/thread sampling
-- deterministic WPF target
-- core and Windows safety regression suites
+- semantic Invoke and SetValue; SetValue has exact readback verification
+- exact focus request/readback
+- zero-polling Win32 user-activity lease
+- bounded per-process UIA circuit breaker
+- fixed-capacity diagnostics and optional bounded rotating/redacted JSONL sink
+- deterministic WPF fixture + interactive acceptance runner
+- working-set/private-memory/managed-heap/allocation/handle/thread probes
 
-## Verification boundary
+## Resource evidence
 
-Hosted Windows CI verifies restore, compile, non-interactive safety tests, the WPF target build, an empty-process resource probe, and an idle automation-session resource probe. The current CI resource baseline is ~22.9 MiB working set / ~7.3 MiB private memory, 183 handles, and 8 threads.
+Run #249 exposed allocation churn in repeated short-lived sessions: about **11.24 MB allocated over 1,000 cycles**, with live managed heap returning to about **0.3 MB** after forced GC. That identified allocation churn rather than retained managed objects.
 
-It does **not** prove interactive desktop UIA behavior. Real observation/actions, focus behavior, DPI, elevation, user interference, and long-run leak behavior remain real-machine gates.
-\n## Real desktop vertical-slice acceptance\n\nOn an interactive Windows development machine, run:\n\n```powershell\n.\\tools\\test-windows.ps1 -Interactive\n```\n\nThat launches the controlled WPF fixture and attempts bounded observe -> SetValue/readback -> re-observe -> Invoke -> result readback. A PASS from hosted CI alone does not substitute for this run.\n
-## Current resource evidence
+Element lease storage and the diagnostic ring were then made lazy. Run #251 measured the same 1,000 cycles at about **0.84 MB cumulative allocation**, a reduction of about **92.5%**. Post-GC managed heap returned to about **0.32 MB**, retained working-set delta was about **+0.23 MB**, private memory did not grow, handles were **+1**, and threads **+0**.
 
-CI run #238 measured 24,117,248 bytes working set, 7,778,304 bytes private memory, 183 handles, and 8 threads for the lightweight process probe. The idle session sample added 2 handles and 0 threads; RSS/private deltas were negative due to normal process-sampling/GC noise. These are evidence points, not production limits. Repeated active-UIA soak testing is still required.
+These are evidence points, not production ceilings. Active-UIA and real-machine long-run soak remain required.
 
-## Fail-closed action resolution
+## Safety boundary
 
-Element actions require a complete, unique UIA re-resolution scan. If the node, depth, or time budget truncates the scan, Sightline rejects the action rather than assuming the first matching control is unique. Increase a bounded resolution budget or narrow the target window when a legitimate action cannot be resolved. This prevents acting on a similarly named control outside the observed region. Core regression tests cover depth and exact-node budget exhaustion; real interactive desktop validation is still required.
-
-
-## Repeated-session resource soak
-
-CI now creates and disposes 100 lightweight `WindowsAutomationSession` instances and records process resource samples every 10 cycles. The probe emits start/end/peak working set, private memory, handle count, and thread count plus the bounded sample series.
-
-This is evidence, not an invented production ceiling. It is designed to expose obvious monotonic resource drift before interactive UIA soak testing is available. The probe does not touch the desktop and does not add a background service or polling loop.
+An element action is allowed only after a complete unique bounded re-resolution. If node, depth, or time limits truncate the scan, Sightline fails closed rather than assuming the first matching control is unique.

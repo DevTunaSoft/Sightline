@@ -13,99 +13,66 @@ Current Windows work: `feature/windows-foundation-v0` / PR #6
 
 ## Direction
 
-Sightline is a lightweight standalone Windows application with the existing Chrome/Edge extension retained as the browser companion.
+Lightweight standalone Windows application plus the existing Chrome/Edge browser companion. Core rule: **structured information before pixels; deterministic software before AI.**
 
-Core rule: **structured information before pixels; deterministic software before AI.**
+## Verified automated checkpoint
 
-## Verified checkpoint
-
-Latest fully verified checkpoint before the resource-probe commit:
 - repository reconciliation: **PASS**
-- browser validation suite: **PASS**
+- browser validation: **PASS**
 - extension packaging: **PASS**
-- Windows restore: **PASS**
-- Windows solution build: **PASS**
-- Windows core tests: **PASS**
-- Windows safety-layer tests: **PASS**
-- WPF test target compilation: **PASS**
-- interactive WPF acceptance runner compilation: **PASS**
+- Windows restore/build: **PASS**
+- Core tests: **PASS**
+- Windows safety tests: **PASS**
+- WPF fixture/interactive runner compilation: **PASS**
+- bounded diagnostics/resource probes: **PASS**
 - real interactive Windows UIA acceptance: **UNVERIFIED**
 
-Resource-probe CI is **PASS**. Measured on `windows-latest`: 24,039,424 bytes working set (~22.9 MiB), 7,659,520 bytes private memory (~7.3 MiB), 183 handles, and 8 threads. These are baseline measurements, not production ceilings.
+## Implemented Windows foundation
 
-Idle-session evidence from CI run #238: before/after process RSS and private bytes were noisy and decreased in the single sample; handles increased by 2 and threads by 0. Treat this as evidence that no obvious idle thread explosion occurred, not as a RAM ceiling. A repeated session/active-UIA soak remains required.
+- .NET 8 dependency split
+- FlaUI/UIA3 isolated in `Sightline.Windows`
+- bounded/fail-closed UIA observation and target resolution
+- session-scoped element leases and process/window identity binding
+- Invoke + SetValue/readback
+- stale-ref/window/snapshot rejection
+- focus verification
+- Win32 user-activity lease with no polling/hooks
+- bounded per-process UIA circuit breaker
+- bounded structured diagnostics + rotating/redacted file sink
+- resource sampler with managed heap and total allocation
+- repeated-session resource soak
+- deterministic WPF target and acceptance harness
 
-## Windows foundation implemented
+## Resource findings
 
-- .NET 8 solution
-- dependency-light `Sightline.Core`
-- FlaUI UIA3 isolated in `Sightline.Windows`
-- bounded node/depth/time UIA traversal
-- observation capped by lease capacity
-- session-scoped element leases
-- monotonically non-reused element refs
-- current-snapshot-only lease resolution
-- process/window identity binding
-- semantic Invoke action
-- semantic SetValue action
-- exact SetValue readback verification
-- stale snapshot/window/ref rejection before live UIA access
-- fixed-capacity diagnostics ledger
-- bounded redacted rotating diagnostic file sink (queue/file/retention caps; **PASS** including 10,000-event stress in CI run #236)
-- process resource sampler
-- repeated lease-cycle soak coverage
-- Core architecture dependency guard against FlaUI/Windows/model/browser runtime leakage (**PASS** in CI run #232)
-- deterministic WPF test target
-- separate Windows safety test project
-- `tools/test-windows.ps1` acceptance/resource harness
-- Windows CI evidence artifact
+Run #249: 1,000 short-lived session cycles allocated ~11.24 MB; forced GC returned live managed heap to ~0.3 MB, proving allocation churn rather than retained managed objects.
 
-## Memory/resource policy
+After lazy element/diagnostic storage, run #251 measured ~0.84 MB allocation for the same 1,000 cycles (~92.5% reduction). Post-GC managed heap ~0.32 MB; retained working set ~+0.23 MB; no positive private-memory growth; handles +1; threads +0.
 
-Memory growth is a defect.
+Memory growth remains a defect. Do not introduce unbounded queues, caches, logs, screenshot stores, model contexts, or model lifetimes.
 
-Current controls:
-- bounded traversal
-- bounded element lease dictionary
-- old snapshot leases are cleared
-- no live AutomationElement/COM objects retained in Core
-- bounded diagnostics
-- no screenshots in the Windows foundation
-- no AI model loaded in the Windows foundation
-- no polling loop
-- process working set/private bytes/handles/threads can be sampled
+## Still unverified
 
-Do not add an unbounded queue, cache, history, log, screenshot store, context window, or model lifetime.
-
-## What remains unverified
-
-- real Windows UIA observation on an interactive desktop
-- real Invoke effect against the WPF fixture
-- real SetValue/readback against the WPF fixture
+- real interactive UIA observation/Invoke/SetValue
 - focus theft/user interference
-- mixed DPI/multi-monitor behavior
-- elevation/UIPI behavior
-- long Windows soak/resource trend
-- browser-extension IPC
+- mixed DPI/multi-monitor
+- elevation/UIPI
+- active-UIA long-run soak
+- browser IPC
 - tiny GGUF runtime
 - installer/GUI
 
 ## Next implementation order
 
-1. wait for the resource-probe CI gate and fix any root cause
-2. exact focus verification before any future physical input
-3. post-action semantic effect/readback contracts
-4. per-app UIA circuit breaker
-5. automated interactive Windows acceptance runner
-6. measured long-run resource/leak gates
-7. browser companion IPC
-8. vision/OCR only after semantic automation is reliable
-9. tiny local GGUF runtime after deterministic routing foundation
+1. keep allocation/resource regression guards green
+2. run `.\tools\test-windows.ps1 -Interactive` on a real Windows desktop
+3. moving-target/geometry protection before any physical-input fallback
+4. deterministic process/window/filesystem capabilities
+5. checkpoint + unknown-effect reconciliation contracts
+6. bounded browser companion IPC
+7. vision/OCR
+8. tiny local GGUF runtime
 
-## Recovery instructions
+## Recovery
 
-1. Inspect PR #6 head and its latest CI run.
-2. Fix the first failing root cause; do not rerun unchanged failures repeatedly.
-3. Run `.\tools\test-windows.ps1` on a real Windows development machine when available.
-4. Preserve PASS/FAIL/BLOCKED/NOT RUN/UNVERIFIED language.
-5. Do not claim production readiness from hosted CI alone.
+Inspect PR #6 and latest CI first. Fix the first failing root cause and do not repeat unchanged failures. Preserve PASS/FAIL/BLOCKED/NOT RUN/UNVERIFIED language.
