@@ -10,6 +10,55 @@ public sealed class ActionSafetyTests
         new(id, processId, handle, DateTimeOffset.UtcNow, Array.Empty<SemanticElement>(), false, null);
 
     [Fact]
+    public async Task Desktop_actions_deny_without_trusted_approval_before_provider_access()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator("ApplyButton", "Apply", "Button"));
+        var executor = new FlaUiActionExecutor(leases);
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"),
+            new SemanticAction(SemanticActionKind.Invoke, reference));
+        Assert.False(receipt.Ok);
+        Assert.False(receipt.Verified);
+        Assert.Equal(SightlineErrorCode.ConfirmationRequired, receipt.ErrorCode);
+        Assert.Null(receipt.Readback);
+    }
+
+    [Fact]
+    public async Task Unapproved_SetValue_must_not_echo_candidate_values()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator("Message", "Message", "Edit"));
+        await using var diagnostics = new DiagnosticRecorder(16);
+        var executor = new FlaUiActionExecutor(leases, diagnostics: diagnostics);
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"), new SemanticAction(SemanticActionKind.SetValue, reference, "synthetic-unique-value"));
+        Assert.Equal(SightlineErrorCode.ConfirmationRequired, receipt.ErrorCode);
+        Assert.Null(receipt.Readback);
+        var exported = System.Text.Json.JsonSerializer.Serialize(diagnostics.Snapshot());
+        Assert.DoesNotContain("synthetic-unique-value", exported);
+    }
+
+    [Fact]
+    public async Task Explicitly_denied_action_is_blocked_before_provider_access()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator("ApplyButton", "Apply", "Button"));
+        var executor = new FlaUiActionExecutor(leases, approval: new DenyingApproval());
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"), new SemanticAction(SemanticActionKind.Invoke, reference));
+        Assert.Equal(SightlineErrorCode.ConfirmationRequired, receipt.ErrorCode);
+    }
+
+    private sealed class DenyingApproval : IDesktopActionApproval
+    {
+        public bool IsApproved(SemanticSnapshot snapshot, SemanticAction action) => false;
+    }
+
+    [Fact]
     public async Task Stale_snapshot_is_rejected_before_live_process_access()
     {
         var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
