@@ -1,0 +1,66 @@
+using Sightline.Core;
+
+namespace Sightline.Core.Tests;
+
+public sealed class FoundationTests
+{
+    private sealed record Node(string Name, Node[] Children);
+
+    [Fact]
+    public void Traversal_stops_at_node_budget()
+    {
+        var root = new Node("root", Enumerable.Range(0, 20)
+            .Select(i => new Node($"child-{i}", Array.Empty<Node>())).ToArray());
+
+        var walker = new BoundedTraversal<Node>();
+        var result = walker.Walk(
+            root,
+            n => n.Children,
+            new ObservationBudget(MaxNodes: 5, MaxDepth: 30, MaxDuration: TimeSpan.FromSeconds(1)),
+            CancellationToken.None,
+            out var truncated,
+            out var reason);
+
+        Assert.Equal(5, result.Count);
+        Assert.True(truncated);
+        Assert.Equal("nodes", reason);
+    }
+
+    [Fact]
+    public void Traversal_honors_depth_budget()
+    {
+        var root = new Node("0", [new Node("1", [new Node("2", [])])]);
+        var walker = new BoundedTraversal<Node>();
+
+        var result = walker.Walk(
+            root,
+            n => n.Children,
+            new ObservationBudget(MaxNodes: 20, MaxDepth: 1, MaxDuration: TimeSpan.FromSeconds(1)),
+            CancellationToken.None,
+            out _,
+            out _);
+
+        Assert.Equal(2, result.Count);
+        Assert.DoesNotContain(result, item => item.Node.Name == "2");
+    }
+
+    [Fact]
+    public void Diagnostic_ledger_is_bounded_and_ordered()
+    {
+        var ledger = new BoundedDiagnosticLedger(16);
+        for (var i = 0; i < 40; i++)
+            ledger.Add(new DiagnosticEvent(DateTimeOffset.UtcNow, "INFO", $"event-{i}"));
+
+        var snapshot = ledger.Snapshot();
+        Assert.Equal(16, snapshot.Count);
+        Assert.Equal("event-24", snapshot[0].EventName);
+        Assert.Equal("event-39", snapshot[^1].EventName);
+    }
+
+    [Fact]
+    public void Invalid_observation_budget_is_rejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new ObservationBudget(MaxNodes: 0).Validate());
+    }
+}
