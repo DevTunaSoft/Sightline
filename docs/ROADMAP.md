@@ -1,109 +1,171 @@
 # Sightline Engineering Roadmap
 
-## v0.1 — Visual intelligence prototype
+Last updated: 2026-11-09
 
-Status: **Prototype implemented; real-browser acceptance pending**
+## Product direction
 
-- Manifest V3 side panel
-- Current-tab capture
-- Shared-screen capture
-- Local video analysis
-- Local Ollama vision API
-- Vision-capable model discovery
-- Periodic scene observations
-- Conversational visual Q&A
-- Markdown/JSON note export
-- Scene-change fingerprinting
-- Input/model validation
-- Unit and fuzz testing
+Sightline is evolving into a **lightweight standalone Windows application** with the existing Chrome/Edge extension retained as its browser companion.
 
-## v0.2 — Browser action engine
+Core rule: **structured information before pixels; deterministic software before AI.**
 
-Status: **Next**
+Every phase must satisfy four permanent gates: correctness, safety, diagnostics, and resource efficiency.
 
-### Action protocol
-Implement a strict typed schema for:
-- read
-- click
-- type
-- clear
-- select
-- scroll
-- navigate
-- wait
-- verify
+## Phase 0 — Baseline and reconciliation
 
-Never execute model-generated JavaScript or arbitrary shell/code.
+Status: **IN PROGRESS**
 
-### Semantic page state
-Build a compact page representation using visible DOM/accessibility information:
-- role
-- accessible name
-- visible text
-- control state
-- input type
-- bounding box
-- stable element identifier
+- preserve the browser alpha already implemented on `develop`
+- repair CI defects before layering new CI
+- keep browser acceptance gates explicit and unverified until exercised
+- document the Windows-primary / browser-companion architecture
+- prevent duplicate features, branches, issues, and PRs
 
-Exclude/redact passwords, hidden sensitive fields, tokens, and unnecessary personal data.
+## Phase 1 — Windows Foundation v0
 
-### Executor
-- Resolve semantic targets
-- Execute one bounded action
-- Re-observe after every action
-- Verify expected state change
-- Detect stale elements/navigation
-- Retry safely when appropriate
-- Re-plan when state differs from expectation
+Status: **IN PROGRESS**
 
-### Autonomous task loop
-Goal → Plan → Observe → Act → Verify → Continue/Recover/Stop
+Deliver:
+- C#/.NET Windows solution
+- dependency-light `Sightline.Core`
+- isolated FlaUI/UIA3 Windows adapter
+- bounded UIA observation
+- semantic snapshots
+- stable/non-reused session element references
+- cancellation and hard time/node/depth budgets
+- deterministic WPF acceptance target
+- Windows build/unit-test CI
+- memory/resource measurement hooks
 
-Controls:
-- action-count ceiling
-- task timeout
-- repeated-state detection
-- loop/stall detection
-- cancellation
-- structured action log
-- explicit completion criteria
+Foundation v0 intentionally excludes AI, OCR, vision, coordinate clicking, SQLite, workflow learning, and browser IPC.
 
-## v0.3 — Yahoo Mail workflow
+## Phase 2 — Diagnostics and automated acceptance
 
-First real-world adapter:
-- search inbox using Yahoo UI
-- inspect matching messages
-- select matching results
-- move messages to Trash
-- verify action result
-- preview query/count/sample before bulk destructive action
-- never store Yahoo credentials
+- structured bounded logging
+- asynchronous rotating file sink
+- privacy scrubber
+- task/step/action correlation IDs
+- crash/recovery evidence
+- one-command Windows acceptance harness
+- fault injection
+- resource/leak/soak tests
+- sanitized evidence bundle
 
-## v0.4 — Reliability and security hardening
+Logging must never be allowed to grow memory without bound or crash the application.
 
-- prompt-injection adversarial fixtures
-- malformed model-action fuzzing
-- stale DOM tests
-- duplicate-label ambiguity tests
-- hidden/disabled element tests
-- navigation race tests
-- interrupted task recovery
-- action replay prevention
-- audit trail
-- permission minimization
-- regression suite
+## Phase 3 — Safe Windows actions
 
-## v0.5 — Desktop companion exploration
+- UIA Invoke/Value/Toggle/Selection/Scroll patterns
+- live target re-resolution
+- stale-reference rejection
+- exact focus verification before physical input
+- moving-target protection
+- post-action readback
+- stable typed failure codes
+- user-interference yield
 
-Evaluate a Windows companion for applications outside the browser. Browser DOM automation remains preferred for webpages because it is more reliable than coordinate-only visual clicking.
+## Phase 4 — Reliability and recovery
 
-## Release gates
+- checkpoints
+- idempotency
+- unknown-effect reconciliation
+- UIA per-application circuit breaker
+- process/window generation identity
+- crash-loop protection
+- resume/cancel/pause
+- transactional file operations and guarded undo
 
-No production-ready claim until:
-- automated tests pass
-- real Chrome/Edge extension acceptance passes
-- live local Ollama vision inference passes
-- Yahoo workflow passes on a real account using non-destructive fixtures first
-- destructive-action confirmation behavior is verified
-- recovery/stall behavior is verified
-- documentation reflects actual behavior
+## Phase 5 — Windows capabilities
+
+Add capabilities incrementally and test each:
+- filesystem
+- processes
+- windows
+- clipboard
+- File Explorer
+- Notepad
+- application launch/attach
+
+## Phase 6 — Browser integration
+
+Connect `Sightline.exe` to the existing extension rather than rebuilding browser authentication/session handling.
+
+- browser companion IPC
+- capability health
+- task ownership across Windows/browser surfaces
+- preserve DOM-first browser automation
+
+## Phase 7 — Vision and OCR
+
+Only after semantic automation is reliable:
+- Windows Graphics Capture
+- ROI-first capture
+- privacy masking before OCR/model access
+- Windows OCR
+- optional local vision fallback
+- capture leases with monitor/DPI/window identity
+
+## Phase 8 — Lightweight local intelligence
+
+AI is optional capability, not the execution engine.
+
+Routing order:
+1. deterministic code
+2. tiny local GGUF model when interpretation is useful
+3. larger Ollama/local endpoint only for difficult reasoning/vision
+
+Benchmark candidate small quantized models by measured capability per MB. Use mmap/lazy loading where supported, bounded context/KV cache, token streaming, cancellation, unload/idle policy, and graceful OOM behavior.
+
+## Phase 9 — Learned deterministic workflows
+
+AI discovers -> Sightline verifies -> learns -> compiles -> deterministic reuse.
+
+Healthy compiled workflows should not require model inference when state matches expectations.
+
+## Phase 10 — Hardening
+
+- adversarial/prompt-injection fixtures
+- fuzzing
+- fault injection
+- concurrency/race testing
+- multi-monitor/mixed-DPI
+- sleep/wake/lock/unlock
+- long-run memory/handle/thread soak
+- upgrade/migration tests
+- security/privacy acceptance
+
+## Phase 11 — Production lifecycle
+
+- lightweight GUI/activity monitor
+- self-test UI
+- installer/uninstaller
+- safe updater + rollback
+- safe-mode startup
+- diagnostic export
+- release gates and real-machine acceptance
+
+## Resource policy
+
+Memory growth is a defect.
+
+Measure at minimum:
+- cold startup working set
+- idle working set
+- UIA observation peak
+- active automation peak
+- diagnostics overhead
+- post-task cleanup
+- repeated-task working-set trend
+- handles and threads
+- OCR/vision/model peaks when those phases arrive
+
+Do not invent fixed RAM claims before measurement. Establish baselines from executable evidence and convert them into regression gates.
+
+## Existing browser alpha gates
+
+Still required:
+- installed Chrome acceptance
+- installed Edge acceptance
+- extension-origin live Ollama acceptance
+- real Yahoo acceptance using controlled fixtures
+
+Windows work does not erase these gates; the extension becomes the browser companion.
