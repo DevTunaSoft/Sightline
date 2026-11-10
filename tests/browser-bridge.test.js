@@ -82,3 +82,29 @@ test('vision capture returns base64 only for the exact active task tab', async (
   const result=await captureTaskTabFrame(7,chromeApi);
   assert.deepEqual(result,{tabId:7,imageBase64:'QUJD'});
 });
+
+test('bridge rejects non-web schemes without needing a blacklist', () => {
+  for(const url of ['edge://settings','about:blank','chrome-extension://abc/index.html','data:text/html,hi']) {
+    assert.equal(isSupportedPageUrl(url),false,url);
+  }
+});
+
+test('bootstrap tolerates a slower module import without injecting twice', async () => {
+  let pingCount=0, injected=0;
+  const chromeApi={
+    tabs:{
+      get:async id=>({id,url:'https://example.com/'}),
+      sendMessage:async()=> {
+        pingCount++;
+        if(pingCount<5) throw new Error('bootstrap not ready');
+        return {ok:true};
+      },
+    },
+    scripting:{executeScript:async()=>{injected++;}},
+  };
+  const { ensurePageAgent } = await import('../extension/browser-bridge.js');
+  const result=await ensurePageAgent(7,chromeApi);
+  assert.equal(result.ok,true);
+  assert.equal(injected,1);
+  assert.equal(pingCount,5);
+});
