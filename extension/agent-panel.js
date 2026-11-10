@@ -280,7 +280,8 @@ async function runTask() {
         timeline: state.resume?.timeline || [], actionsUsed: state.resume?.actionsUsed || 0, visionFallbacksUsed: state.resume?.visionFallbacksUsed || 0, requiresReview: false,
       }, chrome);
     } catch (checkpointError) {
-      addProgress('Checkpoint', `Resumability unavailable: ${checkpointError.message}`);
+      addProgress('Checkpoint', `Task blocked because its recovery record could not be saved: ${checkpointError.message}`);
+      return;
     }
     clearProgress(state.resume ? 'Resuming browser task…' : 'Starting browser task…');
     sync();
@@ -303,7 +304,8 @@ async function runTask() {
             lastSnapshotId: checkpointState.snapshotId, requiresReview: false,
           }, chrome);
         } catch (checkpointError) {
-          addProgress('Checkpoint', `Could not save resume point: ${checkpointError.message}`);
+          addProgress('Checkpoint', `Recovery save failed; stopping before further actions: ${checkpointError.message}`);
+          throw checkpointError;
         }
       },
     });
