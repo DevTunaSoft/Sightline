@@ -73,6 +73,28 @@ public sealed class ActionSafetyTests
     }
 
     [Fact]
+    public async Task Action_diagnostics_never_capture_SetValue_text()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var diagnostics = new DiagnosticRecorder(16);
+        var executor = new FlaUiActionExecutor(
+            leases,
+            diagnostics: diagnostics);
+
+        const string secret = "private-value-8675309";
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"),
+            new SemanticAction(SemanticActionKind.SetValue, "w:42:g1:e404", secret));
+
+        Assert.False(receipt.Ok);
+        var exported = System.Text.Json.JsonSerializer.Serialize(diagnostics.Snapshot());
+        Assert.DoesNotContain(secret, exported);
+        Assert.Contains("SetValue", exported);
+        await diagnostics.DisposeAsync();
+    }
+
+    [Fact]
     public void Uia_circuit_opens_after_threshold_and_allows_one_probe_after_cooldown()
     {
         var now = DateTimeOffset.Parse("2026-11-10T00:00:00Z");
