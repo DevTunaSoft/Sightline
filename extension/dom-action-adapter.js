@@ -64,9 +64,16 @@ function deepestActiveElement(documentObject, maxDepth = 3) {
 }
 
 function setValue(element, value, windowObject) {
-  const proto = Object.getPrototypeOf(element);
-  const descriptor = proto && Object.getOwnPropertyDescriptor(proto, 'value');
-  if (descriptor?.set) descriptor.set.call(element, value);
+  // Native value setters may live above the immediate prototype (or below an
+  // application wrapper). Use the first inherited setter, without invoking getters.
+  let prototype = Object.getPrototypeOf(element);
+  let setter = null;
+  for (let depth = 0; prototype && depth < 12; depth += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+    if (descriptor?.set) { setter = descriptor.set; break; }
+    prototype = Object.getPrototypeOf(prototype);
+  }
+  if (setter) setter.call(element, value);
   else element.value = value;
   dispatch(element, 'input', windowObject);
   dispatch(element, 'change', windowObject);
@@ -86,6 +93,7 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     },
     async click(action) {
       const element = resolve(action.ref);
+      if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be clicked by the agent.' };
       element.scrollIntoView?.({ block: 'center', inline: 'center', behavior: 'auto' });
       element.focus?.({ preventScroll: true });
       if (typeof element.click !== 'function') return { ok: false, code: 'NOT_CLICKABLE', error: 'Target does not support click.' };
@@ -126,6 +134,7 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     },
     async uncheck(action) {
       const element = resolve(action.ref);
+      if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be manipulated by the agent.' };
       if (!('checked' in element)) return { ok: false, code: 'NOT_CHECKABLE', error: 'Target is not checkable.' };
       if (element.checked) element.click?.();
       return { ok: !element.checked, ref: action.ref, checked: Boolean(element.checked) };
