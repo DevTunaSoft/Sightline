@@ -23,7 +23,7 @@ public sealed class Win32WindowDiscovery : IDesktopWindowDiscovery
                 return true;
 
             _ = GetWindowThreadProcessId(handle, out var processId);
-            if (processId == 0)
+            if (processId == 0 || processId > int.MaxValue)
                 return true;
 
             titleBuffer.Clear();
