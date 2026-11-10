@@ -22,7 +22,13 @@ public static class DiagnosticSanitizer
         {
             Level = CleanMetadata(item.Level, 16),
             EventName = CleanMetadata(item.EventName, 80),
-            TaskId = item.TaskId is null ? null : CleanMetadata(item.TaskId, 128),
+            TaskId = CleanOptional(item.TaskId, 128),
+            Step = CleanOptional(item.Step, 64),
+            Capability = CleanOptional(item.Capability, 64),
+            Operation = CleanOptional(item.Operation, 64),
+            TargetRef = CleanOptional(item.TargetRef, 128),
+            Result = CleanOptional(item.Result, 32),
+            ErrorCode = CleanOptional(item.ErrorCode, 80),
             Detail = SanitizeDetail(item.Detail, maxDetailChars)
         };
     }
@@ -50,6 +56,9 @@ public static class DiagnosticSanitizer
 
         return normalized.Length <= maxChars ? normalized : normalized[..maxChars];
     }
+
+    private static string? CleanOptional(string? value, int maxChars) =>
+        value is null ? null : CleanMetadata(value, maxChars);
 
     private static string CleanMetadata(string value, int maxChars)
     {
