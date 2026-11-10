@@ -101,6 +101,23 @@ public sealed class ActionSafetyTests
     }
 
     [Fact]
+    public void Uia_circuit_cancellation_releases_half_open_probe()
+    {
+        var now = DateTimeOffset.Parse("2026-11-10T00:00:00Z");
+        var breaker = new UiaCircuitBreaker(
+            new UiaCircuitBreakerOptions(MaxProcesses: 4, FailureThreshold: 1, Cooldown: TimeSpan.FromSeconds(1)),
+            () => now);
+
+        Assert.True(breaker.TryEnter(42));
+        breaker.RecordFailure(42);
+        now = now.AddSeconds(2);
+
+        Assert.True(breaker.TryEnter(42));
+        breaker.RecordNeutral(42);
+        Assert.True(breaker.TryEnter(42));
+    }
+
+    [Fact]
     public void Uia_circuit_process_table_is_hard_bounded()
     {
         var breaker = new UiaCircuitBreaker(
