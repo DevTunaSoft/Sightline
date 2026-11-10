@@ -20,11 +20,6 @@ public sealed class WindowsProcessInspector : IDesktopProcessInspector
         try
         {
             using var process = Process.GetProcessById(processId);
-            process.Refresh();
-
-            if (process.HasExited)
-                return new(ProcessInspectionStatus.NotFound, null, "Process has exited.");
-
             return new(
                 ProcessInspectionStatus.Available,
                 new DesktopProcessInfo(
