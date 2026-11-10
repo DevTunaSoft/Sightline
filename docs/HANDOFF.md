@@ -28,6 +28,7 @@ Latest fully verified checkpoint before the resource-probe commit:
 - Windows core tests: **PASS**
 - Windows safety-layer tests: **PASS**
 - WPF test target compilation: **PASS**
+- interactive WPF acceptance runner compilation: **PASS**
 - real interactive Windows UIA acceptance: **UNVERIFIED**
 
 Resource-probe CI is **PASS**. Measured on `windows-latest`: 24,039,424 bytes working set (~22.9 MiB), 7,659,520 bytes private memory (~7.3 MiB), 183 handles, and 8 threads. These are baseline measurements, not production ceilings.
