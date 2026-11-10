@@ -34,6 +34,15 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Browser companion IPC | Not yet implemented | Existing extension preserved. |
 | Tiny local GGUF runtime | Not yet implemented | Planned after deterministic routing foundation. |
 
+## Browser crash-recovery safeguards (2026-11-10)
+
+| Capability | Status | Notes |
+|---|---|---|
+| Browser write-ahead action record | Implemented / tests added, **NOT RUN** | In-flight action checkpoint precedes execution; failed save blocks execution. |
+| Unknown-effect replay prevention | Implemented / tests added, **NOT RUN** | Restored unknown/unverified effects block replanning; manual reconciliation still required. |
+| Confirmation checkpoint serialization | Implemented / tests added, **NOT RUN** | Review checkpoint must persist before approval is shown. |
+| Full crash recovery | **Incomplete / UNVERIFIED** | No automated effect reconciliation; installed-browser fault injection pending. |
+
 ## Browser core
 
 Browser semantic observation, typed actions, live revalidation, stale recovery, task limits, local Ollama planner, bounded vision fallback, diagnostics, and Yahoo Mail skill remain implemented/automated-test verified on `develop`.
