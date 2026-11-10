@@ -1,12 +1,35 @@
 # Sightline Feature Status
 
-Last updated: 2026-11-08
+Last updated: 2026-11-10
 
 Status language:
-- **Implemented** — source is present on `develop`.
-- **Automated-test verified** — covered by the repository test/check suite.
-- **Real-browser verified** — accepted in an installed Chrome/Edge extension.
+- **Implemented** — source is present.
+- **Automated-test verified** — covered by passing repository CI/tests.
+- **Real-machine verified** — exercised on an installed desktop/browser.
 - **Production accepted** — release gates completed.
+
+## Windows standalone foundation
+
+| Capability | Status | Notes |
+|---|---|---|
+| .NET 8 Windows solution | Implemented / automated-test verified | Builds on `windows-latest`. |
+| Core/Windows dependency split | Implemented / automated-test verified | `Sightline.Core` has no FlaUI dependency. |
+| FlaUI UIA3 observer | Implemented / compile verified | Real interactive desktop behavior remains unverified. |
+| Bounded UIA traversal | Implemented / automated-test verified | Node/depth/time budgets; observation is also capped by lease capacity. |
+| Session-scoped element leases | Implemented / automated-test verified | Old snapshots/refs are rejected; refs are never reused; storage is hard bounded. |
+| Semantic Invoke action | Implemented / compile verified | Uses UIA Invoke pattern; effect remains application-specific and therefore not generically claimed verified. |
+| Semantic SetValue action | Implemented / compile verified | Uses UIA Value pattern with exact value readback verification. |
+| Stale snapshot/window/ref rejection | Implemented / automated-test verified | Rejected before live process/UIA access. |
+| Bounded diagnostics ledger | Implemented / automated-test verified | Fixed-capacity in-memory ring behavior. |
+| Process resource sampler | Implemented | CI resource-probe verification is pending on the newest commit. |
+| Repeated lease-cycle soak | Implemented / automated-test verified | 1,000 snapshot cycles remain bounded to current snapshot entries. |
+| WPF deterministic test target | Implemented / compile verified | Interactive UIA acceptance remains pending. |
+| Windows resource/acceptance script | Implemented | `tools/test-windows.ps1`; newest CI verification pending. |
+| Real Windows interactive UIA observation/actions | **Not yet verified** | Must be exercised on a real interactive Windows desktop. |
+| Focus verification / user-interference yield | Not yet implemented | Next reliability work. |
+| UIA circuit breaker | Not yet implemented | Planned after action/readback foundation. |
+| Browser companion IPC | Not yet implemented | Existing extension is preserved separately. |
+| Tiny local GGUF runtime | Not yet implemented | Planned after deterministic Windows automation foundation. |
 
 ## Browser-agent core
 
@@ -16,23 +39,15 @@ Status language:
 | Semantic DOM/accessibility snapshot | Implemented / automated-test verified | Hard bounds: 300 controls, 48 KB snapshot, 8 KB visible text. |
 | Same-origin iframe observation | Implemented / automated-test verified | One global resource budget; cross-origin frames remain opaque. |
 | Cross-origin iframe reporting | Implemented / automated-test verified | Origin-only metadata; no claim of reading opaque content. |
-| Typed actions | Implemented / automated-test verified | read/click/type/clear/select/check/uncheck/scroll/navigate/keypress/wait/verify. |
+| Typed browser actions | Implemented / automated-test verified | read/click/type/clear/select/check/uncheck/scroll/navigate/keypress/wait/verify. |
 | Arbitrary model JavaScript | Intentionally not supported | Trusted executor only. |
-| Live semantic revalidation | Implemented / automated-test verified | Re-observes immediately before every action and after confirmation delays. |
-| Stale snapshot/ref recovery | Implemented / automated-test verified | Re-observe and re-plan, bounded by task limits. |
+| Live semantic revalidation | Implemented / automated-test verified | Re-observes before actions and after confirmation delays. |
+| Stale snapshot/ref recovery | Implemented / automated-test verified | Re-observe and re-plan within task limits. |
 | Task-loop stall detection | Implemented / automated-test verified | Action/time/repeated-state/repeated-action ceilings. |
-| Task tab lock | Implemented / automated-test verified | Active-tab switching cannot redirect a running task. |
-| Origin lock | Implemented / automated-test verified | Unapproved origin changes stop the task. |
-| Cross-origin navigation approval | Implemented / automated-test verified | Explicit confirmation required. |
-| Pause / resume | Implemented | Session-only sanitized checkpoint. |
-| Cancel | Implemented | Clears resumable checkpoint. |
-| Closed-tab resume recovery | Implemented / automated-test verified | Broken resume state is cleared instead of looping. |
+| Task tab/origin locks | Implemented / automated-test verified | Running task cannot silently jump tabs/origins. |
 | Local planner | Implemented / automated-test verified | Ollama loopback only; JSON-only decisions. |
-| Planner timeout/repair | Implemented / automated-test verified | 90s production timeout; one JSON/schema repair retry. |
-| DOM-first vision fallback | Implemented / automated-test verified | Max 2 per task, max 1 per semantic state; active task tab only. |
-| Vision budget survives resume | Implemented / automated-test verified | Only integer count persisted; no screenshots. |
+| DOM-first vision fallback | Implemented / automated-test verified | Max 2/task, max 1/semantic state; active task tab only. |
 | Sanitized diagnostics | Implemented / automated-test verified | No typed action payloads or screenshots in agent report. |
-| Performance timing report | Implemented | Observe/plan/vision/execute timing summaries. |
 
 ## Yahoo Mail skill
 
@@ -50,30 +65,14 @@ Status language:
 
 ## Acceptance still required
 
-- Installed Chrome acceptance
-- Installed Edge acceptance
-- Live Ollama task execution
-- Real Yahoo account non-destructive workflow
-- Real Yahoo Trash workflow using disposable/test messages
-- Long-session memory/CPU soak in a real browser
-- Installer/distribution/update path
+- interactive Windows desktop UIA observation
+- real semantic Invoke/SetValue against the WPF fixture
+- focus/focus-theft behavior
+- installed Chrome acceptance
+- installed Edge acceptance
+- live Ollama task execution
+- real Yahoo account controlled workflow
+- long-session Windows/browser memory/CPU/handle/thread soak
+- installer/distribution/update path
 
-Do not infer any of the above from automated fixture success.
-
-
-## 0.2.0-alpha acceptance tooling
-
-| Gate/tool | Status |
-|---|---|
-| Installed-browser deterministic self-test | Implemented / automated-test verified |
-| Localhost fixture server | Implemented / integration-test verified |
-| Windows acceptance launcher | Implemented |
-| Extension-origin Ollama self-test | Implemented / automated-test verified |
-| CLI Ollama image-inference acceptance | Implemented / syntax/release-check verified; live model still required |
-| Yahoo read-only readiness | Implemented / automated-test verified |
-| CI extension artifact packaging | Implemented; workflow execution evidence still tracked separately |
-| Release permission/security/size audit | Implemented / current branch check verified |
-| Real Chrome acceptance | Pending |
-| Real Edge acceptance | Pending |
-| Live extension-origin Ollama acceptance | Pending |
-| Real Yahoo acceptance | Pending |
+Automated fixture/CI success must not be interpreted as real-machine acceptance.

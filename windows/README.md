@@ -1,13 +1,14 @@
 # Sightline Windows Foundation
 
-Status: **experimental / not production verified**
+Status: **experimental / automated CI foundation verified; real desktop acceptance pending**
 
-This directory is the lightweight Windows-native foundation for Sightline.
+This directory contains Sightline's lightweight Windows-native foundation.
 
 ## Principles
 
 - deterministic Windows APIs/UI Automation before AI
-- bounded observation and bounded diagnostics
+- structured information before pixels
+- hard-bounded observations, leases, and diagnostics
 - no Electron
 - no embedded heavyweight model
 - no coordinate input in Foundation v0
@@ -19,19 +20,33 @@ This directory is the lightweight Windows-native foundation for Sightline.
 On Windows with .NET 8 SDK:
 
 ```powershell
+.\tools\test-windows.ps1
+```
+
+Or manually:
+
+```powershell
 dotnet restore windows/Sightline.Windows.sln
 dotnet build windows/Sightline.Windows.sln -c Release --no-restore
 dotnet test windows/tests/Sightline.Core.Tests/Sightline.Core.Tests.csproj -c Release --no-build
+dotnet test windows/tests/Sightline.Windows.Tests/Sightline.Windows.Tests.csproj -c Release --no-build
 ```
 
-The WPF test target is compiled by CI but interactive UIA acceptance remains a real-Windows acceptance gate.
+## Implemented foundation
 
-## Foundation v0 acceptance
+- FlaUI UIA3 adapter isolated from Core
+- bounded observation
+- session-scoped, non-reused element refs
+- stale snapshot/window/ref rejection
+- semantic Invoke
+- semantic SetValue with exact readback verification
+- fixed-capacity diagnostics
+- process RAM/private-memory/handle/thread sampling
+- deterministic WPF target
+- core and Windows safety regression suites
 
-- Core has no FlaUI dependency.
-- Windows adapter uses FlaUI UIA3 5.0.0.
-- Observation has hard node/depth/time budgets.
-- Diagnostics ledger has a fixed capacity.
-- Test fixture is deterministic.
-- Windows build/unit tests run in CI.
-- Real interactive Windows UIA behavior remains UNVERIFIED until run on a desktop.
+## Verification boundary
+
+Hosted Windows CI verifies restore, compile, non-interactive safety tests, and the WPF target build.
+
+It does **not** prove interactive desktop UIA behavior. Real observation/actions, focus behavior, DPI, elevation, user interference, and long-run leak behavior remain real-machine gates.

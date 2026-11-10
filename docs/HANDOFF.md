@@ -1,6 +1,6 @@
 # Sightline Engineering Handoff
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ## Product
 
@@ -8,86 +8,99 @@ Last updated: 2026-11-09
 
 Repository: DevTunaSoft/Sightline  
 Integration branch: `main`  
-Browser development baseline: `develop`  
-Current Windows work: `feature/windows-foundation-v0`
+Browser baseline: `develop`  
+Current Windows work: `feature/windows-foundation-v0` / PR #6
 
 ## Direction
 
-Sightline is now a lightweight standalone Windows application with the existing Chrome/Edge extension retained as the browser companion.
+Sightline is a lightweight standalone Windows application with the existing Chrome/Edge extension retained as the browser companion.
 
-The browser alpha is preserved; Windows work must not recreate its DOM observation, browser safety, Yahoo skill, checkpoint, or Ollama acceptance features.
+Core rule: **structured information before pixels; deterministic software before AI.**
 
-## Verified baseline
+## Verified checkpoint
 
-- repository reconciliation: PASS
-- Windows duplication check: PASS
-- browser alpha source on develop: PRESENT
-- CI defect `package-extension -> needs: test`: CONFIRMED and corrected on Windows feature branch
-- Windows runtime behavior: UNVERIFIED
-- real Chrome/Edge/Ollama/Yahoo acceptance: UNVERIFIED
+Latest fully verified checkpoint before the resource-probe commit:
+- repository reconciliation: **PASS**
+- browser validation suite: **PASS**
+- extension packaging: **PASS**
+- Windows restore: **PASS**
+- Windows solution build: **PASS**
+- Windows core tests: **PASS**
+- Windows safety-layer tests: **PASS**
+- WPF test target compilation: **PASS**
+- real interactive Windows UIA acceptance: **UNVERIFIED**
 
-## Windows Foundation v0
+The newest resource-probe commit is awaiting its own CI result and must not be called verified until that run completes.
 
-Implemented on feature branch:
-- .NET 8 Windows solution
-- `Sightline.Core` with no FlaUI dependency
-- `Sightline.Windows` with FlaUI UIA3 adapter
-- `Sightline.App` minimal observation CLI
-- bounded traversal by node/depth/time
-- cancellation
-- semantic snapshot DTOs
-- structured error-code foundation
-- fixed-capacity diagnostic ledger
-- xUnit core tests
+## Windows foundation implemented
+
+- .NET 8 solution
+- dependency-light `Sightline.Core`
+- FlaUI UIA3 isolated in `Sightline.Windows`
+- bounded node/depth/time UIA traversal
+- observation capped by lease capacity
+- session-scoped element leases
+- monotonically non-reused element refs
+- current-snapshot-only lease resolution
+- process/window identity binding
+- semantic Invoke action
+- semantic SetValue action
+- exact SetValue readback verification
+- stale snapshot/window/ref rejection before live UIA access
+- fixed-capacity diagnostics ledger
+- process resource sampler
+- repeated lease-cycle soak coverage
 - deterministic WPF test target
-- Windows CI restore/build/test job
+- separate Windows safety test project
+- `tools/test-windows.ps1` acceptance/resource harness
+- Windows CI evidence artifact
 
-Not yet verified until CI completes:
-- NuGet restore
-- Windows compilation
-- tests
-- FlaUI API compatibility
-- WPF fixture build
-
-Not yet implemented:
-- persistent rotating logging
-- privacy scrubber
-- element lease registry/generation identity
-- UIA actions/readback
-- focus verification
-- UIA circuit breaker
-- Win32 adapter
-- Windows Graphics Capture/OCR
-- browser IPC
-- tiny local GGUF runtime
-- standalone GUI
-
-## Resource rules
+## Memory/resource policy
 
 Memory growth is a defect.
 
-All new subsystems must be bounded and measured. Do not add unbounded logs, snapshots, queues, screenshots, model contexts, or caches. Avoid polling. Heavy optional features must load only when needed.
+Current controls:
+- bounded traversal
+- bounded element lease dictionary
+- old snapshot leases are cleared
+- no live AutomationElement/COM objects retained in Core
+- bounded diagnostics
+- no screenshots in the Windows foundation
+- no AI model loaded in the Windows foundation
+- no polling loop
+- process working set/private bytes/handles/threads can be sampled
 
-## AI direction
+Do not add an unbounded queue, cache, history, log, screenshot store, context window, or model lifetime.
 
-Do not put an LLM in the execution path for tasks deterministic code can solve.
+## What remains unverified
 
-Future routing:
-1. deterministic code
-2. tiny local GGUF model
-3. larger Ollama/local endpoint
+- real Windows UIA observation on an interactive desktop
+- real Invoke effect against the WPF fixture
+- real SetValue/readback against the WPF fixture
+- focus theft/user interference
+- mixed DPI/multi-monitor behavior
+- elevation/UIPI behavior
+- long Windows soak/resource trend
+- browser-extension IPC
+- tiny GGUF runtime
+- installer/GUI
 
-Model selection must be benchmarked by capability per MB. Streaming output and bounded context are required. Failure/unavailability of AI must not disable deterministic Windows/browser functions.
+## Next implementation order
 
-## Immediate recovery instructions
+1. wait for the resource-probe CI gate and fix any root cause
+2. exact focus verification before any future physical input
+3. post-action semantic effect/readback contracts
+4. per-app UIA circuit breaker
+5. automated interactive Windows acceptance runner
+6. measured long-run resource/leak gates
+7. browser companion IPC
+8. vision/OCR only after semantic automation is reliable
+9. tiny local GGUF runtime after deterministic routing foundation
 
-1. Inspect the latest commit and CI on `feature/windows-foundation-v0`.
-2. If Windows CI fails, fix the first root cause and add/adjust regression coverage.
-3. Do not repeat an unchanged failed attempt twice.
-4. Once build/tests pass, implement element leases + semantic UIA action/readback.
-5. Add automated real-desktop acceptance harness before broad Windows capabilities.
-6. Keep docs/status accurate: PASS, FAIL, BLOCKED, NOT RUN, UNVERIFIED.
+## Recovery instructions
 
-## Release claims
-
-No production-ready claim is permitted until automated CI and real-machine acceptance have evidence.
+1. Inspect PR #6 head and its latest CI run.
+2. Fix the first failing root cause; do not rerun unchanged failures repeatedly.
+3. Run `.\tools\test-windows.ps1` on a real Windows development machine when available.
+4. Preserve PASS/FAIL/BLOCKED/NOT RUN/UNVERIFIED language.
+5. Do not claim production readiness from hosted CI alone.
