@@ -1,4 +1,5 @@
 import { runTaskLoop } from './task-loop-core.js';
+import { sanitizeCheckpointTimeline } from './task-checkpoint.js';
 import { observeActiveTab, observeTab, executeOnTab, captureTaskTabFrame } from './browser-bridge.js';
 import { planNextAction } from './planner-client.js';
 import { detectSkillBlocker } from './skill-blockers.js';
@@ -51,6 +52,7 @@ export async function runBrowserTask({
     model: String(model || '').slice(0, 110),
     goalChars: String(goal || '').length,
   });
+  let latestSafeTimeline = sanitizeCheckpointTimeline(resume?.timeline || []);
   let cachedSnapshot = null;
   let lastConfirmedContext = null;
   let taskTabId = Number.isInteger(resume?.tabId) && resume.tabId > 0 ? resume.tabId : null;
@@ -234,9 +236,13 @@ export async function runBrowserTask({
 
   const verify = async ({ receipt }) => ({ ok: receipt?.ok === true });
   try {
-    const checkpoint = typeof onCheckpoint === 'function'
-      ? state => onCheckpoint({ ...state, tabId: taskTabId, taskOrigin, visionFallbacksUsed: visionFallbacks })
-      : null;
+    const checkpoint = state => {
+      // Preserve sanitized progress even if planning, storage or a provider fails.
+      latestSafeTimeline = sanitizeCheckpointTimeline(state.timeline);
+      return typeof onCheckpoint === 'function'
+        ? onCheckpoint({ ...state, tabId: taskTabId, taskOrigin, visionFallbacksUsed: visionFallbacks })
+        : undefined;
+    };
     let result = await runTaskLoop({ goal, observe, plan, execute, verify, signal, limits, resume, onCheckpoint: checkpoint });
     if (result?.code === 'ABORTED') result = { ...result, code: 'TASK_CANCELLED', error: 'Task cancelled.' };
     diagnostics.record('task-finish', 'Browser task finished.', {
@@ -253,7 +259,7 @@ export async function runBrowserTask({
       ok: false,
       code,
       error: cancelled ? 'Task cancelled.' : String(error?.message || error),
-      timeline: [],
+      timeline: latestSafeTimeline,
       diagnostics: diagnostics.export(),
       performance: performanceReport(timings),
     };
