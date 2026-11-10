@@ -210,7 +210,7 @@ public sealed class FoundationTests
         File.WriteAllText(root, "not a directory");
         try
         {
-            await using var sink = new BoundedDiagnosticFileSink(new DiagnosticFileOptions(
+            var sink = new BoundedDiagnosticFileSink(new DiagnosticFileOptions(
                 root,
                 QueueCapacity: 16,
                 MaxFileBytes: 8192,
@@ -223,7 +223,7 @@ public sealed class FoundationTests
                 "failure-isolation",
                 Detail: "safe"));
 
-            await Task.Delay(50);
+            await sink.DisposeAsync();
             Assert.NotNull(sink.LastFailure);
         }
         finally
