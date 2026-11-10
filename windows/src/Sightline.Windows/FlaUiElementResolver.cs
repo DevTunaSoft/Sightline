@@ -37,7 +37,7 @@ internal sealed class FlaUiElementResolver
             Children,
             _budget,
             cancellationToken,
-            out _,
+            out var truncated,
             out _);
 
         AutomationElement? match = null;
@@ -53,7 +53,9 @@ internal sealed class FlaUiElementResolver
             match = candidate;
         }
 
-        return match;
+        // A partial scan cannot establish uniqueness: an unseen matching control
+        // could exist beyond the node/time/depth budget. Fail closed.
+        return truncated ? null : match;
     }
 
     private static bool Matches(AutomationElement element, WindowsElementLocator locator)
