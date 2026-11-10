@@ -33,6 +33,8 @@ Latest fully verified checkpoint before the resource-probe commit:
 
 Resource-probe CI is **PASS**. Measured on `windows-latest`: 24,039,424 bytes working set (~22.9 MiB), 7,659,520 bytes private memory (~7.3 MiB), 183 handles, and 8 threads. These are baseline measurements, not production ceilings.
 
+Idle-session evidence from CI run #238: before/after process RSS and private bytes were noisy and decreased in the single sample; handles increased by 2 and threads by 0. Treat this as evidence that no obvious idle thread explosion occurred, not as a RAM ceiling. A repeated session/active-UIA soak remains required.
+
 ## Windows foundation implemented
 
 - .NET 8 solution
@@ -49,7 +51,7 @@ Resource-probe CI is **PASS**. Measured on `windows-latest`: 24,039,424 bytes wo
 - exact SetValue readback verification
 - stale snapshot/window/ref rejection before live UIA access
 - fixed-capacity diagnostics ledger
-- bounded redacted rotating diagnostic file sink (queue/file/retention caps; **PASS** in CI run #234; 10,000-event stress gate pending)
+- bounded redacted rotating diagnostic file sink (queue/file/retention caps; **PASS** including 10,000-event stress in CI run #236)
 - process resource sampler
 - repeated lease-cycle soak coverage
 - Core architecture dependency guard against FlaUI/Windows/model/browser runtime leakage (**PASS** in CI run #232)
