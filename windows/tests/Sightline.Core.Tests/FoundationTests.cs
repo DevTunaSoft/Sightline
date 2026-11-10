@@ -233,6 +233,54 @@ public sealed class FoundationTests
         }
     }
 
+
+    [Fact]
+    public async Task Diagnostic_file_sink_stays_bounded_under_rapid_load()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"sightline-diag-stress-{Guid.NewGuid():N}");
+        const int total = 10_000;
+        var accepted = 0;
+
+        try
+        {
+            var sink = new BoundedDiagnosticFileSink(new DiagnosticFileOptions(
+                directory,
+                QueueCapacity: 64,
+                MaxFileBytes: 8192,
+                MaxFiles: 3,
+                MaxDetailChars: 256));
+
+            for (var i = 0; i < total; i++)
+            {
+                if (sink.TryWrite(new DiagnosticEvent(
+                    DateTimeOffset.UtcNow,
+                    "INFO",
+                    "stress",
+                    TaskId: $"t{i}",
+                    Detail: $"token=secret-{i} payload-{i}")))
+                {
+                    accepted++;
+                }
+            }
+
+            await sink.DisposeAsync();
+
+            Assert.Equal(total, accepted + sink.DroppedEvents);
+
+            var files = Directory.GetFiles(directory, "sightline*.jsonl");
+            Assert.InRange(files.Length, 1, 3);
+            Assert.All(files, file => Assert.InRange(new FileInfo(file).Length, 1, 8192));
+
+            var combined = string.Join('\n', files.Select(File.ReadAllText));
+            Assert.DoesNotContain("secret-", combined);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public void Invalid_observation_budget_is_rejected()
     {
