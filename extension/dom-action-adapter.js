@@ -108,6 +108,8 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     },
     async select(action) {
       const element = resolve(action.ref);
+      if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be manipulated by the agent.' };
+      if (String(element.tagName || '').toUpperCase() !== 'SELECT') return { ok: false, code: 'NOT_SELECTABLE', error: 'Target is not a select element.' };
       const options = Array.from(element.options || []);
       if (options.length && !options.some(option => String(option.value) === action.value)) {
         return { ok: false, code: 'OPTION_NOT_FOUND', error: 'Requested option is unavailable.' };
@@ -117,6 +119,7 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     },
     async check(action) {
       const element = resolve(action.ref);
+      if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be manipulated by the agent.' };
       if (!('checked' in element)) return { ok: false, code: 'NOT_CHECKABLE', error: 'Target is not checkable.' };
       if (!element.checked) element.click?.();
       return { ok: Boolean(element.checked), ref: action.ref, checked: Boolean(element.checked) };
@@ -141,6 +144,7 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     },
     async pressKey(action) {
       const target = deepestActiveElement(documentObject);
+      if (sensitiveElement(target)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Keyboard events cannot target sensitive fields.' };
       const targetWindow = elementWindow(target, windowObject);
       const KeyboardCtor = targetWindow?.KeyboardEvent || globalThis.KeyboardEvent;
       if (!target?.dispatchEvent || !KeyboardCtor) return { ok: false, code: 'KEYBOARD_UNAVAILABLE', error: 'Keyboard dispatch unavailable.' };
@@ -157,7 +161,9 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       return { ok: true, waitedMs: action.ms };
     },
     async verify(action) {
-      const haystack = action.ref ? textOf(resolve(action.ref)) : boundedElementText(documentObject?.body, 12000);
+      const target = action.ref ? resolve(action.ref) : null;
+      if (target && sensitiveElement(target)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be verified by content matching.' };
+      const haystack = target ? textOf(target) : boundedElementText(documentObject?.body, 12000);
       const ok = haystack.toLowerCase().includes(action.expect.toLowerCase());
       return { ok, ref: action.ref, matched: ok, expectation: action.expect };
     },
