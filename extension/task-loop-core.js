@@ -51,6 +51,15 @@ export async function runTaskLoop({ goal, observe, plan, execute, verify, signal
   const initialActions = Math.max(Number(resume?.actionsUsed) || 0, resumeTimeline.length);
   const guard = new TaskProgressGuard({ limits, clock, initialActions });
   const timeline = [...resumeTimeline];
+  // A persisted unknown/in-flight action could have changed the page before a
+  // crash. Never ask the planner to repeat it automatically.
+  if (timeline.some(item => item?.receipt?.code === 'UNKNOWN_EFFECT' || item?.receipt?.code === 'ACTION_IN_FLIGHT')) {
+    return { ok: false, code: 'ACTION_RECONCILIATION_REQUIRED', timeline };
+  }
+  const checkpoint = async snapshotId => {
+    if (typeof onCheckpoint === 'function')
+      await onCheckpoint({ timeline: [...timeline], actionsUsed: guard.actions, snapshotId: snapshotId || null });
+  };
 
   while (true) {
     if (signal?.aborted) return { ok: false, code: 'ABORTED', timeline };
@@ -65,12 +74,37 @@ export async function runTaskLoop({ goal, observe, plan, execute, verify, signal
     const allowed = guard.beforeAction(decision.action, snapshot.snapshotId);
     if (!allowed.ok) return { ok: false, code: allowed.code, timeline };
 
-    const receipt = await execute(decision.action, { signal, snapshot });
-    timeline.push({ n: allowed.actionNumber, snapshotId: snapshot.snapshotId || null, action: decision.action, receipt });
-    if (typeof onCheckpoint === 'function') {
-      await onCheckpoint({ timeline: [...timeline], actionsUsed: guard.actions, snapshotId: snapshot.snapshotId || null });
+    // Write-ahead record. Persist before any side effect, or refuse to act.
+    const pending = {
+      n: allowed.actionNumber, snapshotId: snapshot.snapshotId || null,
+      action: decision.action, receipt: { ok: false, code: 'UNKNOWN_EFFECT' },
+    };
+    timeline.push(pending);
+    try {
+      await checkpoint(snapshot.snapshotId);
+    } catch {
+      return { ok: false, code: 'CHECKPOINT_WRITE_FAILED', timeline };
     }
-    if (!receipt?.ok) return { ok: false, code: receipt?.code || 'ACTION_FAILED', timeline };
+
+    let receipt;
+    try {
+      receipt = await execute(decision.action, { signal, snapshot });
+    } catch {
+      // This operation may already have happened. Do not replan or retry.
+      return { ok: false, code: 'UNKNOWN_EFFECT', timeline };
+    }
+    if (!receipt || typeof receipt !== 'object') {
+      return { ok: false, code: 'UNKNOWN_EFFECT', timeline };
+    }
+    pending.receipt = receipt;
+    try {
+      await checkpoint(snapshot.snapshotId);
+    } catch {
+      // A previously persisted in-flight record remains authoritative.
+      pending.receipt = { ok: false, code: 'UNKNOWN_EFFECT' };
+      return { ok: false, code: 'CHECKPOINT_WRITE_FAILED', timeline };
+    }
+    if (!receipt.ok) return { ok: false, code: receipt.code || 'ACTION_FAILED', timeline };
 
     const verdict = await verify({ goal: goal.trim(), before: snapshot, action: decision.action, receipt, signal });
     if (verdict?.done === true) return { ok: true, code: 'COMPLETED', result: verdict.result, timeline };
