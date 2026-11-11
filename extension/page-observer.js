@@ -39,7 +39,7 @@ const INTERACTIVE_TAGS = new Set([
 
 function appendBoundedPageText(root, collector, maxVisited) {
   if (!root) return { visited: 0, truncated: false };
-  if (collector.full) return { visited: 0, truncated: true };
+  if (collector.full || collector.exhausted) return { visited: 0, truncated: true };
   const doc = root.ownerDocument || document;
   const nodeFilter = doc.defaultView?.NodeFilter || globalThis.NodeFilter;
   if (!doc.createTreeWalker || !nodeFilter) return { visited: 0, truncated: true };
@@ -47,7 +47,7 @@ function appendBoundedPageText(root, collector, maxVisited) {
   let visited = 0;
   let textLimitReached = false;
   let node = walker.nextNode();
-  while (node && !collector.full && visited < maxVisited) {
+  while (node && !collector.full && !collector.exhausted && visited < maxVisited) {
     visited += 1;
     const parent = node.parentElement;
     if (parent && !SKIPPED_TEXT_TAGS.has(parent.tagName) && !parent.closest?.('[hidden],[aria-hidden="true"]')) {
@@ -216,7 +216,8 @@ export function buildPageSnapshot(options = {}) {
   const registryEntries = [];
   const { contexts, inventory } = collectFrameContexts(
     document, 20, 3, limits.maxFrameNodesVisited);
-  const textCollector = createBoundedTextCollector(limits.maxVisibleTextChars);
+  const textCollector = createBoundedTextCollector(
+    limits.maxVisibleTextChars, limits.maxTextCharsInspected);
   let truncated = false;
   let textVisitsRemaining = limits.maxTextNodesVisited;
   let domVisitsRemaining = limits.maxDomNodesVisited;
