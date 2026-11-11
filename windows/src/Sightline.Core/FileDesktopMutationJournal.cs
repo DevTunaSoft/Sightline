@@ -11,6 +11,7 @@ namespace Sightline.Core;
 /// </summary>
 public interface IDesktopMutationJournal
 {
+    bool HasPending { get; }
     bool TryBegin(SemanticSnapshot snapshot, SemanticAction action);
     bool TryCompleteVerified();
     void PreserveUnknown();
