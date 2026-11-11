@@ -55,8 +55,9 @@ public sealed class FileDesktopMutationJournal : IDesktopMutationJournal, IDispo
                     "sightline-mutation-v1",
                     "process=" + snapshot.ProcessId.ToString(CultureInfo.InvariantCulture),
                     "window=" + snapshot.WindowHandle.ToString(CultureInfo.InvariantCulture),
-                    "snapshot=" + SafeId(snapshot.SnapshotId, 80),
-                    "ref=" + SafeId(action.Ref, DesktopActionValidation.MaxRefChars),
+                    // Use a fresh record ID: even observed element labels,
+                    // snapshot identifiers and refs may contain private text.
+                    "record-id=" + Guid.NewGuid().ToString("N"),
                     "kind=" + action.Kind,
                     "timestamp=" + DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
                     "");
@@ -110,15 +111,4 @@ public sealed class FileDesktopMutationJournal : IDesktopMutationJournal, IDispo
 
     public void Dispose() => PreserveUnknown();
 
-    private static string SafeId(string? value, int maximum)
-    {
-        var source = value ?? "";
-        var builder = new StringBuilder(Math.Min(source.Length, maximum));
-        for (var index = 0; index < source.Length && builder.Length < maximum; index++)
-        {
-            var ch = source[index];
-            builder.Append(char.IsLetterOrDigit(ch) || ch is ':' or '-' or '_' or '@' ? ch : '_');
-        }
-        return builder.ToString();
-    }
 }
