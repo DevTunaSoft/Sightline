@@ -6,9 +6,20 @@ const DEFAULT_LIMITS = Object.freeze({
 });
 
 function nowMs(clock) { return Number(clock?.() ?? Date.now()); }
+// Keep only a fixed-size stall fingerprint, never a copy of typed text or
+// URLs. This is a progress heuristic (not an authorization or security hash).
 function actionKey(action) {
-  if (!action || typeof action !== 'object') return 'invalid';
-  return JSON.stringify({ action: action.action, ref: action.ref, url: action.url, key: action.key, value: action.value, text: action.text });
+  if (!action || typeof action !== 'object') return 0;
+  let hash = 2166136261;
+  for (const field of ['action', 'ref', 'url', 'key', 'value', 'text', 'expect', 'direction', 'amount', 'ms', 'replace']) {
+    const value = action[field];
+    const text = value === undefined ? '' : String(value);
+    hash = Math.imul(hash ^ text.length, 16777619);
+    for (let i = 0; i < text.length; i += 1)
+      hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+    hash = Math.imul(hash ^ 0xff, 16777619); // field boundary
+  }
+  return hash >>> 0;
 }
 
 export class TaskProgressGuard {
