@@ -167,7 +167,12 @@ export function hasSensitiveAssociatedLabel(element) {
     isContentEditable: element?.isContentEditable === true,
   };
   if (!isTextEntryField(meta)) return false;
-  const isSecret = text => isSensitiveField({ ...meta, ariaLabel: text });
+  // Reuse one short-lived metadata object rather than allocating a new copy
+  // for every linked label examined in the bounded loop.
+  const isSecret = text => {
+    meta.ariaLabel = text;
+    return isSensitiveField(meta);
+  };
 
   const ids = String(element?.getAttribute?.('aria-labelledby') || '');
   if (ids.length > 2048) return true;
