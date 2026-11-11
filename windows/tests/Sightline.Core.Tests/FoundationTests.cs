@@ -135,7 +135,7 @@ public sealed class FoundationTests
         Assert.False(receipt.Verified);
         Assert.Equal(SightlineErrorCode.UnknownEffect, receipt.ErrorCode);
         Assert.Null(receipt.Readback);
-        Assert.Contains("reconcile", receipt.Detail!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("reconcile", receipt.Detail!.ToLowerInvariant());
 
         var exported = System.Text.Json.JsonSerializer.Serialize(receipt);
         Assert.DoesNotContain(syntheticValue, exported);
