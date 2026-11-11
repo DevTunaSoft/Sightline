@@ -46,6 +46,14 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Confirmation checkpoint serialization | Implemented / tests added, **NOT RUN** | Review checkpoint must persist before approval is shown. |
 | Full crash recovery | **Incomplete / UNVERIFIED** | No automated effect reconciliation; installed-browser fault injection pending. |
 
+## Browser confirmation and Windows readback safety (2026-11-11)
+
+| Capability | Status | Notes |
+|---|---|---|
+| Browser single-use approvals | Implemented / 16 isolated regression checks PASS; full Node tests **NOT RUN** | Random 128-bit token, exact action/target/page binding, one pending ticket, five-minute use-time expiry; no background timers. Installed Chrome/Edge unverified. |
+| Browser action validation before confirmation | Implemented / isolated tests PASS; real browser **UNVERIFIED** | Reuses typed action protocol; oversized or invalid requests are denied before approval issuance and execution. |
+| Windows secret-free SetValue receipt | Implemented / tests added, **NOT RUN** | Internal readback compares exact requested value but never returns field contents. Mismatch is UnknownEffect, not a retry-safe failure. |
+
 ## Browser security and local-planner hardening (2026-11-11)
 
 | Capability | Status | Notes |
