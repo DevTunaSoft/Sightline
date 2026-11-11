@@ -72,6 +72,12 @@ Very large dropdowns are also limited. If the requested item is beyond the check
 
 **Very large control labels:** Sightline reads only a limited number of accessibility-label references from each button or field. If a website supplies an exceptionally long label or thousands of associated labels, Sightline may show an incomplete-observation warning and refuse a consequential action. Narrow the page or review the control manually instead of repeatedly approving an uncertain operation. This limit helps prevent large temporary memory allocations; actual Chrome/Edge RAM use still needs device testing.
 
+### Sensitive fields and safe browser actions
+
+Sightline is designed to refuse autonomous reading, typing, clicking or keyboard activation on password, one-time-code and payment-security fields. The current browser alpha checks more than just the visible field type: it also considers independent field IDs, autocomplete values, and accessible hints on text-entry controls. For example, a text field labelled **Enter password** is treated as sensitive even if its HTML type is not `password`. An ordinary **Show password** button is not automatically treated as a text-entry field.
+
+These safeguards are implemented and covered by targeted source tests, but custom websites and fields identified only by external labels still need installed-browser acceptance. Do not use Sightline to enter credentials or payment security codes automatically.
+
 ### Low-memory behavior in the current browser alpha
 
 Sightline keeps a limited set of webpage controls in memory and releases those references when the page observation changes. Pauses between actions do not require a continuously running background monitor. Repeated short waits clean up their cancellation listeners. These safeguards are present in source, but total memory usage still requires testing in installed Chrome and Edge.
