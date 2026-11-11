@@ -1,5 +1,18 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Bounded accessible-name extraction and reduced per-control allocations
+
+**Baseline audited:** Existing `develop` code already had a hard-bounded DOM/frame scan, text normalizer, select-option limit and observer regression suite. Issue #9 remains the audit tracker and PR #8 remains the only open PR. A distinct allocation defect remained in `extension/page-observer.js`: `aria-labelledby` used unbounded `split/map/join`, and the live `element.labels` collection was expanded with `[...labels]` before applying its short text limit. This could allocate large temporary arrays/strings while observing a webpage despite the final name being capped.
+
+**Implementation:** Commit `2085915` replaces both paths with incremental, bounded extraction: at most **16 referenced IDs** from the first **2,048 attribute characters**, or **16 indexed live labels**, and at most **4,096 source text characters** inspected per label aggregation. Ordinary short accessible names preserve their original output. Missing parts of a long name cause `snapshot.truncated = true` and end the current control scan so consequential actions cannot rely on an incomplete identity. The same fail-closed behavior applies to oversized aria/placeholder/title/fallback labels. Commit `eb69ec9` removes an unnecessary full control-descriptor spread/copy by sharing one tiny truncation-status object across the observation. No dependencies, event listeners, timers, worker, resident model or background polling were added.
+
+**Regression tests:** Commit `0ca5572` adds integrated observer cases for thousands of `aria-labelledby` tokens, million-entry synthetic live label collections (index reads capped at 16), huge individual labels, and ordinary short `labels`/`aria-labelledby` output. **PASS: 50/50 original and new observer-core, visibility and integrated-snapshot tests**, executed against the latest GitHub `develop` source using isolated JavaScript V8 with controlled DOM/URL shims. No failures in the final regression run. GitHub source and test file commits/readback were verified.
+
+**Limitations:** Full `npm run check` and installed Chrome/Edge acceptance remain **NOT RUN / UNVERIFIED**; direct git checkout still fails github.com DNS and the current container has no .NET SDK. An in-browser `textContent` getter can itself allocate within the browser; Sightline avoids additional unbounded aggregation and normalization but cannot promise a maximum browser heap from these unit checks. No real heap, CPU or scan-latency benchmark was executed. The deliberate safety tradeoff is that large accessible names now trigger incomplete observations rather than an action on a truncated label.
+
+**Next:** run exact-commit CI and installed-browser regression, benchmark heap/CPU for many labels and long mixed DOMs, and continue production Windows consent/reconciliation on a .NET-equipped machine. Maintain structured-first, bounded in-memory state and single authoritative handoff.
+
+
 ### 2026-11-11 — Bounded DOM read/verify and select-option scanning
 
 **Baseline:** Continued from the same audited `develop` browser observer/text-normalizer checkpoint. Inspected `extension/dom-action-adapter.js`, its existing tests, validation, registry and action-executor instead of duplicating read/verify functions.
