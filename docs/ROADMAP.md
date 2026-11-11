@@ -35,9 +35,9 @@ Next: moving-target/geometry protection and additional semantic patterns only as
 ## Phase 4 — Reliability and recovery
 Status: **PARTIAL**
 
-Implemented: process/window/snapshot identity binding and bounded UIA circuit breaker.
+Implemented: process/window/snapshot identity binding and bounded UIA circuit breaker. A single pending, write-through Windows mutation journal now fails closed when an action is not confirmed or a previous record remains; the file contains metadata only and the implementation has no resident worker.
 
-Next: checkpoints, idempotency, unknown-effect reconciliation, crash-loop protection, transactional file operations, Windows task resume/cancel/pause.
+Next: verify the .NET journal and WPF acceptance on Windows; add trusted persistent per-user journal provisioning, independent effect reconciliation and production single-use approvals. Complete broader checkpoints, crash-loop protection, transactional file operations, and Windows task resume/cancel/pause.
 
 ## Phase 5 — Deterministic Windows capabilities
 Status: **STARTED**
