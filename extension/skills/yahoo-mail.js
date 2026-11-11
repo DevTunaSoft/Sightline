@@ -140,9 +140,20 @@ export const yahooMailSkill = Object.freeze({
     return { applicable: true, verified, evidence: evidence.slice(0, 5), before: beforeHints, after: afterHints };
   },
   detectBlocker(snapshot) {
-    const text = String(snapshot?.visibleText || '').toLowerCase();
     const elements = Array.isArray(snapshot?.elements) ? snapshot.elements : [];
     const hasSensitive = elements.some(element => element?.sensitive === true);
+    let path = '';
+    try { path = new URL(snapshot?.url || '').pathname; } catch {}
+    // Mail bodies and subjects can quote arbitrary challenge phrases. They
+    // must never trigger MFA/CAPTCHA handoff while reading the mailbox.
+    const inMailbox = /^\/d(?:\/|$)/i.test(path);
+    const uiText = elements
+      .filter(element => ['textbox', 'combobox', 'dialog', 'alert', 'status'].includes(element?.role))
+      .slice(0, 30)
+      .map(element => String(element?.name || '').slice(0, 160))
+      .join(' ').toLowerCase();
+    const text = inMailbox ? uiText :
+      (uiText + ' ' + String(snapshot?.visibleText || '').slice(0, 2000)).toLowerCase();
     if (/captcha|prove you(?:'|’)re not a robot|verify you(?:'|’)re human/.test(text)) {
       return { code: 'CAPTCHA_REQUIRED', reason: 'Yahoo is requesting a human verification challenge.' };
     }
