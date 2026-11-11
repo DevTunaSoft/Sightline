@@ -262,3 +262,51 @@ test('complete short DOM text remains readable and verifiable', async () => {
   assert.equal(verify.ok,true);
   assert.equal(verify.matched,true);
 });
+
+test('large select options cannot cause an unbounded allocation or full scan', async () => {
+  let inspected=0;
+  const options=new Proxy({length:100000}, {
+    get(target,key) {
+      if (key==='length') return target.length;
+      if (/^\d+$/.test(String(key))) {
+        inspected++;
+        return {value:'option-'+key};
+      }
+    },
+  });
+  const element=fakeElement({tagName:'SELECT',options,value:'initial'});
+  const result=await executeValidatedAction(
+    {action:'select',ref:'@e1',value:'option-90000'},setup(element));
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'OPTION_SCOPE_UNVERIFIED');
+  assert.equal(inspected,2048);
+  assert.equal(element.value,'initial');
+});
+
+test('select can use an early verified option in a large live collection', async () => {
+  let inspected=0;
+  const options=new Proxy({length:100000}, {
+    get(target,key) {
+      if (key==='length') return target.length;
+      if (/^\d+$/.test(String(key))) {
+        inspected++;
+        return {value:key==='3'?'desired':'another'};
+      }
+    },
+  });
+  const element=fakeElement({tagName:'SELECT',options,value:''});
+  const result=await executeValidatedAction(
+    {action:'select',ref:'@e1',value:'desired'},setup(element));
+  assert.equal(result.ok,true);
+  assert.equal(result.value,'desired');
+  assert.equal(inspected,4);
+});
+
+test('select fails closed when no options are available', async () => {
+  const element=fakeElement({tagName:'SELECT',options:[],value:'unchanged'});
+  const result=await executeValidatedAction(
+    {action:'select',ref:'@e1',value:'missing'},setup(element));
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'OPTION_NOT_FOUND');
+  assert.equal(element.value,'unchanged');
+});
