@@ -136,3 +136,15 @@ test('sensitive uncheck never triggers a click', async () => {
   assert.equal(result.code,'SENSITIVE_FIELD');
   assert.equal(el.clicked,undefined);
 });
+
+test('verify receipts contain only a verdict and never echo the expectation text', async () => {
+  const secret='synthetic-sensitive-canary-007';
+  const element=fakeElement({tagName:'DIV',textContent:'Result: '+secret});
+  const result=await executeValidatedAction(
+    {action:'verify',ref:'@e1',expect:secret},
+    setup(element));
+  assert.equal(result.ok,true);
+  assert.equal(result.matched,true);
+  assert.equal(Object.hasOwn(result,'expectation'),false);
+  assert.doesNotMatch(JSON.stringify(result),/synthetic-sensitive-canary-007/);
+});
