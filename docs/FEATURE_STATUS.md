@@ -46,6 +46,16 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Confirmation checkpoint serialization | Implemented / tests added, **NOT RUN** | Review checkpoint must persist before approval is shown. |
 | Full crash recovery | **Incomplete / UNVERIFIED** | No automated effect reconciliation; installed-browser fault injection pending. |
 
+## Browser memory and post-action safety (2026-11-11)
+
+| Capability | Status | Evidence and limitation |
+|---|---|---|
+| Wait listener/timer cleanup | Implemented / isolated tests **PASS**, Chrome/Edge **UNVERIFIED** | 120 consecutive zero-delay waits retained no abort listeners after completion; cancelled wait also removed its listener. No background polling. |
+| Browser DOM reference hard ceiling | Implemented / isolated tests **PASS**, installed-browser **UNVERIFIED** | Capped at 300 references even with Infinity/oversized constructor inputs; map cleared on snapshot replacement. |
+| Small task-stall fingerprint | Implemented / isolated tests **PASS**, heap profiling **NOT RUN** | Replaces long retained JSON action keys with one numeric fingerprint; no typed text/URL retained in progress guard. |
+| Post-dispatch unknown-effect classification | Implemented / isolated integration test **PASS**, real workflows **UNVERIFIED** | Mutation exceptions or cancellation after adapter dispatch report `UNKNOWN_EFFECT`, with sanitized message and crash replay blocked by checkpoint. |
+| Complete Node/Chrome/Edge RAM and regression verification | **NOT RUN / BLOCKED** | Container has Node 22 but GitHub clone fails DNS; GitHub connector enables commits and isolated test execution only. No production RAM percentage claimed. |
+
 ## Browser confirmation and Windows readback safety (2026-11-11)
 
 | Capability | Status | Notes |
