@@ -43,3 +43,10 @@ test('registry drops old DOM object references on snapshot replacement and clear
   registry.clear();
   assert.equal(registry.refs.size,0);
 });
+
+test('null and zero registry configuration preserve the original default cap', () => {
+  assert.equal(new RefRegistry(0).maxRefs,300);
+  assert.equal(new RefRegistry(null).maxRefs,300);
+  assert.equal(new RefRegistry(undefined).maxRefs,300);
+  assert.equal(new RefRegistry(-5).maxRefs,1);
+});
