@@ -62,6 +62,10 @@ Text inside webpages and emails is treated as untrusted data, not instructions. 
 
 **Autonomous** allows bounded multi-step execution but does not bypass safety gates.
 
+### Low-memory behavior in the current browser alpha
+
+Sightline keeps a limited set of webpage controls in memory and releases those references when the page observation changes. Pauses between actions do not require a continuously running background monitor. Repeated short waits clean up their cancellation listeners. These safeguards are present in source, but total memory usage still requires testing in installed Chrome and Edge.
+
 ## Pause and Cancel
 
 **Pause** stops execution while retaining a sanitized session checkpoint.
@@ -72,7 +76,7 @@ Typed text, screenshots, and credentials are not intended to be stored in the br
 
 ### Unknown action result and crash recovery
 
-If Sightline reports **ACTION_RECONCILIATION_REQUIRED**, an earlier browser operation may already have changed the website before an interruption. Sightline refuses to repeat the action automatically. Inspect the site's current state yourself (for example, whether a message was moved, sent, or deleted), then use **Cancel** to close the previous checkpoint before creating a new task. An error does **not** prove that the prior action had no effect.
+If Sightline reports **ACTION_RECONCILIATION_REQUIRED**, an earlier browser operation may already have changed the website before an interruption. Sightline refuses to repeat the action automatically. Inspect the site's current state yourself (for example, whether a message was moved, sent, or deleted), then use **Cancel** to close the previous checkpoint before creating a new task. An error does **not** prove that the prior action had no effect. This also applies when a click, send, field edit, or navigation is interrupted after it begins: Sightline treats the result as unknown instead of automatically performing it again.
 
 If Sightline cannot save a safety checkpoint, it blocks the next action rather than running without recovery evidence. The safeguards are committed as experimental code but **not yet verified in installed Chrome/Edge**.
 
