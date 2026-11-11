@@ -88,3 +88,21 @@ test('Yahoo pagination or route changes cannot certify deletion', () => {
   assert.equal(result.verified,null);
   assert.deepEqual(result.evidence,[]);
 });
+
+test('Yahoo select-all cannot authorize bulk Trash even on a search results route', () => {
+  const result=yahooMailSkill.checkDestructiveScope({
+    goal:'Move matching mail to Trash',
+    action:{action:'click',ref:'@e5'},
+    target:{name:'Move selected messages to Trash'},
+    snapshot:{
+      url:'https://mail.yahoo.com/d/search?q=receipts',
+      visibleText:'Showing 1-50 of 300',
+      elements:[
+        {ref:'@e1',role:'textbox',name:'Search mail'},
+        {ref:'@e2',role:'checkbox',name:'Select all messages',state:{checked:true}},
+      ],
+    },
+  });
+  assert.equal(result.allowed,false);
+  assert.equal(result.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
+});
