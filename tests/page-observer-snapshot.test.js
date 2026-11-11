@@ -170,3 +170,68 @@ test('oversized text budgets cannot override the hard per-page ceiling', () => {
   assert.equal(snapshot.truncated, true);
   assert.equal(snapshot.visibleText, '');
 });
+
+test('oversized aria-labelledby references are scanned without split/map/join expansion', () => {
+  const control = button();
+  const ids = Array.from({ length: 5000 }, (_, i) => 'id' + i).join(' ');
+  let resolved = 0;
+  control.getAttribute = key => key === 'aria-labelledby' ? ids : null;
+  const doc = fakeDocument('https://example.com/', [control]);
+  doc.getElementById = () => { resolved++; return { textContent: 'Send' }; };
+  const snapshot = withPage(doc, () => buildPageSnapshot());
+  assert.equal(snapshot.truncated, true);
+  assert.ok(resolved <= 16);
+  assert.equal(snapshot.elements.length, 1);
+  assert.ok(snapshot.elements[0].name.length <= 240);
+  assert.equal(snapshot.elements[0].incompleteLabel, undefined);
+});
+
+test('large live labels collection is read by index with a strict cap', () => {
+  const control = button();
+  let reads = 0;
+  control.labels = new Proxy({ length: 1000000 }, {
+    get(target, key) {
+      if (key === 'length') return target.length;
+      if (/^\d+$/.test(String(key))) {
+        reads++;
+        return { textContent: 'Button label' };
+      }
+      return undefined;
+    },
+  });
+  const snapshot = withPage(fakeDocument('https://example.com/', [control]),
+    () => buildPageSnapshot());
+  assert.equal(snapshot.truncated, true);
+  assert.equal(snapshot.elements.length, 1);
+  assert.ok(reads <= 16);
+  assert.ok(snapshot.elements[0].name.length <= 240);
+});
+
+test('ordinary short accessible labels remain complete and readable', () => {
+  const control = button();
+  control.labels = [{ textContent: 'Save' }, { textContent: 'draft' }];
+  const snapshot = withPage(fakeDocument('https://example.com/', [control]),
+    () => buildPageSnapshot());
+  assert.equal(snapshot.truncated, false);
+  assert.equal(snapshot.elements[0].name, 'Save draft');
+});
+
+test('long individual label text triggers partial-observation protection', () => {
+  const control = button();
+  control.labels = [{ textContent: 'X'.repeat(100000) }];
+  const snapshot = withPage(fakeDocument('https://example.com/', [control]),
+    () => buildPageSnapshot());
+  assert.equal(snapshot.truncated, true);
+  assert.equal(snapshot.elements[0].name.length, 240);
+});
+
+test('short aria-labelledby references preserve accessible naming', () => {
+  const control = button();
+  control.getAttribute = key => key === 'aria-labelledby' ? 'first second' : null;
+  const doc = fakeDocument('https://example.com/', [control]);
+  const values = { first: 'Delete', second: 'draft' };
+  doc.getElementById = id => ({ textContent: values[id] || '' });
+  const snapshot = withPage(doc, () => buildPageSnapshot());
+  assert.equal(snapshot.truncated, false);
+  assert.equal(snapshot.elements[0].name, 'Delete draft');
+});
