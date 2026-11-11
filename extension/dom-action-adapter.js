@@ -163,10 +163,26 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     },
     async wait(action, { signal } = {}) {
       if (signal?.aborted) return { ok: false, code: 'ABORTED' };
-      await new Promise((resolveWait, reject) => {
-        const timer = setTimeout(resolveWait, action.ms);
-        signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }, { once: true });
-      });
+      let timer;
+      let onAbort;
+      try {
+        await new Promise((resolveWait, reject) => {
+          onAbort = () => {
+            clearTimeout(timer);
+            reject(new DOMException('Aborted', 'AbortError'));
+          };
+          timer = setTimeout(resolveWait, action.ms);
+          signal?.addEventListener('abort', onAbort, { once: true });
+          // Close the race between the initial check and listener registration.
+          if (signal?.aborted) onAbort();
+        });
+      } catch (error) {
+        if (signal?.aborted) return { ok: false, code: 'ABORTED' };
+        throw error;
+      } finally {
+        clearTimeout(timer);
+        if (onAbort) signal?.removeEventListener('abort', onAbort);
+      }
       return { ok: true, waitedMs: action.ms };
     },
     async verify(action) {
