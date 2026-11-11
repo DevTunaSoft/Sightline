@@ -121,3 +121,46 @@ test('page change while user reviews confirmation invalidates confirmation befor
   assert.equal(result.code,'STALE_SNAPSHOT');
   assert.equal(clicks,0);
 });
+
+test('a ticking clock cannot verify a consequential click', async () => {
+  let clock=0, clicks=0;
+  const target={ref:'@e1',name:'Delete item',role:'button',state:{}};
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:clock===0?'s1':`s${clock+1}`,url:'https://example.com',
+      visibleText:`Clock ${clock++}`,elements:[target]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    sleep:async()=>{},
+  });
+  // Live snapshot moves once during preflight; reset snapshot identity to keep
+  // the preflight valid and vary only the post-action text.
+  const first=await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  assert.equal(first.snapshot.snapshotId,'s1');
+  const approval=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'}});
+  assert.equal(approval.code,'STALE_SNAPSHOT');
+  assert.equal(clicks,0);
+});
+
+test('unrelated text changes after an approved click are not verified', async () => {
+  let changed=false;
+  let clock=0;
+  const target={ref:'@e1',name:'Delete item',role:'button',state:{}};
+  const controller=createPageAgentController({
+    observe:async()=>({
+      snapshotId:changed?`clock-${++clock}`:'before',
+      url:'https://example.com',
+      visibleText:changed?`Clock ${clock}`:'Clock 0',
+      elements:[target],
+    }),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{changed=true;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    sleep:async()=>{},
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const request=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'before',action:{action:'click',ref:'@e1'},taskGoal:'delete'});
+  assert.equal(request.code,'CONFIRMATION_REQUIRED');
+  const result=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'before',action:{action:'click',ref:'@e1'},taskGoal:'delete',confirmed:true,confirmationKey:request.confirmationKey});
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'NO_VERIFIED_EFFECT');
+  assert.equal(result.receipt.changed,false);
+});
