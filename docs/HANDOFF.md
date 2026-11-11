@@ -1,5 +1,18 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — One-use Windows approval foundation (minimal memory)
+
+**Audited baseline:** `develop`; existing Windows action executor, approval interface, journal, disposable WPF acceptance runner, security audit issue #9 and open PR #8. The existing yes/no `IDesktopActionApproval` interface and durable journal were preserved; no new branch, competing PR, dependency, polling, thread or background process.
+
+**Implemented:** `windows/src/Sightline.Core/OneShotDesktopActionApproval.cs` (commit `eb18487`, hardening `123dcde`) stores at most one pending 32-byte SHA-256 fingerprint and issue/expiry timestamps. A *trusted host UI* must call `ArmAfterUserConfirmation` for the exact action; `IsApproved` consumes a matching fingerprint before UIA mutation. Hash binds snapshot ID, process/window, capture time, selected control's name/ref/automation ID/type/depth, action kind and requested value. The value is hashed transiently, never retained in raw form; temporary UTF-8 buffers are zeroed. A single lock prevents double consumption. No timers/polling or caches. Expiry is checked on use (two minutes default; max five), with fail-closed behavior on backwards wall-clock changes or clock exceptions. Invalid/truncated/duplicate/disabled targets are denied. Revocation explicitly zeroes the stored digest.
+
+**Tests authored:** `windows/tests/Sightline.Core.Tests/OneShotDesktopActionApprovalTests.cs` (commits `6345461`, `f0531d0`) adds 11 targeted XUnit tests: default-deny/single-use, expiry, action/window/snapshot/target drift, typed-value binding, truncated/duplicate/disabled targets, invalid-action ticket replacement, concurrent consumption, permitted expiry range, manual revocation, backward clock movement and clock exceptions. `windows/tests/Sightline.Windows.Acceptance/Program.cs` (`ab8eff7`) now uses this primitive and verifies consumption for SetValue and Invoke in its disposable WPF fixture. This harness is test-only and does not substitute for a production consent screen.
+
+**Verification:** PASS — GitHub commits and source readback. **NOT RUN** — current .NET build/XUnit, WPF interactive acceptance, runtime allocation profiling. Local container has Node 22 but lacks `dotnet`; direct GitHub git checkout fails DNS. The existing `.github/workflows/ci.yml` already triggers `develop` pushes and contains Windows restore/build/XUnit jobs; no duplicate CI workflow was created. Latest CI status must be verified separately; previously available commit status and PR-associated workflow lookups did not return results. **UNVERIFIED** — Windows on-device correctness, end-user consent UI, user-space memory ceiling and permission behavior.
+
+**Remaining priority:** Confirm real Windows CI build/test results; fix any compiler or test failures; implement the actual trusted production confirmation GUI and stable journal provisioning; test interrupted action/restart reconciliation and target identity under real Windows UIA. No claim that the new one-use primitive constitutes complete product authorization.
+
+
 ### 2026-11-11 — Durable Windows mutation recovery foundation (pre-production)
 
 **Baseline/reconciliation:** Audited live `develop`, core and Windows action executors, session wiring, acceptance runner, issue #9 and open PR #8 before editing. Browser write-ahead checkpoints already existed and were preserved. There is no duplicate Windows journal, branch, PR, dependency, polling task or new resident service.
