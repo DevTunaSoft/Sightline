@@ -1,6 +1,6 @@
 # Sightline Feature Status
 
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
 Status language: **Implemented**, **Automated-test verified**, **Real-machine verified**, **Production accepted**.
 
@@ -42,6 +42,16 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Unknown-effect replay prevention | Implemented / tests added, **NOT RUN** | Restored unknown/unverified effects block replanning; manual reconciliation still required. |
 | Confirmation checkpoint serialization | Implemented / tests added, **NOT RUN** | Review checkpoint must persist before approval is shown. |
 | Full crash recovery | **Incomplete / UNVERIFIED** | No automated effect reconciliation; installed-browser fault injection pending. |
+
+## Browser security and local-planner hardening (2026-11-11)
+
+| Capability | Status | Notes |
+|---|---|---|
+| Yahoo challenge identification from UI controls | Implemented / isolated checks PASS; full Node suite **NOT RUN** | Avoids treating quoted MFA/CAPTCHA email text as a real challenge; live Yahoo markup UNVERIFIED. |
+| Yahoo selected-all Trash guard | Implemented / isolated checks PASS; installed browser **UNVERIFIED** | Refuses select-all bulk Trash until stable message identities and exact scope can be verified. |
+| Conservative local planner context | Implemented / isolated checks PASS; real Ollama **UNVERIFIED** | 11k presented snapshot chars, 2k page-text chars, 18k message chars, 6.4k heuristic token ceiling for an 8,192-token configuration. Not a tokenizer guarantee. |
+| Hidden planner refs / secret-bearing action history | Implemented / isolated checks PASS; installed browser **UNVERIFIED** | Validates model actions against only shown refs and omits typed data/URLs from action history. |
+| Bounded invalid-output repair | Implemented / isolated checks PASS; real Ollama **UNVERIFIED** | One bounded retry can include up to 500 chars of rejected model output, followed by trusted guardrails. |
 
 ## Browser core
 
