@@ -1,5 +1,14 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Windows UIA identity, focus, traversal hardening
+
+**Baseline:** `develop`, open audit issue #9, PR #8 inspected. Original locator resolution matched AutomationId without also checking a supplied observed Name; this could select the wrong identically typed control after a UI change. Code commits `e9a713b`, `690d1d9`, `af76d53` now bind all available observed locator fields (ControlType, AutomationId and Name), reject locators with no usable name or ID, and preserve uniqueness and bounded scan requirements. `dc5ca44` adds a sensitive-field pre-attach and live `IsPassword`/metadata recheck before keyboard focus, with no accidental focus on secrets. Tests `fe39d0c` cover name/ID/type drift, unidentifiable actions and sensitive focus. A preexisting test fixture using an invalid Invoke payload was corrected in `31b5521`, so it exercises the intended sensitive check.
+
+**Traversal (#24):** `a38155e` changes `BoundedTraversal` so a leaf found exactly at maximum depth does not falsely report truncation; a bounded first-child existence probe preserves fail-closed truncation when hidden descendants exist. Unit tests `bbfe599` cover true leaf and hidden-child behavior.
+
+**Verification:** PASS — GitHub commits and file readbacks for each changed source/test. **NOT RUN** — exact-source .NET build and XUnit suites; local environment has no `dotnet` executable and cannot clone github.com (DNS). Windows live UIA/focus acceptance **UNVERIFIED**. Locator metadata matching is a partial safety improvement, **not RuntimeId/path/geometry identity binding**; visually identical controls can still swap under a snapshot and require stronger runtime identity evidence before production approval. No evidence of CPU/RAM changes or real device acceptance yet. Do not close audit #7/#8/#24.
+
+
 ### 2026-11-11 — Follow-up hardening: multilingual prompt ceiling and Yahoo select-all scope
 
 **Baseline:** same `develop` branch, existing audit #9 and open Windows PR #8. No new PR or branch, no duplicate implementation.
