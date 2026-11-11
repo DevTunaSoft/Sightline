@@ -48,6 +48,12 @@ Sightline currently supports a local Ollama endpoint.
 
 Do not use a wildcard extension origin unless you intentionally want every installed extension to contact Ollama.
 
+### Large pages and local-model context limits
+
+Sightline sends a **bounded, simplified description of the webpage** to local Ollama instead of the entire page. If a page is very large, some controls may not be included in what the model sees. The model is not allowed to act on controls omitted from its view. If you see **Planner prompt exceeds conservative local context budget**, narrow the page using the site's search or filter controls and start again. Do not repeatedly retry a destructive task after an uncertain action.
+
+Text inside webpages and emails is treated as untrusted data, not instructions. These are experimental safeguards; compatibility with every local model and language has not been verified.
+
 ## Browser task modes
 
 **Observe** explains what Sightline sees without changing the page.
@@ -83,6 +89,8 @@ Use **Yahoo readiness** before a real Yahoo task. It is read-only.
 Sightline is designed to stop for login, MFA, CAPTCHA, account recovery, or security challenges and let you handle them directly.
 
 Permanent deletion remains more restricted than moving mail to Trash.
+
+**Select all is currently restricted:** Sightline refuses bulk Trash when Yahoo's Select all checkbox is active because it cannot yet prove which messages, including results beyond the visible page, would be affected. This remains blocked even on a search page until verified message identities are supported.
 
 **Important current alpha limitation:** Moving Yahoo messages to Trash can change the mail account even when Sightline reports **NO_VERIFIED_EFFECT** or **ACTION_RECONCILIATION_REQUIRED**. Pagination, disappearing preview rows, and text from an email are not sufficient to prove the intended messages moved. Sightline deliberately stops instead of automatically retrying an uncertain bulk action. Before taking another action, personally check the exact messages in the search results and in Trash. Do not repeatedly approve or rerun the same move until the earlier result is reconciled. The browser skill's stronger verification has not been accepted on a real Yahoo account.
 
@@ -127,4 +135,13 @@ The Windows foundation now records bounded, sanitized structured UIA diagnostics
 ## Current warning
 
 Sightline is still pre-production. Do not use it for irreversible production workflows until the corresponding real-machine release gates have evidence.
-\n### Interactive Windows engineering acceptance\n\nOn a real interactive Windows development machine, the controlled WPF vertical-slice can be exercised with:\n\n```powershell\n.\\tools\\test-windows.ps1 -Interactive\n```\n\nThis is intended for development acceptance only. It does not automate arbitrary desktop applications yet.\n
+
+### Interactive Windows engineering acceptance
+
+On a real interactive Windows development machine, the controlled WPF vertical slice can be exercised with:
+
+```powershell
+.\tools\test-windows.ps1 -Interactive
+```
+
+This is intended for development acceptance only. It does not automate arbitrary desktop applications yet.
