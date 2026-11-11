@@ -70,6 +70,8 @@ When Sightline reads a webpage element, it examines only a bounded amount of tex
 
 Very large dropdowns are also limited. If the requested item is beyond the checked portion, Sightline reports **OPTION_SCOPE_UNVERIFIED** rather than searching every option or selecting an unverified value. Selecting a different, smaller set of choices on the website may resolve this. These changes have targeted automated test evidence but have not yet been accepted in installed Chrome or Edge.
 
+**Very large control labels:** Sightline reads only a limited number of accessibility-label references from each button or field. If a website supplies an exceptionally long label or thousands of associated labels, Sightline may show an incomplete-observation warning and refuse a consequential action. Narrow the page or review the control manually instead of repeatedly approving an uncertain operation. This limit helps prevent large temporary memory allocations; actual Chrome/Edge RAM use still needs device testing.
+
 ### Low-memory behavior in the current browser alpha
 
 Sightline keeps a limited set of webpage controls in memory and releases those references when the page observation changes. Pauses between actions do not require a continuously running background monitor. Repeated short waits clean up their cancellation listeners. These safeguards are present in source, but total memory usage still requires testing in installed Chrome and Edge.
