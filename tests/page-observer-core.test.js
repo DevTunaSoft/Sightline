@@ -236,3 +236,11 @@ test('section-prefixed autocomplete and editable accessibility hints detect secr
 test('oversized autocomplete fails closed with bounded scan work', () => {
   assert.equal(isSensitiveField({ tagName: 'INPUT', autocomplete: 'x'.repeat(100000) }), true);
 });
+
+test('credential metadata beyond inspection limits is denied rather than ignored', () => {
+  assert.equal(isSensitiveField({tagName:'INPUT',type:'text',name:'x'.repeat(300)+'Password'}),true);
+  assert.equal(isSensitiveField({tagName:'INPUT',type:'text',id:'x'.repeat(300)+'_pin'}),true);
+  assert.equal(isSensitiveField({tagName:'INPUT',type:'text',placeholder:'x'.repeat(300)}),true);
+  assert.equal(isSensitiveField({tagName:'INPUT',type:'text',ariaLabel:'x'.repeat(300)}),true);
+  assert.equal(isSensitiveField({tagName:'BUTTON',ariaLabel:'x'.repeat(300)}),false);
+});
