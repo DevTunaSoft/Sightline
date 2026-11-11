@@ -92,6 +92,16 @@ The browser observer now discovers embedded frames with the same lazy DOM-walk p
 
 **Executed:** 35/35 targeted observer-core/visibility/integrated snapshot tests PASS in isolated V8. **NOT RUN:** full Node `npm run check`, installed Chrome/Edge behavior, heap/CPU profiling, and Windows .NET tests. Lower peak collection allocation is the design goal, not a verified RAM benchmark. Next: full CI acceptance and controlled real-browser scan-latency/memory comparisons, then production Windows consent and recovery UX.
 
+## 2026-11-11 — Strict per-observation text processing budgets
+
+The observer previously normalized an entire text node with regular expressions before applying its short output cap. Oversized webpages could therefore create large temporary strings even though the stored snapshot was small.
+
+The shared normalizer now limits examined input to **32,768 UTF-16 units per value**, and the text collector enforces a **65,536-unit aggregate scan budget per page observation**, with an **8,000-character maximum retained text**. Work stops when the shared budget is exhausted; the snapshot is marked partial to prevent acting on unobserved content. No additional dependencies, services, polling or unbounded caches.
+
+**Executed:** 45/45 current GitHub observer test cases PASS in an isolated V8 harness, including Unicode equivalence, deterministic fuzz tests, huge inputs, aggregate budget exhaustion and fake-DOM snapshot regressions. **NOT RUN:** full `npm run check`, installed Chrome/Edge memory/CPU profiling and Windows .NET acceptance. Lower transient allocation is expected from the algorithm but **not yet measured**.
+
+**Next gate:** Run full CI and Chrome/Edge controlled long-page stress tests, compare peak retained heap, scan latency, and idle CPU against the previous commit; resolve any real-device incompatibility before declaring production acceptance.
+
 ## Resource policy
 
 Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
