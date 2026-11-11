@@ -189,3 +189,76 @@ test('aborting a wait cancels its timer and removes the listener', async () => {
   assert.equal(adds,1);
   assert.equal(removes,1);
 });
+
+test('read and verify reject oversized text instead of returning a misleading success', async () => {
+  const element=fakeElement({tagName:'DIV', textContent:'ready '+ 'x'.repeat(20000)});
+  const adapter=setup(element);
+  const read=await executeValidatedAction({action:'read',ref:'@e1'},adapter);
+  assert.equal(read.ok,false);
+  assert.equal(read.code,'INCOMPLETE_OBSERVATION');
+  assert.ok(read.text.length<=4000);
+  const verify=await executeValidatedAction({action:'verify',ref:'@e1',expect:'ready'},adapter);
+  assert.equal(verify.ok,false);
+  assert.equal(verify.matched,false);
+  assert.equal(verify.code,'INCOMPLETE_OBSERVATION');
+});
+
+test('read-only tree walk stops at a bounded number of text nodes', async () => {
+  let nextCalls=0;
+  const doc={
+    defaultView:{NodeFilter:{SHOW_TEXT:4}},
+    createTreeWalker:()=>({nextNode(){
+      nextCalls++;
+      return nextCalls<=20000 ? {
+        nodeValue:' ',parentElement:{closest:()=>null},
+      } : null;
+    }}),
+  };
+  const element=fakeElement({tagName:'DIV',ownerDocument:doc});
+  const result=await executeValidatedAction({action:'read',ref:'@e1'},setup(element));
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'INCOMPLETE_OBSERVATION');
+  assert.ok(nextCalls<=6001);
+});
+
+test('text source scan exhaustion also stops DOM reads early', async () => {
+  let nextCalls=0;
+  const doc={
+    defaultView:{NodeFilter:{SHOW_TEXT:4}},
+    createTreeWalker:()=>({nextNode(){
+      nextCalls++;
+      return {
+        nodeValue:' '.repeat(100000),
+        parentElement:{closest:()=>null},
+      };
+    }}),
+  };
+  const result=await executeValidatedAction(
+    {action:'read',ref:'@e1'},
+    setup(fakeElement({tagName:'DIV',ownerDocument:doc})));
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'INCOMPLETE_OBSERVATION');
+  assert.ok(nextCalls<=4);
+});
+
+test('complete short DOM text remains readable and verifiable', async () => {
+  let offset=0;
+  const doc={
+    defaultView:{NodeFilter:{SHOW_TEXT:4}},
+    createTreeWalker:()=>{
+      offset=0;
+      const nodes=['Welcome','back'].map(value=>({
+        nodeValue:value,parentElement:{closest:()=>null},
+      }));
+      return {nextNode:()=>nodes[offset++]||null};
+    },
+  };
+  const adapter=setup(fakeElement({tagName:'DIV',ownerDocument:doc}));
+  const read=await executeValidatedAction({action:'read',ref:'@e1'},adapter);
+  assert.equal(read.ok,true);
+  assert.equal(read.text,'Welcome back');
+  const verify=await executeValidatedAction(
+    {action:'verify',ref:'@e1',expect:'welcome back'},adapter);
+  assert.equal(verify.ok,true);
+  assert.equal(verify.matched,true);
+});
