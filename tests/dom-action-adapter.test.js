@@ -310,3 +310,45 @@ test('select fails closed when no options are available', async () => {
   assert.equal(result.code,'OPTION_NOT_FOUND');
   assert.equal(element.value,'unchanged');
 });
+
+test('adapter refuses name-masked credential identifiers before any side effect', async () => {
+  const el=fakeElement({
+    tagName:'INPUT',attrs:{type:'text',name:'notes',id:'new_password'},
+    value:'synthetic-private-value',textContent:'synthetic-private-value',
+  });
+  const adapter=setup(el);
+  const actions=[
+    {action:'read',ref:'@e1'}, {action:'verify',ref:'@e1',expect:'synthetic'},
+    {action:'click',ref:'@e1'}, {action:'type',ref:'@e1',text:'x'},
+    {action:'clear',ref:'@e1'}, {action:'pressKey',key:'Enter'},
+  ];
+  for(const action of actions){
+    const result=await executeValidatedAction(action,adapter);
+    assert.equal(result.ok,false,action.action);
+    assert.equal(result.code,'SENSITIVE_FIELD',action.action);
+  }
+  assert.equal(el.value,'synthetic-private-value');
+  assert.equal(el.clicked,undefined);
+  assert.equal(el.focused,undefined);
+});
+
+test('adapter protects ordinary text inputs marked sensitive only by accessible hints', async () => {
+  for (const attrs of [
+    {type:'text','aria-label':'Enter password'},
+    {type:'text',placeholder:'Security code'},
+    {type:'text',autocomplete:'section-login current-password'},
+  ]) {
+    const el=fakeElement({tagName:'INPUT',attrs,value:'safe-old-value'});
+    const result=await executeValidatedAction({action:'type',ref:'@e1',text:'new'},setup(el));
+    assert.equal(result.code,'SENSITIVE_FIELD');
+    assert.equal(el.value,'safe-old-value');
+    assert.equal(el.focused,undefined);
+  }
+});
+
+test('noneditable show-password button is not wrongly treated as a secret field', async () => {
+  const el=fakeElement({tagName:'BUTTON',attrs:{'aria-label':'Show password'}});
+  const result=await executeValidatedAction({action:'click',ref:'@e1'},setup(el));
+  assert.equal(result.ok,true);
+  assert.equal(el.clicked,1);
+});
