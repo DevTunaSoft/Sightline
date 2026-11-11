@@ -235,3 +235,37 @@ test('short aria-labelledby references preserve accessible naming', () => {
   assert.equal(snapshot.truncated, false);
   assert.equal(snapshot.elements[0].name, 'Delete draft');
 });
+
+test('observation redacts credentials even when the innocent name masks a password id', () => {
+  const el={
+    tagName:'INPUT',type:'text',value:'synthetic-secret-305',
+    getAttribute:key=>({type:'text',name:'notes',id:'account_password',
+      'aria-label':'Notes field'})[key]??null,
+    matches:()=>true,
+  };
+  const snapshot=withPage(fakeDocument('https://example.com/',[el]),
+    ()=>buildPageSnapshot());
+  assert.equal(snapshot.elements.length,1);
+  assert.equal(snapshot.elements[0].sensitive,true);
+  assert.equal(snapshot.elements[0].name,'[REDACTED SENSITIVE FIELD]');
+  assert.equal(Object.hasOwn(snapshot.elements[0].state,'valueLength'),false);
+  assert.doesNotMatch(JSON.stringify(snapshot),/synthetic-secret-305/);
+});
+
+test('editable password hint is redacted but show-password button remains available', () => {
+  const input={
+    tagName:'INPUT',value:'synthetic-secret-306',
+    getAttribute:key=>({type:'text','aria-label':'Enter password'})[key]??null,
+    matches:()=>true,
+  };
+  const show={
+    tagName:'BUTTON',
+    getAttribute:key=>key==='aria-label'?'Show password':null,
+  };
+  const snapshot=withPage(fakeDocument('https://example.com/',[input,show]),
+    ()=>buildPageSnapshot());
+  assert.equal(snapshot.elements.length,2);
+  assert.equal(snapshot.elements[0].sensitive,true);
+  assert.equal(snapshot.elements[1].sensitive,false);
+  assert.equal(snapshot.elements[1].name,'Show password');
+});
