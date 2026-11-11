@@ -149,6 +149,46 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public void Accepted_but_unverified_Invoke_cannot_be_reported_as_success()
+    {
+        var providerReceipt = new ActionReceipt(
+            Ok: true, ErrorCode: null, Verified: false,
+            Detail: "Provider returned without error.");
+        var receipt = DesktopMutationOutcome.RequireVerifiedEffect(providerReceipt);
+
+        Assert.False(receipt.Ok);
+        Assert.False(receipt.Verified);
+        Assert.Equal(SightlineErrorCode.UnknownEffect, receipt.ErrorCode);
+        Assert.Null(receipt.Readback);
+        Assert.Contains("reconcile", receipt.Detail!.ToLowerInvariant());
+    }
+
+    [Fact]
+    public void Unverified_outcome_does_not_echo_provider_private_text()
+    {
+        const string canary = "synthetic-application-field-secret-1201";
+        var providerReceipt = new ActionReceipt(
+            Ok: false, ErrorCode: SightlineErrorCode.VerificationFailed,
+            Verified: false, Readback: canary, Detail: canary);
+        var receipt = DesktopMutationOutcome.RequireVerifiedEffect(providerReceipt);
+        Assert.Equal(SightlineErrorCode.UnknownEffect, receipt.ErrorCode);
+        Assert.DoesNotContain(canary, System.Text.Json.JsonSerializer.Serialize(receipt));
+    }
+
+    [Fact]
+    public void Verified_outcome_remains_successful_but_never_exposes_readback()
+    {
+        const string canary = "synthetic-application-field-secret-1202";
+        var providerReceipt = new ActionReceipt(
+            Ok: true, ErrorCode: null, Verified: true, Readback: canary);
+        var receipt = DesktopMutationOutcome.RequireVerifiedEffect(providerReceipt);
+        Assert.True(receipt.Ok);
+        Assert.True(receipt.Verified);
+        Assert.Null(receipt.Readback);
+        Assert.DoesNotContain(canary, System.Text.Json.JsonSerializer.Serialize(receipt));
+    }
+
+    [Fact]
     public void Desktop_action_validation_rejects_unbounded_or_unsupported_requests()
     {
         Assert.True(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.Invoke, "w:42:g1:e1")));
