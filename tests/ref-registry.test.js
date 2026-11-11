@@ -18,3 +18,28 @@ test('replacing snapshot invalidates old refs and enforces cap', () => {
   assert.equal(r.resolve('@e1','s1'),null);
   assert.equal(r.resolve('@e3','s2'),null);
 });
+
+test('registry hard-caps infinite and oversized requested retention', () => {
+  for (const requested of [Infinity, Number.MAX_SAFE_INTEGER, 999999, NaN]) {
+    const registry=new RefRegistry(requested);
+    assert.ok(registry.maxRefs<=300);
+    const elements=Array.from({length:500},(_,i)=>({
+      ref:`@e${i+1}`,value:{index:i},
+    }));
+    const retained=registry.replace('bounded',elements);
+    assert.equal(retained,300);
+    assert.equal(registry.refs.size,300);
+    assert.equal(registry.has('@e301','bounded'),false);
+  }
+});
+
+test('registry drops old DOM object references on snapshot replacement and clear', () => {
+  const registry=new RefRegistry(2);
+  const old={tagName:'BUTTON'};
+  registry.replace('old',[{ref:'@e1',value:old}]);
+  registry.replace('new',[{ref:'@e2',value:{tagName:'A'}}]);
+  assert.equal(registry.has('@e1','old'),false);
+  assert.equal([...registry.refs.values()].includes(old),false);
+  registry.clear();
+  assert.equal(registry.refs.size,0);
+});
