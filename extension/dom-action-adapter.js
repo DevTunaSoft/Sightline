@@ -174,7 +174,9 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       if (target && sensitiveElement(target)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be verified by content matching.' };
       const haystack = target ? textOf(target) : boundedElementText(documentObject?.body, 12000);
       const ok = haystack.toLowerCase().includes(action.expect.toLowerCase());
-      return { ok, ref: action.ref, matched: ok, expectation: action.expect };
+      // The caller gets only the match verdict. Do not echo expectation text,
+      // which may contain personal data or an untrusted secret probe.
+      return { ok, ref: action.ref, matched: ok };
     },
   };
 }
