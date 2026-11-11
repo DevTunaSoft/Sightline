@@ -5,6 +5,7 @@ export const PAGE_OBSERVER_LIMITS = Object.freeze({
   maxVisibleTextChars: 8000,
   maxDomNodesVisited: 12000,
   maxTextNodesVisited: 6000,
+  maxFrameNodesVisited: 6000,
 });
 
 // Caller overrides may reduce work, never expand the hard RAM/CPU ceilings.
