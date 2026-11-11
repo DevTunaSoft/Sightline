@@ -116,6 +116,12 @@ Sightline now limits accessible-name inspection to 16 `aria-labelledby` IDs or 1
 
 **Evidence:** 50/50 targeted observer tests passed against the exact `develop` source in isolated V8, including tests with oversized labels and normal small labels. Real Chrome/Edge heap, CPU and scan-latency measurements, full Node `npm run check`, and .NET Windows acceptance remain **NOT RUN / UNVERIFIED**. Do not infer a measured RAM percentage.
 
+## 2026-11-11 — Credential-metadata consistency and bounded inspection
+
+A shared field detector now independently inspects type, autocomplete tokens, name, ID and editable-field accessibility hints at both observation and action time. Section-prefixed password/OTP/card autocomplete tokens are recognized. Strings beyond the metadata inspection ceiling fail closed rather than allowing a sensitive suffix to bypass checks. No extra model call, cache, polling loop, timer, dependency or background worker was added.
+
+**PASS:** 79/79 current observer and DOM adapter regression checks under isolated V8 shims, including redaction, action blocking, benign button compatibility and overlong metadata. **NOT RUN:** full Node suite, real Chrome/Edge and Windows acceptance, measured RAM/CPU. Next: verify custom input fields whose secrets are identified only by linked external labels; run real-browser stress/security acceptance and benchmark costs.
+
 ## Resource policy
 
 Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
