@@ -60,6 +60,41 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public void A_leaf_exactly_at_maximum_depth_is_not_falsely_truncated()
+    {
+        var root = new Node("root", [new Node("leaf", [])]);
+        var result = new BoundedTraversal<Node>().Walk(
+            root, node => node.Children,
+            new ObservationBudget(MaxNodes: 16, MaxDepth: 1, MaxDuration: TimeSpan.FromSeconds(1)),
+            CancellationToken.None, out var truncated, out var reason);
+
+        Assert.Equal(2, result.Count);
+        Assert.False(truncated);
+        Assert.Null(reason);
+    }
+
+    [Fact]
+    public void Depth_boundary_probes_only_one_child_and_never_visits_hidden_descendants()
+    {
+        var hiddenVisits = 0;
+        var root = new Node("root", [new Node("boundary", [new Node("hidden", [])])]);
+        var result = new BoundedTraversal<Node>().Walk(
+            root,
+            node =>
+            {
+                if (node.Name == "hidden") hiddenVisits++;
+                return node.Children;
+            },
+            new ObservationBudget(MaxNodes: 16, MaxDepth: 1, MaxDuration: TimeSpan.FromSeconds(1)),
+            CancellationToken.None, out var truncated, out var reason);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(0, hiddenVisits);
+        Assert.True(truncated);
+        Assert.Equal("depth", reason);
+    }
+
+    [Fact]
     public void Exact_node_budget_conservatively_reports_incomplete_coverage()
     {
         var root = new Node("root", Array.Empty<Node>());
