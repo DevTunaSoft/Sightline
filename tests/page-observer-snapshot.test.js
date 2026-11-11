@@ -23,7 +23,7 @@ function fakeDocument(url, elements = []) {
     element.hasAttribute ||= () => false;
     element.getAttribute ||= () => null;
     element.getBoundingClientRect ||= () => ({ x: 0, y: 0, width: 80, height: 24 });
-    element.matches ||= selector => selector === 'button' && element.tagName === 'BUTTON';
+    element.matches ||= selector => selector.includes('button') && element.tagName === 'BUTTON';
   }
   doc.createTreeWalker = (_root, show) => {
     const nodes = show === 1 ? elements : [];
