@@ -60,19 +60,20 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 Fail(SightlineErrorCode.StateChanged, "Element reference is stale.")));
         }
 
-        if (!locator.IsIdentifiable)
-            return ValueTask.FromResult(Recorded(
-                action, snapshot.ProcessId, started,
-                Fail(SightlineErrorCode.StateChanged, "Control lacks reliable identifying metadata.")));
-
-        // Never attach to a provider for a known-sensitive control.
-        // This also blocks aliases after sensitive observation metadata was redacted.
+        // Sensitive observation intentionally erases identifying metadata. Check
+        // the leased sensitivity flag BEFORE rejecting an unnamed locator, so
+        // credential controls cannot be misreported as ordinary stale targets.
         if (locator.IsSensitive || SensitiveControlPolicy.IsSensitive(false, locator.Name, locator.AutomationId))
         {
             return ValueTask.FromResult(Recorded(
                 action, snapshot.ProcessId, started,
                 Fail(SightlineErrorCode.PermissionDenied, "Sensitive control actions are not permitted.")));
         }
+
+        if (!locator.IsIdentifiable)
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.StateChanged, "Control lacks reliable identifying metadata.")));
 
         // All desktop mutations require a trusted, action-specific host approval.
         // No Windows approval UI has been shipped; default is intentionally DENY.
