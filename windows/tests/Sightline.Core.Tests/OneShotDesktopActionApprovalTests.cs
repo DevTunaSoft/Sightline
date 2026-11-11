@@ -117,7 +117,7 @@ public sealed class OneShotDesktopActionApprovalTests
         var tasks = Enumerable.Range(0, 20)
             .Select(_ => Task.Run(() => approval.IsApproved(Snapshot(), Invoke())));
         var results = await Task.WhenAll(tasks);
-        Assert.Single(results.Where(accepted => accepted));
+        Assert.Single(results, accepted => accepted);
     }
 
     [Fact]

@@ -95,7 +95,7 @@ public sealed class MutationJournalTests
             var results = await Task.WhenAll(
                 Task.Run(() => first.TryBegin(Snapshot(), Action())),
                 Task.Run(() => second.TryBegin(Snapshot(), Action())));
-            Assert.Single(results.Where(result => result));
+            Assert.Single(results, result => result);
             Assert.True(File.Exists(path));
             first.PreserveUnknown();
             second.PreserveUnknown();
