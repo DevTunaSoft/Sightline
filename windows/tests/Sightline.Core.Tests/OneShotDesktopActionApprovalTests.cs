@@ -154,6 +154,41 @@ public sealed class OneShotDesktopActionApprovalTests
     }
 
     [Fact]
+    public void Throwing_snapshot_cannot_leave_an_old_confirmation_armed()
+    {
+        var approval = new OneShotDesktopActionApproval();
+        var valid = Snapshot();
+        var malformed = valid with { Elements = new ThrowingElements() };
+
+        Assert.True(approval.ArmAfterUserConfirmation(valid, Invoke()));
+        Assert.False(approval.ArmAfterUserConfirmation(malformed, Invoke()));
+        Assert.False(approval.IsApproved(valid, Invoke()));
+
+        Assert.True(approval.ArmAfterUserConfirmation(valid, Invoke()));
+        Assert.False(approval.IsApproved(malformed, Invoke()));
+        Assert.False(approval.IsApproved(valid, Invoke()));
+    }
+
+    [Fact]
+    public void Null_element_in_observation_fails_closed()
+    {
+        var approval = new OneShotDesktopActionApproval();
+        var malformed = Snapshot() with { Elements = [null!] };
+        Assert.False(approval.ArmAfterUserConfirmation(malformed, Invoke()));
+        Assert.False(approval.IsApproved(malformed, Invoke()));
+    }
+
+    private sealed class ThrowingElements : IReadOnlyList<SemanticElement>
+    {
+        public int Count => 1;
+        public SemanticElement this[int index] => throw new InvalidOperationException("invalid provider");
+        public IEnumerator<SemanticElement> GetEnumerator() =>
+            throw new InvalidOperationException("invalid provider");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
+    }
+
+    [Fact]
     public void Only_short_validity_periods_are_supported()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
