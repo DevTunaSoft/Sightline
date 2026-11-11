@@ -95,6 +95,15 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started,
                 Fail(SightlineErrorCode.PermissionDenied, "Durable Windows mutation journal is required.")));
 
+        // Avoid allocating a FlaUI automation session when a prior, unresolved
+        // action already blocks mutation. Inaccessible journal state fails closed.
+        bool pending;
+        try { pending = _journal.HasPending; }
+        catch { pending = true; }
+        if (pending)
+            return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.UnknownEffect, "Previous desktop action requires reconciliation.")));
+
         if (!_circuitBreaker.TryEnter(snapshot.ProcessId))
         {
             return ValueTask.FromResult(Recorded(
