@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName, hasTargetStructuralEffect, normalizeObservationLimits, incompleteFrameInventory } from '../extension/page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName, hasTargetStructuralEffect, normalizeObservationLimits, incompleteFrameInventory, hasSensitiveAssociatedLabel } from '../extension/page-observer-core.js';
 
 test('observer defaults are deliberately bounded', () => {
   assert.equal(PAGE_OBSERVER_LIMITS.maxElements, 300);
@@ -243,4 +243,45 @@ test('credential metadata beyond inspection limits is denied rather than ignored
   assert.equal(isSensitiveField({tagName:'INPUT',type:'text',placeholder:'x'.repeat(300)}),true);
   assert.equal(isSensitiveField({tagName:'INPUT',type:'text',ariaLabel:'x'.repeat(300)}),true);
   assert.equal(isSensitiveField({tagName:'BUTTON',ariaLabel:'x'.repeat(300)}),false);
+});
+
+test('associated labels detect password controls with otherwise ordinary metadata', () => {
+  const target = {
+    tagName:'INPUT',
+    type:'text',
+    ownerDocument:{getElementById:id=>id==='hint'?{textContent:'Enter password'}:null},
+    getAttribute:key=>key==='aria-labelledby'?'hint':null,
+  };
+  assert.equal(hasSensitiveAssociatedLabel(target),true);
+  target.getAttribute=key=>key==='aria-labelledby'?'unrelated':null;
+  assert.equal(hasSensitiveAssociatedLabel(target),false);
+  target.labels=[{textContent:'One time code'}];
+  assert.equal(hasSensitiveAssociatedLabel(target),true);
+});
+
+test('associated label inspection is bounded and excludes ordinary reveal buttons', () => {
+  let labelReads=0;
+  const labels=new Proxy({length:1000000},{
+    get(obj,key){
+      if(key==='length')return obj.length;
+      if(/^\d+$/.test(String(key))){labelReads++;return {textContent:'unrelated'};}
+      return undefined;
+    },
+  });
+  const input={tagName:'INPUT',type:'text',labels,getAttribute:()=>null};
+  assert.equal(hasSensitiveAssociatedLabel(input),true);
+  assert.equal(labelReads,0);
+  const reveal={tagName:'BUTTON',labels:[{textContent:'Show password'}],getAttribute:()=>null};
+  assert.equal(hasSensitiveAssociatedLabel(reveal),false);
+});
+
+test('overlong aria-labelledby references fail closed before lookup', () => {
+  let lookups=0;
+  const input={
+    tagName:'TEXTAREA',
+    ownerDocument:{getElementById(){lookups++;return null;}},
+    getAttribute:key=>key==='aria-labelledby'?'x'.repeat(50000):null,
+  };
+  assert.equal(hasSensitiveAssociatedLabel(input),true);
+  assert.equal(lookups,0);
 });
