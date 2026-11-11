@@ -51,10 +51,19 @@ export function createPageAgentController(options = {}) {
   const now = options.now || Date.now;
 
   async function refresh() {
-    const next = await observe();
-    if (currentSnapshot?.snapshotId !== next.snapshotId) pendingConfirmation = null;
-    currentSnapshot = next;
-    return currentSnapshot;
+    try {
+      const next = await observe();
+      if (!next || typeof next.snapshotId !== 'string')
+        throw new Error('Page observation returned an invalid snapshot.');
+      if (currentSnapshot?.snapshotId !== next.snapshotId) pendingConfirmation = null;
+      currentSnapshot = next;
+      return currentSnapshot;
+    } catch (error) {
+      // Never keep approval capabilities or cached targets after a failed scan.
+      pendingConfirmation = null;
+      currentSnapshot = null;
+      throw error;
+    }
   }
 
   return {
@@ -109,7 +118,9 @@ export function createPageAgentController(options = {}) {
           pendingConfirmation = null;
         } else {
           pendingConfirmation = null;
-          const confirmationKey = binding ? issueToken() : null;
+          let confirmationKey = null;
+          try { if (binding) confirmationKey = issueToken(); }
+          catch { /* Secure randomness is unavailable; deny the operation. */ }
           if (typeof confirmationKey !== 'string' || !/^confirm-[a-f0-9]{32}$/.test(confirmationKey)) {
             return { ok: false, code: 'CONFIRMATION_UNAVAILABLE', risk: decision.risk, target };
           }
