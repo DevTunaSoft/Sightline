@@ -55,8 +55,8 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 |---|---|---|
 | Hard observer overrides | Implemented / isolated JS checks **PASS** | 300 control refs, 8k visible text chars, 48k snapshot chars; caller overrides cannot raise limits. |
 | Lazy browser DOM scanning | Implemented / isolated JS checks **PASS** | Walks up to 12,000 DOM nodes and 6,000 text nodes without copying a giant selector NodeList; visits supported HTML/SVG/XHTML interactive tags. |
-| Incomplete large pages | Implemented / installed browsers **UNVERIFIED** | Marks an observation truncated when scan budget is exhausted; consequential actions fail closed rather than guessing. |
-| Chrome/Edge memory and CPU regression | **NOT RUN** | 23/23 observer unit tests pass under isolated V8 shims; measured browser heap/CPU and full Node suite still required. |
+| Incomplete large pages and nested frames | Implemented / isolated JS checks **PASS**, installed browsers **UNVERIFIED** | Marks partial DOM/text scans, frame-count limits and same-origin nested-frame depth limits as truncated; consequential actions fail closed. |
+| Chrome/Edge memory and CPU regression | **NOT RUN** | 24/24 observer unit tests pass under isolated V8 shims; measured browser heap/CPU and full Node suite still required. |
 
 ## Browser memory and post-action safety (2026-11-11)
 
