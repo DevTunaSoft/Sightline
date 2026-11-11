@@ -84,6 +84,10 @@ Sightline is designed to stop for login, MFA, CAPTCHA, account recovery, or secu
 
 Permanent deletion remains more restricted than moving mail to Trash.
 
+**Important current alpha limitation:** Moving Yahoo messages to Trash can change the mail account even when Sightline reports **NO_VERIFIED_EFFECT** or **ACTION_RECONCILIATION_REQUIRED**. Pagination, disappearing preview rows, and text from an email are not sufficient to prove the intended messages moved. Sightline deliberately stops instead of automatically retrying an uncertain bulk action. Before taking another action, personally check the exact messages in the search results and in Trash. Do not repeatedly approve or rerun the same move until the earlier result is reconciled. The browser skill's stronger verification has not been accepted on a real Yahoo account.
+
+**Dynamic webpages:** A changing clock or advertisement is not reliable evidence that a consequential button worked. Sightline now looks for structural changes to the target (for example, a control disappears or its checked state changes) where available. A lack of structural evidence may stop a task even when the action occurred; inspect the application before retrying.
+
 ## Windows engineering preview
 
 The Windows foundation currently includes:
