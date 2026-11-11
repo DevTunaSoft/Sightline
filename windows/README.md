@@ -69,3 +69,16 @@ Security changes and their synthetic tests are committed on `develop` but were *
 ## Typed Windows action limits
 
 `DesktopActionValidation` rejects unsupported enum kinds, blank or oversized element references (128 characters maximum), Invoke payloads containing a value, and SetValue without a value or exceeding 4,000 characters. Validation runs before provider access or approval policy, and does not log rejected payloads. Exact .NET tests still require a real SDK/CI run on the latest commit.
+
+## Durable Windows mutation journal (2026-11-11)
+
+The Windows `Invoke` / `SetValue` executor now **requires both** a trusted action-approval provider and an explicit durable `IDesktopMutationJournal`. If either is missing, it refuses mutation before attaching to UI Automation.
+
+`FileDesktopMutationJournal` uses exactly one pending write-through, create-new file and a small 256-byte stream buffer. No background thread, watcher, polling, queue, or in-memory history is created. The file contains only version, process ID, window handle, random record ID, action kind and time. **Field values, DOM text, snapshot IDs and element refs are not written.**
+
+A record must be flushed to storage before the provider mutation begins. A **verified** SetValue clears it; an **unverified** Invoke, cancellation, provider failure or crash leaves it pending. An existing pending record blocks further mutations across process restarts. An Invoke requires *independent application-state verification* before a trusted host may call `TryCompleteVerified`. The controlled WPF acceptance runner provides this verification using its own `ResultText`; production does not yet provide a trusted reconciliation UI or persistent per-user journal path.
+
+The journal's path must be a stable, access-restricted local path chosen by the trusted Windows host, not a webpage, AI-generated path or disposable temporary path. Do not manually delete pending records until the prior operation has been independently reconciled. A corrupt/partial pending record must fail closed.
+
+**Verification status:** code and targeted XUnit tests committed, but the latest `.NET` build/test and interactive WPF acceptance are **NOT RUN / UNVERIFIED**. This is a safety foundation, not a production-ready Windows action workflow.
+
