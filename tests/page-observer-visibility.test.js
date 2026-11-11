@@ -127,6 +127,7 @@ function frameTestDocument(url, children = []) {
     return {nextNode:()=>nodes[++index]||null};
   };
   for(const child of children) {
+    child.nodeType=1;
     child.ownerDocument=doc;
     child.getBoundingClientRect ||= ()=>({width:80,height:30});
     child.getAttribute ||= ()=>'/embedded';
