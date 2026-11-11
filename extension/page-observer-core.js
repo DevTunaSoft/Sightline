@@ -19,6 +19,10 @@ export function normalizeObservationLimits(overrides = {}) {
   return limits;
 }
 
+export function incompleteFrameInventory(inventory) {
+  return Boolean(inventory?.truncated || inventory?.skippedDepth > 0);
+}
+
 export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
