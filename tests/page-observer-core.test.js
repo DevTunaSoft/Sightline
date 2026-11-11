@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName, hasTargetStructuralEffect, normalizeObservationLimits } from '../extension/page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName, hasTargetStructuralEffect, normalizeObservationLimits, incompleteFrameInventory } from '../extension/page-observer-core.js';
 
 test('observer defaults are deliberately bounded', () => {
   assert.equal(PAGE_OBSERVER_LIMITS.maxElements, 300);
@@ -122,4 +122,12 @@ test('small observation limits still reduce work without accepting invalid budge
   assert.equal(limits.maxTextNodesVisited,9);
   assert.equal(limits.maxDomNodesVisited,PAGE_OBSERVER_LIMITS.maxDomNodesVisited);
   assert.equal(limits.maxTextPerElement,PAGE_OBSERVER_LIMITS.maxTextPerElement);
+});
+
+test('frame count and depth truncation are never represented as complete coverage', () => {
+  assert.equal(incompleteFrameInventory({truncated:true,skippedDepth:0}),true);
+  assert.equal(incompleteFrameInventory({truncated:false,skippedDepth:1}),true);
+  assert.equal(incompleteFrameInventory({truncated:false,skippedDepth:0}),false);
+  assert.equal(incompleteFrameInventory({opaque:2,skippedDepth:0}),false);
+  assert.equal(incompleteFrameInventory(null),false);
 });
