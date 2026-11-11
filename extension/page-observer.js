@@ -8,6 +8,7 @@ import {
   safeOrigin,
   mayUseValueAsAccessibleName,
   normalizeObservationLimits,
+  incompleteFrameInventory,
 } from './page-observer-core.js';
 
 const INTERACTIVE_SELECTOR = [
@@ -218,7 +219,9 @@ export function buildPageSnapshot(options = {}) {
     visibleText: textCollector.value(),
     frames: inventory,
     viewport: { width: innerWidth, height: innerHeight },
-    truncated,
+    // Frame enumeration/depth budgets are part of observation coverage too.
+    // An unobserved same-origin frame must not appear as a complete snapshot.
+    truncated: truncated || incompleteFrameInventory(inventory),
     elements,
   }, limits.maxSnapshotChars);
   if (registry?.replace) registry.replace(snapshot.snapshotId, registryEntries.slice(0, snapshot.elements.length));
