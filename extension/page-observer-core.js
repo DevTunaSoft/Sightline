@@ -146,12 +146,32 @@ function normalizedFieldName(value) {
     .toLowerCase();
 }
 
+// Inspect a fixed set of bounded metadata fields. Names, IDs and accessible
+// hints are independent: an innocent "name" must never hide a credential ID.
+// HTML autocomplete can include tokens such as "section-login current-password".
 export function isSensitiveField(input = '') {
   if (typeof input === 'string') return input.toLowerCase() === 'password';
   const type = String(input?.type || '').toLowerCase();
-  const autocomplete = String(input?.autocomplete || '').toLowerCase();
-  const name = String(input?.name || '');
-  return type === 'password' || SENSITIVE_AUTOCOMPLETE.has(autocomplete) || SENSITIVE_NAME_PATTERN.test(normalizedFieldName(name));
+  if (type === 'password') return true;
+
+  const autocomplete = String(input?.autocomplete || '');
+  if (autocomplete.length > 256) return true; // Uninspectable metadata fails closed.
+  for (const token of autocomplete.toLowerCase().trim().split(/\s+/)) {
+    if (SENSITIVE_AUTOCOMPLETE.has(token)) return true;
+  }
+
+  if (SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.name)) ||
+      SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.id))) return true;
+
+  const tag = String(input?.tagName || '').toLowerCase();
+  const role = String(input?.role || '').toLowerCase();
+  const textEntry = input?.isContentEditable === true ||
+    tag === 'textarea' ||
+    (tag === 'input' && !['button', 'submit', 'reset', 'checkbox', 'radio', 'hidden'].includes(type)) ||
+    ['textbox', 'searchbox'].includes(role);
+  if (!textEntry) return false;
+  return SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.ariaLabel)) ||
+    SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.placeholder));
 }
 
 export function fnv1aHash(value) {
