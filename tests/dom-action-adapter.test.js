@@ -352,3 +352,40 @@ test('noneditable show-password button is not wrongly treated as a secret field'
   assert.equal(result.ok,true);
   assert.equal(el.clicked,1);
 });
+
+test('adapter refuses sensitive fields identified only by external labels', async () => {
+  const cases=[
+    {labels:[{textContent:'Enter password'}]},
+    {labels:[{textContent:'Security code'}]},
+    {
+      ownerDocument:{getElementById:id=>id==='linked'?{textContent:'One time code'}:null},
+      attrs:{'aria-labelledby':'linked'},
+    },
+  ];
+  for(const fields of cases){
+    const el=fakeElement({tagName:'INPUT',value:'synthetic-private-text',...fields});
+    const adapter=setup(el);
+    for(const action of [
+      {action:'read',ref:'@e1'}, {action:'verify',ref:'@e1',expect:'synthetic'},
+      {action:'click',ref:'@e1'}, {action:'type',ref:'@e1',text:'new'},
+      {action:'clear',ref:'@e1'},{action:'pressKey',key:'Enter'},
+    ]) {
+      const result=await executeValidatedAction(action,adapter);
+      assert.equal(result.code,'SENSITIVE_FIELD',action.action);
+      assert.equal(result.ok,false,action.action);
+    }
+    assert.equal(el.value,'synthetic-private-text');
+    assert.equal(el.focused,undefined);
+    assert.equal(el.clicked,undefined);
+  }
+});
+
+test('action-time linked-label change invalidates the previously ordinary target', async () => {
+  const label={textContent:'Notes'};
+  const el=fakeElement({tagName:'INPUT',labels:[label],value:'draft'});
+  const adapter=setup(el);
+  label.textContent='Enter password';
+  const result=await executeValidatedAction({action:'type',ref:'@e1',text:'new'},adapter);
+  assert.equal(result.code,'SENSITIVE_FIELD');
+  assert.equal(el.value,'draft');
+});
