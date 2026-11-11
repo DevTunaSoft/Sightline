@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isVisible } from '../extension/page-observer.js';
+import { isVisible, visitInteractiveNodes } from '../extension/page-observer.js';
 
 function element(style, rect = { width: 20, height: 10 }) {
   return {
@@ -23,4 +23,57 @@ test('zero opacity, display none, hidden visibility and zero geometry hide contr
   assert.equal(isVisible(element({ visibility: 'hidden', opacity: '1' })), false);
   assert.equal(isVisible(element({ opacity: '1' }, { width: 0, height: 10 })), false);
   assert.equal(isVisible(element({ opacity: '0.5' })), true);
+});
+
+function fakeTreeDocument(count) {
+  const nodes=Array.from({length:count},(_,i)=>({
+    matches:()=>i%2===0,
+  }));
+  let nextCalls=0;
+  return {
+    documentElement:nodes[0],
+    defaultView:{NodeFilter:{SHOW_ELEMENT:1}},
+    createTreeWalker(){
+      let cursor=0;
+      return {nextNode(){nextCalls++;return nodes[++cursor]||null;}};
+    },
+    get nextCalls(){return nextCalls;},
+    querySelectorAll(){throw new Error('unbounded selector collection must not be used');},
+  };
+}
+
+test('interactive DOM walk visits at most its node budget', () => {
+  const doc=fakeTreeDocument(5000);
+  let matched=0;
+  const result=visitInteractiveNodes(doc,'button',35,()=>{matched++;return true;});
+  assert.equal(result.visited,35);
+  assert.equal(matched,18);
+  assert.equal(result.truncated,true);
+  assert.ok(doc.nextCalls<=35);
+});
+
+test('interactive DOM walk stops immediately when the output limit is reached', () => {
+  const doc=fakeTreeDocument(5000);
+  let matched=0;
+  const result=visitInteractiveNodes(doc,'button',500,()=>{
+    matched++;
+    return matched<3;
+  });
+  assert.equal(matched,3);
+  assert.equal(result.visited,5);
+  assert.equal(result.truncated,true);
+  assert.ok(doc.nextCalls<10);
+});
+
+test('completed interactive DOM walk does not report truncation', () => {
+  const doc=fakeTreeDocument(9);
+  const result=visitInteractiveNodes(doc,'button',50,()=>true);
+  assert.equal(result.visited,9);
+  assert.equal(result.truncated,false);
+});
+
+test('unsupported observation documents fail closed without collecting candidates', () => {
+  const result=visitInteractiveNodes(null,'button',20,()=>{throw new Error('unexpected');});
+  assert.equal(result.truncated,true);
+  assert.equal(result.visited,0);
 });
