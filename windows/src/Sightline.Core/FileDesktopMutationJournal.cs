@@ -50,7 +50,7 @@ public sealed class FileDesktopMutationJournal : IDesktopMutationJournal, IDispo
                 // CreateNew is atomic across processes. An old unresolved record
                 // is never silently overwritten, even after a crash.
                 opened = new FileStream(_path, FileMode.CreateNew, FileAccess.Write,
-                    FileShare.None, bufferSize: 4096, FileOptions.WriteThrough);
+                    FileShare.None, bufferSize: 4096, options: FileOptions.WriteThrough);
                 var record = string.Join('\n',
                     "sightline-mutation-v1",
                     "process=" + snapshot.ProcessId.ToString(CultureInfo.InvariantCulture),
