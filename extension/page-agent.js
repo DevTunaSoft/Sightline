@@ -15,6 +15,8 @@ function secureConfirmationToken() {
   return 'confirm-' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+const MAX_CONFIRMATION_AGE_MS = 5 * 60 * 1000;
+
 function confirmationBinding(snapshot, action, target, context) {
   try {
     const text = JSON.stringify({
@@ -45,6 +47,7 @@ export function createPageAgentController(options = {}) {
   // Exactly one in-memory, short-lived approval challenge per page agent.
   let pendingConfirmation = null;
   const issueToken = options.issueConfirmationToken || secureConfirmationToken;
+  const now = options.now || Date.now;
 
   async function refresh() {
     const next = await observe();
@@ -84,6 +87,10 @@ export function createPageAgentController(options = {}) {
         }
         const binding = confirmationBinding(currentSnapshot, message.action, target, gateContext);
         if (message.confirmed === true) {
+          // Check expiry on use; no timer, polling, or background work.
+          const age = pendingConfirmation ? now() - pendingConfirmation.issuedAt : Infinity;
+          if (!Number.isFinite(age) || age < 0 || age > MAX_CONFIRMATION_AGE_MS)
+            pendingConfirmation = null;
           const accepted = Boolean(binding && pendingConfirmation &&
             pendingConfirmation.binding === binding &&
             pendingConfirmation.key === message.confirmationKey);
@@ -100,7 +107,11 @@ export function createPageAgentController(options = {}) {
           if (typeof confirmationKey !== 'string' || !/^confirm-[a-f0-9]{32}$/.test(confirmationKey)) {
             return { ok: false, code: 'CONFIRMATION_UNAVAILABLE', risk: decision.risk, target };
           }
-          pendingConfirmation = { key: confirmationKey, binding };
+          const issuedAt = now();
+          if (!Number.isFinite(issuedAt)) {
+            return { ok: false, code: 'CONFIRMATION_UNAVAILABLE', risk: decision.risk, target };
+          }
+          pendingConfirmation = { key: confirmationKey, binding, issuedAt };
           return { ok: false, code: 'CONFIRMATION_REQUIRED', risk: decision.risk, target, confirmationKey };
         }
       } else {
