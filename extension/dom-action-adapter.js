@@ -1,5 +1,7 @@
 import { PAGE_OBSERVER_LIMITS, isSensitiveField, cleanPageText, createBoundedTextCollector } from './page-observer-core.js';
 
+const MAX_SELECT_OPTIONS_INSPECTED = 2048;
+
 function attr(element, name) {
   return typeof element?.getAttribute === 'function' ? element.getAttribute(name) : null;
 }
@@ -134,10 +136,25 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       const element = resolve(action.ref);
       if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be manipulated by the agent.' };
       if (String(element.tagName || '').toUpperCase() !== 'SELECT') return { ok: false, code: 'NOT_SELECTABLE', error: 'Target is not a select element.' };
-      const options = Array.from(element.options || []);
-      if (options.length && !options.some(option => String(option.value) === action.value)) {
-        return { ok: false, code: 'OPTION_NOT_FOUND', error: 'Requested option is unavailable.' };
+      const options = element.options;
+      const count = options?.length;
+      if (!Number.isSafeInteger(count) || count < 1) {
+        return { ok: false, code: 'OPTION_NOT_FOUND', error: 'No selectable options are available.' };
       }
+      // HTMLSelectElement.options is already an indexed live collection; do
+      // not allocate an Array from every option on arbitrarily large pages.
+      let found = false;
+      for (let index = 0; index < Math.min(count, MAX_SELECT_OPTIONS_INSPECTED); index += 1) {
+        if (String(options[index]?.value) === action.value) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) return {
+        ok: false,
+        code: count > MAX_SELECT_OPTIONS_INSPECTED ? 'OPTION_SCOPE_UNVERIFIED' : 'OPTION_NOT_FOUND',
+        error: 'Requested option could not be verified within the bounded select list.',
+      };
       setValue(element, action.value, windowObject);
       return { ok: true, ref: action.ref, value: String(element.value ?? '') };
     },
