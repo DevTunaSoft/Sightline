@@ -1,5 +1,14 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Browser verify-result privacy
+
+**Baseline/reconciliation:** Checked the actual `extension/dom-action-adapter.js` before coding. The prior review's claim that `verify` was empty no longer holds: it already performs bounded text comparison. No duplicate verifier was written. A separate confirmed privacy issue remained: the `verify` receipt echoed raw `action.expect` into the action result.
+
+**Changes:** `8da6415` removes raw expectation strings from `verify` receipts while retaining only `ok`, `matched`, and the reference; `b2de53d` adds a synthetic secret-canary regression. Existing sensitive-field target checks remain in place.
+
+**Executed evidence:** Original 11 GitHub DOM adapter tests **PASS (11/11)** in isolated V8 with the actual RefRegistry, observer-core helpers, validator, and action executor injected plus small DOM/Event shims. This is not the Node test runner, installed Chrome/Edge, or an end-to-end data-leak audit. No raw expectation is returned in synthetic verification result. Full `npm run check` and real installed-browser tests **NOT RUN / UNVERIFIED**.
+
+
 ### 2026-11-11 — Windows readback privacy and browser single-use confirmation
 
 **Repository baseline:** `develop`, open audit issue #9; PR #8 (Windows process inspection) remains separate and unmerged. No new branch or duplicate PR was created.
