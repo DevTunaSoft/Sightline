@@ -1,6 +1,6 @@
 # Sightline Engineering Roadmap
 
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
 ## Product direction
 
@@ -69,6 +69,14 @@ Fuzzing, fault injection, races, mixed DPI/monitors, sleep/wake/lock, elevation,
 ## Phase 11 — Production lifecycle
 
 Lightweight GUI/activity monitor, self-test, installer/uninstaller, safe update/rollback, safe mode, diagnostic export, release acceptance.
+
+## 2026-11-11 — Browser low-memory and uncertain-effect checkpoint
+
+**Implemented on `develop` (full suite not yet verified):** DOM waits now release abort listeners and timers on completion or cancellation; element references cannot exceed the observer's existing 300-element ceiling even if configured with an enormous cap; the task-loop stall guard retains a fixed-size numeric fingerprint instead of a string copy of typed text/URLs. No new dependency or background polling was added. Browser action-handler exceptions and cancellation after a possible mutation are marked `UNKNOWN_EFFECT` and blocked from automatic recovery/replay.
+
+**Acceptance still required:** run `npm run check` on the exact branch commit; Chrome/Edge stress tests for long sessions, repeated waits, tab switching, cancellation and crash recovery; measure retained heap, event listeners and idle CPU against the previous revision, with regressions treated as defects. Isolated tests prove bounded structures and listener cleanup, **not a measured production RAM reduction**.
+
+**Next unblocked priorities:** Windows durable write-ahead action records and explicit single-use approval UX, real desktop UIA identity/acceptance, then browser end-to-end validation and lightweight optional local AI provisioning. Preserve structured-first and lazy loading policies.
 
 ## Resource policy
 
