@@ -217,3 +217,22 @@ test('bounded whitespace normalization matches reference on deterministic fuzz i
     assert.equal(cleanPageText(input,max),reference,'trial '+trial);
   }
 });
+
+test('sensitive identity is not hidden by an innocent name attribute', () => {
+  assert.equal(isSensitiveField({ type: 'text', name: 'notes', id: 'new_password', tagName: 'INPUT' }), true);
+  assert.equal(isSensitiveField({ type: 'text', name: 'shipping', id: 'passenger', tagName: 'INPUT' }), false);
+});
+
+test('section-prefixed autocomplete and editable accessibility hints detect secrets', () => {
+  assert.equal(isSensitiveField({ type: 'text', autocomplete: 'section-login current-password', tagName: 'INPUT' }), true);
+  assert.equal(isSensitiveField({ autocomplete: 'section-payment billing cc-number', tagName: 'INPUT' }), true);
+  assert.equal(isSensitiveField({ tagName: 'INPUT', type: 'text', ariaLabel: 'Enter password' }), true);
+  assert.equal(isSensitiveField({ tagName: 'TEXTAREA', placeholder: 'One time code' }), true);
+  assert.equal(isSensitiveField({ tagName: 'DIV', role: 'textbox', ariaLabel: 'Security code' }), true);
+  assert.equal(isSensitiveField({ tagName: 'BUTTON', ariaLabel: 'Show password' }), false);
+  assert.equal(isSensitiveField({ tagName: 'INPUT', type: 'submit', ariaLabel: 'Reset password' }), false);
+});
+
+test('oversized autocomplete fails closed with bounded scan work', () => {
+  assert.equal(isSensitiveField({ tagName: 'INPUT', autocomplete: 'x'.repeat(100000) }), true);
+});
