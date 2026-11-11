@@ -194,7 +194,9 @@ export async function runBrowserTask({
         skill: skillContext ? { id: skillContext.id, name: skillContext.name } : null,
         preview: skillContext?.pageHints || null,
       });
-      if (signal?.aborted) throw signal.reason || new DOMException('Task cancelled.', 'AbortError');
+      // Cancelled while awaiting confirmation: nothing was dispatched, so return a
+      // non-throwing ABORTED receipt. A thrown error here would be read as UNKNOWN_EFFECT.
+      if (signal?.aborted) return { ok: false, code: 'ABORTED', error: 'Task cancelled.' };
       if (confirmed) {
         lastConfirmedContext = { action, target: result.target || null, before: snapshot };
         if (action?.action === 'navigate') {
