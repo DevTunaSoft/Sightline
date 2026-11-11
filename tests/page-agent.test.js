@@ -246,3 +246,23 @@ test('forged confirmation without an issued challenge cannot execute an action',
   assert.equal(result.confirmationKey,null);
   assert.equal(clicks,0);
 });
+
+test('confirmation expires without timers or automatic retries', async () => {
+  let now=1000, clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',url:'https://example.com',elements:[{ref:'@e1',role:'button',name:'Delete'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=>`confirm-${'b'.repeat(32)}`,
+    now:()=>now,
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const request={type:'SIGHTLINE_EXECUTE',snapshotId:'s1',taskGoal:'delete item',action:{action:'click',ref:'@e1'}};
+  const prompt=await controller.handle(request);
+  assert.equal(prompt.code,'CONFIRMATION_REQUIRED');
+  now+=5*60*1000+1;
+  const expired=await controller.handle({...request,confirmed:true,confirmationKey:prompt.confirmationKey});
+  assert.equal(expired.code,'CONFIRMATION_REQUIRED');
+  assert.equal(expired.confirmationKey,null);
+  assert.equal(clicks,0);
+});
