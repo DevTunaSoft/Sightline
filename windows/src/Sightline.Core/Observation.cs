@@ -102,10 +102,16 @@ public sealed class BoundedTraversal<T>
 
             if (current.Depth >= budget.MaxDepth)
             {
-                // Do not query descendants past the depth budget. Conservatively
-                // report partial coverage so action resolution fails closed.
-                truncated = true;
-                truncationReason ??= "depth";
+                // A leaf precisely at the depth limit is completely observed.
+                // Probe only for the existence of one child without adding it
+                // to the queue. Actual deeper descendants still fail closed.
+                cancellationToken.ThrowIfCancellationRequested();
+                using var probe = children(current.Node).GetEnumerator();
+                if (probe.MoveNext())
+                {
+                    truncated = true;
+                    truncationReason ??= "depth";
+                }
                 continue;
             }
 
