@@ -52,6 +52,8 @@ export function compactPlannerSnapshot(snapshot) {
     frames: snapshot.frames,
     truncated: Boolean(snapshot.truncated || visibleText.length > PLANNER_LIMITS.maxVisibleTextChars),
     visibleText: visibleText.slice(0, PLANNER_LIMITS.maxVisibleTextChars),
+    // Bounded vision-fallback description (untrusted model output), same cap as the runner.
+    ...(snapshot.visualContext ? { visualContext: String(snapshot.visualContext).slice(0, 3000) } : {}),
     elements: snapshot.elements.map(element => ({
       ref: element.ref,
       role: element.role,
