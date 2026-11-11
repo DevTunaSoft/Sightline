@@ -266,3 +266,39 @@ test('confirmation expires without timers or automatic retries', async () => {
   assert.equal(expired.confirmationKey,null);
   assert.equal(clicks,0);
 });
+
+test('malformed actions never mint approval tickets or reach the adapter', async () => {
+  let issued=0,clicked=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',elements:[{ref:'@e1',name:'Delete item',role:'button'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicked++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=>{issued++;return 'confirm-'+'c'.repeat(32);},
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const blocked=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'s1',
+    action:{action:'type',ref:'@e1',text:'X'.repeat(5000)},
+  });
+  assert.equal(blocked.code,'INVALID_ACTION');
+  assert.equal(issued,0);
+  assert.equal(clicked,0);
+});
+
+test('action confirmation binds normalized action, not extra untrusted message fields', async () => {
+  let clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',url:'https://example.com/',elements:[{ref:'@e1',name:'Delete item',role:'button'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=> 'confirm-'+'d'.repeat(32),
+    sleep:async()=>{},
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const action={action:'click',ref:'@e1'};
+  const prompt=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{...action,untrustedExtra:'ignore'}});
+  assert.equal(prompt.code,'CONFIRMATION_REQUIRED');
+  const result=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action,confirmed:true,confirmationKey:prompt.confirmationKey});
+  assert.equal(result.code,'NO_VERIFIED_EFFECT');
+  assert.equal(clicks,1);
+});
