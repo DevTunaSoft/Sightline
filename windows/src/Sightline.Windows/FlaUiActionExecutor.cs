@@ -231,15 +231,9 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             return Fail(SightlineErrorCode.ControlNotActionable, "Target value is read-only.");
 
         pattern.SetValue(requestedValue);
-        var readback = pattern.Value.Value;
-        var verified = string.Equals(readback, requestedValue, StringComparison.Ordinal);
-
-        return new ActionReceipt(
-            Ok: verified,
-            ErrorCode: verified ? null : SightlineErrorCode.VerificationFailed,
-            Verified: verified,
-            Readback: readback,
-            Detail: verified ? "Value readback matched." : "Value readback did not match.");
+        // Readback is compared in-process and immediately discarded. Never
+        // return a field's text (which could have become sensitive) in a receipt.
+        return DesktopValueVerification.FromReadback(requestedValue, pattern.Value.Value);
     }
 
     private static string? SafeText(Func<string?> read)
