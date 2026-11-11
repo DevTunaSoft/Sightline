@@ -1,5 +1,22 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Bounded DOM read/verify and select-option scanning
+
+**Baseline:** Continued from the same audited `develop` browser observer/text-normalizer checkpoint. Inspected `extension/dom-action-adapter.js`, its existing tests, validation, registry and action-executor instead of duplicating read/verify functions.
+
+**Further confirmed CPU/RAM gaps:** Even with the shared text collector's scan budget, DOM `read`/`verify` continued walking text nodes while `collector.full` was false; extremely whitespace-heavy content could therefore keep scanning. `select` also used `Array.from(element.options)`, materializing an unbounded options array before checking a requested selection.
+
+**Changes:** `extension/dom-action-adapter.js` (`8112cee`) caps read/verify text-node visits at 6,000, uses the existing 65,536-character shared source-scan limit, stops on either limit, marks partial reads `INCOMPLETE_OBSERVATION` and denies positive verification from incomplete text. Complete short reads/verification remain supported. `0e54532` removes the full options-array copy; it scans at most 2,048 live select options, returning `OPTION_SCOPE_UNVERIFIED` without mutation when a requested item cannot be found within the inspected prefix, and `OPTION_NOT_FOUND` when the inspected complete option list is empty or lacks the target. No new dependencies, timers or background services.
+
+**Regression evidence:** `tests/dom-action-adapter.test.js` adds normal and oversized read/verify tests, bounded text node traversal, aggregate scan exhaustion and select-option limits (commits `5bac333`, `b3b8e62`). **PASS: 20/20 DOM adapter tests** executed against current GitHub source in isolated V8 with minimal DOM/Event/Abort shims. The previously recorded **45/45 observer tests** also passed against the exact current observer source in a separate isolated V8 run. **Total: 65/65 targeted checks PASS, 0 FAIL.** These do not replace full Node `npm run check` or installed Chrome/Edge acceptance.
+
+**Repository integrity correction:** A GitHub write was briefly addressed to the literal root path `develop` on default `main` instead of `tests/dom-action-adapter.test.js` on branch `develop` (mistaken commit `a836297`). This was diagnosed from the actual commit's file list. The unintended `main/develop` file was deleted (`edc55d2`), its absence was read back, and the three select tests were committed to the correct existing test path on `develop` (`b3b8e62`) with a 20-test readback and PASS rerun. No extra branch or PR was created. All subsequent writes specify the exact `path` and `branch` explicitly.
+
+**Remaining unverified:** Complete `npm run check`, GitHub Actions result for the final SHA, installed Chrome/Edge real-site read/verify/dropdown behavior, long-session RAM/CPU and scan-latency comparison, Windows .NET build and interactive acceptance. Local `git ls-remote` still cannot resolve github.com, and `dotnet` is missing. The added limits are architectural safeguards; no measured production memory improvement or bug-free claim is made.
+
+**Next:** Execute repository-wide Node CI, then controlled Chrome/Edge large-DOM read/verify/select benchmarks and end-to-end safety checks. Review remaining accessibility-name/label construction paths for unbounded intermediate arrays. Continue Windows approval/reconciliation only with actual Windows CI and acceptance evidence.
+
+
 ### 2026-11-11 — Bounded text normalization and cumulative CPU safeguard
 
 **Baseline:** Reviewed live `develop`, open PR #8, audit issue #9, current page observer/normalizer, integrated snapshot tests, feature status and roadmap. Existing lazy DOM/frame walkers and hard caps remain intact; no duplicate implementation, PR, branch, dependency, polling or background worker introduced.
