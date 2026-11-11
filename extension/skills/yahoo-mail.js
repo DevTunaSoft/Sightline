@@ -121,29 +121,22 @@ export const yahooMailSkill = Object.freeze({
     const evidence = [];
     let verified = null;
 
-    if (Number.isFinite(beforeHints.visibleCount) && Number.isFinite(afterHints.visibleCount)) {
+    // A route/pagination change is not proof that messages were removed.
+    // Count drops are only supporting evidence on the same search URL.
+    const sameSearch = before?.url && before.url === after?.url &&
+      /\/search(?:\/|$)/i.test((() => { try { return new URL(before.url).pathname; } catch { return ''; } })());
+    if (sameSearch && Number.isFinite(beforeHints.visibleCount) && Number.isFinite(afterHints.visibleCount)) {
       if (afterHints.visibleCount < beforeHints.visibleCount) {
-        verified = true;
-        evidence.push(`visible result count decreased from ${beforeHints.visibleCount} to ${afterHints.visibleCount}`);
+        evidence.push(`Search result count decreased from ${beforeHints.visibleCount} to ${afterHints.visibleCount}`);
       } else if (afterHints.visibleCount === beforeHints.visibleCount) {
-        evidence.push(`visible result count remained ${afterHints.visibleCount}`);
+        evidence.push(`Search result count remained ${afterHints.visibleCount}`);
       }
     }
 
-    const afterText = String(after?.visibleText || '');
-    if (/moved?.{0,40}trash|sent to trash|moved selected|conversation(?:s)? moved/i.test(afterText)) {
-      verified = true;
-      evidence.push('Yahoo displayed a move-to-Trash success signal');
-    }
-
-    const beforeNames = new Set(beforeHints.messageSamples.map(item => item.name.toLowerCase()));
-    const afterNames = new Set(afterHints.messageSamples.map(item => item.name.toLowerCase()));
-    const removedSamples = [...beforeNames].filter(name => !afterNames.has(name));
-    if (removedSamples.length > 0) {
-      if (verified !== true) verified = true;
-      evidence.push(`${removedSamples.length} sampled message(s) disappeared from the result view`);
-    }
-
+    // A disappearance from the first few sampled rows can be pagination,
+    // reordering or live inbox updates. It is never a success oracle.
+    // Only a structured, verified success signal should allow completion;
+    // free-text mail bodies are untrusted and cannot certify deletion.
     return { applicable: true, verified, evidence: evidence.slice(0, 5), before: beforeHints, after: afterHints };
   },
   detectBlocker(snapshot) {
