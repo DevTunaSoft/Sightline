@@ -26,6 +26,27 @@ public sealed class ActionSafetyTests
     }
 
     [Fact]
+    public async Task Approved_action_without_durable_journal_denies_before_process_attach()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator("ApplyButton", "Apply", "Button"));
+        var executor = new FlaUiActionExecutor(leases, approval: new AllowingApproval());
+
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"), new SemanticAction(SemanticActionKind.Invoke, reference));
+
+        Assert.False(receipt.Ok);
+        Assert.Equal(SightlineErrorCode.PermissionDenied, receipt.ErrorCode);
+        Assert.False(receipt.Verified);
+    }
+
+    private sealed class AllowingApproval : IDesktopActionApproval
+    {
+        public bool IsApproved(SemanticSnapshot snapshot, SemanticAction action) => true;
+    }
+
+    [Fact]
     public async Task Unapproved_SetValue_must_not_echo_candidate_values()
     {
         var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
