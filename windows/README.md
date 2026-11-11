@@ -76,7 +76,7 @@ The Windows `Invoke` / `SetValue` executor now **requires both** a trusted actio
 
 `FileDesktopMutationJournal` uses exactly one pending write-through, create-new file and a small 256-byte stream buffer. No background thread, watcher, polling, queue, or in-memory history is created. The file contains only version, process ID, window handle, random record ID, action kind and time. **Field values, DOM text, snapshot IDs and element refs are not written.**
 
-A record must be flushed to storage before the provider mutation begins. A **verified** SetValue clears it; an **unverified** Invoke, cancellation, provider failure or crash leaves it pending. An existing pending record blocks further mutations across process restarts. An Invoke requires *independent application-state verification* before a trusted host may call `TryCompleteVerified`. The controlled WPF acceptance runner provides this verification using its own `ResultText`; production does not yet provide a trusted reconciliation UI or persistent per-user journal path.
+A record must be flushed to storage before the provider mutation begins. A **verified** SetValue clears it. An **unverified** Invoke now returns `UnknownEffect` with `Ok=false` even if the provider accepted the call, because an accepted UIA method is not proof of an application effect. Cancellation, provider failure or crash also leaves the record pending. An existing pending record blocks further mutations across process restarts. An Invoke requires *independent application-state verification* before a trusted host may call `TryCompleteVerified`. The controlled WPF acceptance runner provides this verification using its own `ResultText`; production does not yet provide a trusted reconciliation UI or persistent per-user journal path.
 
 The journal's path must be a stable, access-restricted local path chosen by the trusted Windows host, not a webpage, AI-generated path or disposable temporary path. Do not manually delete pending records until the prior operation has been independently reconciled. A corrupt/partial pending record must fail closed.
 
@@ -93,3 +93,5 @@ The disposable WPF acceptance runner now exercises this same primitive with **te
 
 **Verification gate:** Core XUnit tests for one-use behavior, concurrency, expiry, clock changes, value binding, duplicate controls and revocation are committed but **NOT RUN** in this environment (no .NET SDK). Real Windows acceptance remains **UNVERIFIED**.
 
+
+**Additional fail-closed checks (2026-11-11):** The approval primitive revokes previous approval if an observed control list is malformed or throws during inspection. Credential-named and unidentifiable controls cannot be approved. A small Core result policy normalizes accepted-but-unverified UIA outcomes to `UnknownEffect` and strips any returned field text. Focused XUnit regressions are present, but the latest .NET build and Windows acceptance remain **NOT RUN / UNVERIFIED**.
