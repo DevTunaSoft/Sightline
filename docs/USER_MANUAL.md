@@ -62,6 +62,8 @@ Text inside webpages and emails is treated as untrusted data, not instructions. 
 
 **Autonomous** allows bounded multi-step execution but does not bypass safety gates.
 
+The browser observer also limits how many page nodes it inspects during one scan. On an exceptionally large webpage, Sightline may report a **truncated or incomplete observation** and refuse a consequential action. This prevents excess memory/CPU usage and guessing about controls it has not inspected. You can narrow the page using its search or filters, then try again. The revised scanning code has passed targeted tests but still requires real Chrome/Edge memory and performance testing.
+
 ### Low-memory behavior in the current browser alpha
 
 Sightline keeps a limited set of webpage controls in memory and releases those references when the page observation changes. Pauses between actions do not require a continuously running background monitor. Repeated short waits clean up their cancellation listeners. These safeguards are present in source, but total memory usage still requires testing in installed Chrome and Edge.
