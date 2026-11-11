@@ -1,5 +1,22 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Bounded text normalization and cumulative CPU safeguard
+
+**Baseline:** Reviewed live `develop`, open PR #8, audit issue #9, current page observer/normalizer, integrated snapshot tests, feature status and roadmap. Existing lazy DOM/frame walkers and hard caps remain intact; no duplicate implementation, PR, branch, dependency, polling or background worker introduced.
+
+**Confirmed defect:** `cleanPageText` and `createBoundedTextCollector` performed `String(...).replace(/\\s+/g, ' ').trim()` against complete DOM node strings *before* slicing to 240/8,000 output characters. An unusually large text node could create a proportional temporary normalized string, defeating the memory cap. Across many whitespace-heavy nodes, per-node input work could still be excessive despite the text-node count limit.
+
+**Source changes:** `extension/page-observer-core.js` now uses a single internal bounded prefix normalizer. Small inputs keep the original fast regular-expression path, while longer values are streamed one UTF-16 code unit at a time, preserving whitespace collapsing and trailing-space semantics without materializing a giant normalized copy. It examines at most **32,768 UTF-16 units per value**, outputs at most **8,000 characters**, and the text collector additionally enforces **65,536 total source units per observation**. Exhausted scan budget returns an incomplete status; the caller cannot treat omitted text as a complete observation. Commits `7b23b69`, `4cc0a32`, `3d1bd1d`.
+
+`extension/page-observer.js` propagates the shared scan budget into `buildPageSnapshot` and stops its text TreeWalker when the collector is exhausted, preserving `snapshot.truncated=true` for incomplete page coverage (`1ceb297`). No new retained DOM references, worker threads, timers, network calls or AI model activity.
+
+**Regression coverage:** Original tests plus new huge-string, Unicode whitespace equivalence, leading-space budget, bounded configuration, aggregate source-scan, no fabricated separators, integrated snapshot exhaustion and seeded 160-case fuzz tests in `tests/page-observer-core.test.js` and `tests/page-observer-snapshot.test.js` (`c51c395`, `1e3d0bf`, `0bff20a`, `c3a7ef9`). The latest source and all three observer test files were fetched directly from GitHub and executed under isolated V8 with the existing URL/fake-DOM shims: **45/45 PASS, 0 FAIL**. This is a real isolated source-level check, **NOT** a full `node --test` or installed-browser run.
+
+**Execution limitations:** Container has Node 22.16.0 but `git ls-remote` cannot resolve `github.com`; no working copy of the repository could be retrieved for `npm run check`. `dotnet` is absent; latest Windows build/XUnit/WPF acceptance **NOT RUN**. Actual Chrome/Edge allocation, retained heap, CPU and page-scan latency comparisons are also **NOT RUN/UNVERIFIED**. The low-allocation design is demonstrated by bounded scanning logic, **not** a measured production RAM reduction or proof of zero memory leaks.
+
+**Next unblocked work:** When checkout/CI is accessible, run `npm run check` on the exact `develop` revision, then Chrome/Edge long-page and 1,000-cycle snapshot soak with before/after heap, idle CPU and scan latency measurements. Review accessibility-label construction for any remaining large intermediate arrays; preserve sensitive-field privacy and fail-closed truncated snapshots. Windows production approval UI and pending-action reconciliation still require real .NET/interactive acceptance.
+
+
 ### 2026-11-11 — Bounded nested-frame discovery and text-coverage integrity
 
 **Baseline and no-duplication check:** Audited live `develop`, existing observer/test modules, audit issue #9 and the only open PR (#8, Windows process inspection). Interactive DOM observation was already lazy and capped, but `collectFrameContexts` still allocated the entire `querySelectorAll('iframe,frame')` result before applying its 20-frame limit. The page-text collector also failed to mark snapshot coverage incomplete when it filled its character budget. No new branch, dependency, background thread or polling was introduced.
