@@ -143,3 +143,30 @@ test('short complete visible text keeps a non-truncated observation', () => {
   assert.equal(snapshot.truncated, false);
   assert.equal(snapshot.visibleText, 'hello');
 });
+
+test('integrated observation stops after the shared text scan budget', () => {
+  const doc = fakeDocument('https://example.com/', [button()], [
+    fakeText(' '.repeat(40000)),
+    fakeText(' '.repeat(40000)),
+    fakeText('hidden after budget'),
+  ]);
+  const snapshot = withPage(doc, () => buildPageSnapshot({
+    maxTextCharsInspected: 40000,
+  }));
+  assert.equal(snapshot.truncated, true);
+  assert.equal(snapshot.visibleText, '');
+  assert.equal(snapshot.elements.length, 1);
+});
+
+test('oversized text budgets cannot override the hard per-page ceiling', () => {
+  const doc = fakeDocument('https://example.com/', [button()], [
+    fakeText(' '.repeat(50000)),
+    fakeText(' '.repeat(50000)),
+    fakeText('never scanned'),
+  ]);
+  const snapshot = withPage(doc, () => buildPageSnapshot({
+    maxTextCharsInspected: Number.MAX_SAFE_INTEGER,
+  }));
+  assert.equal(snapshot.truncated, true);
+  assert.equal(snapshot.visibleText, '');
+});
