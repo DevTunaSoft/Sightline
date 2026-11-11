@@ -57,8 +57,9 @@ function appendBoundedPageText(root, collector, maxVisited) {
   return { visited, truncated: Boolean(node && !collector.full) };
 }
 
-/** Lazy, bounded element walk. Never materialize an unlimited CSS match list. */
-export function visitInteractiveNodes(doc, selector, budget, visit) {
+// Shared bounded walker: neither frame discovery nor interactive discovery
+// materializes a potentially huge querySelectorAll result collection.
+function walkDocumentElements(doc, budget, visit) {
   const root = doc?.documentElement;
   const nodeFilter = doc?.defaultView?.NodeFilter || globalThis.NodeFilter;
   if (!root || !nodeFilter || typeof doc.createTreeWalker !== 'function')
@@ -68,62 +69,79 @@ export function visitInteractiveNodes(doc, selector, budget, visit) {
   let visited = 0;
   while (node && visited < budget) {
     visited += 1;
-    // Avoid full selector matching for the many plain layout elements in
-    // modern pages; these cannot match INTERACTIVE_SELECTOR.
-    const possiblyInteractive = INTERACTIVE_TAGS.has(node.tagName) ||
-      node.hasAttribute?.('role') || node.hasAttribute?.('tabindex');
-    if (possiblyInteractive && node.matches?.(selector) && visit(node) === false)
-      return { visited, truncated: true };
+    if (visit(node) === false) return { visited, truncated: true };
     node = walker.nextNode();
   }
   return { visited, truncated: Boolean(node) };
 }
 
-function collectFrameContexts(rootDocument, maxFrames = 20, maxDepth = 3) {
-  const contexts = [{ doc: rootDocument, path: 'top', depth: 0, origin: safeOrigin(rootDocument.location?.href || location.href) }];
+/** Lazy, bounded interactive scan; ordinary layout nodes skip CSS matching. */
+export function visitInteractiveNodes(doc, selector, budget, visit) {
+  return walkDocumentElements(doc, budget, node => {
+    const possiblyInteractive = INTERACTIVE_TAGS.has(node.tagName) ||
+      node.hasAttribute?.('role') || node.hasAttribute?.('tabindex');
+    if (possiblyInteractive && node.matches?.(selector))
+      return visit(node);
+    return true;
+  });
+}
+
+export function collectFrameContexts(
+  rootDocument, maxFrames = 20, maxDepth = 3,
+  maxVisitedNodes = PAGE_OBSERVER_LIMITS.maxFrameNodesVisited) {
+  const contexts = [{
+    doc: rootDocument, path: 'top', depth: 0,
+    origin: safeOrigin(rootDocument.location?.href || location.href),
+  }];
   const inventory = { total: 0, sameOrigin: 0, opaque: 0, skippedDepth: 0, origins: [] };
   const originSet = new Set();
   let inspected = 0;
+  let remaining = maxVisitedNodes;
 
   for (let contextIndex = 0; contextIndex < contexts.length; contextIndex += 1) {
     const context = contexts[contextIndex];
-    const frames = context.doc.querySelectorAll('iframe,frame');
-    inventory.total += frames.length;
-
-    for (let i = 0; i < frames.length; i += 1) {
-      if (inspected >= maxFrames) {
-        inventory.truncated = true;
-        break;
-      }
+    let frameIndex = 0;
+    const scan = walkDocumentElements(context.doc, remaining, node => {
+      const tag = node.tagName;
+      if (tag !== 'IFRAME' && tag !== 'FRAME' &&
+          tag !== 'iframe' && tag !== 'frame') return true;
+      if (inspected >= maxFrames) return false;
       inspected += 1;
-      const frame = frames[i];
-      const origin = safeOrigin(frame.getAttribute?.('src') || '', context.doc.location?.href || location.href);
+      frameIndex += 1;
+      inventory.total += 1;
+      const origin = safeOrigin(
+        node.getAttribute?.('src') || '', context.doc.location?.href || location.href);
       if (origin && origin !== 'null' && !originSet.has(origin) && originSet.size < 10) {
         originSet.add(origin);
         inventory.origins.push(origin);
       }
 
       let childDocument = null;
-      try { childDocument = frame.contentDocument || null; } catch {}
+      try { childDocument = node.contentDocument || null; } catch {}
       if (!childDocument?.documentElement) {
         inventory.opaque += 1;
-        continue;
+        return true;
       }
-
       inventory.sameOrigin += 1;
-      if (context.depth >= maxDepth || !isVisible(frame)) {
-        inventory.skippedDepth += context.depth >= maxDepth ? 1 : 0;
-        continue;
+      if (context.depth >= maxDepth || !isVisible(node)) {
+        if (context.depth >= maxDepth) inventory.skippedDepth += 1;
+        return true;
       }
-
       contexts.push({
         doc: childDocument,
-        path: `${context.path}/f${i + 1}`,
+        path: `${context.path}/f${frameIndex}`,
         depth: context.depth + 1,
-        origin: safeOrigin(childDocument.location?.href || origin || '', context.doc.location?.href || location.href),
+        origin: safeOrigin(
+          childDocument.location?.href || origin || '',
+          context.doc.location?.href || location.href),
       });
+      return true;
+    });
+    remaining -= scan.visited;
+    if (scan.truncated) {
+      inventory.truncated = true;
+      break;
     }
-    if (inspected >= maxFrames) break;
   }
 
   return { contexts, inventory };
@@ -186,7 +204,8 @@ export function buildPageSnapshot(options = {}) {
   const limits = normalizeObservationLimits(limitOverrides);
   const elements = [];
   const registryEntries = [];
-  const { contexts, inventory } = collectFrameContexts(document);
+  const { contexts, inventory } = collectFrameContexts(
+    document, 20, 3, limits.maxFrameNodesVisited);
   const textCollector = createBoundedTextCollector(limits.maxVisibleTextChars);
   let truncated = false;
   let textVisitsRemaining = limits.maxTextNodesVisited;
