@@ -110,6 +110,12 @@ The browser DOM adapter now applies the same strict text budgets used by observa
 
 **Next release gate:** run the full suite on the exact `develop` commit; benchmark Chrome/Edge large DOMs and dropdowns for allocation, scan latency and stability; then complete Windows trusted consent and reconciliation acceptance. Review any remaining unbounded accessible-name/label construction.
 
+## 2026-11-11 — Bounded accessible names
+
+Sightline now limits accessible-name inspection to 16 `aria-labelledby` IDs or 16 indexed live labels, with a 2,048-character ID budget and 4,096-character source-text budget. This avoids unbounded label-list expansions and combined-string allocations on large pages. Incomplete control names mark the observation truncated, so higher-risk actions cannot depend on partial target identity. The implementation reuses the existing page-text collector and a single observation-wide status flag instead of copying each semantic descriptor.
+
+**Evidence:** 50/50 targeted observer tests passed against the exact `develop` source in isolated V8, including tests with oversized labels and normal small labels. Real Chrome/Edge heap, CPU and scan-latency measurements, full Node `npm run check`, and .NET Windows acceptance remain **NOT RUN / UNVERIFIED**. Do not infer a measured RAM percentage.
+
 ## Resource policy
 
 Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
