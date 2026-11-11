@@ -1,3 +1,7 @@
+## Comprehensive takeover reference
+
+The [V3 Master Engineering Handoff](handoff/SIGHTLINE_MASTER_HANDOFF_V3_2026-11-11.md) preserves the full product narrative, historical requests and rationale, architecture, and next-engineer instructions. This file remains the chronological verification ledger; reconcile the point-in-time dossier against the latest code and evidence.
+
 # Sightline Engineering Handoff
 
 ### 2026-11-11 — Linked-label-only secret protection, bounded and action-time rechecked
