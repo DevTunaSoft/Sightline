@@ -203,3 +203,17 @@ test('huge whitespace-only text cannot fabricate a trailing separator', () => {
   assert.equal(collector.value(),'hello');
   assert.equal(collector.scannedChars,32773);
 });
+
+test('bounded whitespace normalization matches reference on deterministic fuzz inputs', () => {
+  const alphabet=['a','b','Z','9',' ','\t','\n','\r','\u00a0','\u2003','\u2028','\uFEFF','!'];
+  let seed=0x9e3779b9;
+  const next=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed;};
+  for(let trial=0;trial<160;trial++){
+    const length=next()%600;
+    let input='';
+    for(let i=0;i<length;i++) input+=alphabet[next()%alphabet.length];
+    const max=1+(next()%300);
+    const reference=input.replace(/\s+/g,' ').trim().slice(0,max);
+    assert.equal(cleanPageText(input,max),reference,'trial '+trial);
+  }
+});
