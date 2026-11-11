@@ -170,6 +170,24 @@ public sealed class OneShotDesktopActionApprovalTests
     }
 
     [Fact]
+    public void Sensitive_or_unidentifiable_control_cannot_be_approved()
+    {
+        var approval = new OneShotDesktopActionApproval();
+        var baseline = Snapshot();
+        var original = baseline.Elements[0];
+
+        Assert.False(approval.ArmAfterUserConfirmation(baseline with
+        {
+            Elements = [original with { Name = "Password", AutomationId = "new_password" }]
+        }, Invoke()));
+        Assert.False(approval.ArmAfterUserConfirmation(baseline with
+        {
+            Elements = [original with { Name = null, AutomationId = null }]
+        }, Invoke()));
+        Assert.False(approval.IsApproved(baseline, Invoke()));
+    }
+
+    [Fact]
     public void Null_element_in_observation_fails_closed()
     {
         var approval = new OneShotDesktopActionApproval();
