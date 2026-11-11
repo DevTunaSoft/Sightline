@@ -3,7 +3,37 @@ import { hasTargetStructuralEffect } from './page-observer-core.js';
 import { RefRegistry } from './ref-registry.js';
 import { createDomActionAdapter } from './dom-action-adapter.js';
 import { executeValidatedAction } from './action-executor-core.js';
-import { gateAction, actionConfirmationKey } from './safety-gate.js';
+import { gateAction } from './safety-gate.js';
+
+// A confirmation token is an unpredictable, single-use capability, not a
+// hash of public page metadata. No secrets or action values are persisted.
+function secureConfirmationToken() {
+  const crypto = globalThis.crypto;
+  if (typeof crypto?.getRandomValues !== 'function') return null;
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return 'confirm-' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function confirmationBinding(snapshot, action, target, context) {
+  try {
+    const text = JSON.stringify({
+      snapshotId: snapshot?.snapshotId || '',
+      currentUrl: snapshot?.url || '',
+      action,
+      target: {
+        ref: target?.ref || null,
+        role: target?.role || null,
+        name: target?.name || null,
+        hrefOrigin: target?.state?.hrefOrigin || null,
+      },
+      taskGoal: String(context.taskGoal || '').slice(0, 2000),
+    });
+    return text?.length <= 12000 ? text : null;
+  } catch {
+    return null;
+  }
+}
 
 export function createPageAgentController(options = {}) {
   const registry = options.registry || new RefRegistry();
@@ -12,9 +42,14 @@ export function createPageAgentController(options = {}) {
   const gate = options.gate || gateAction;
   const sleep = options.sleep || (ms => new Promise(resolve => setTimeout(resolve, ms)));
   let currentSnapshot = null;
+  // Exactly one in-memory, short-lived approval challenge per page agent.
+  let pendingConfirmation = null;
+  const issueToken = options.issueConfirmationToken || secureConfirmationToken;
 
   async function refresh() {
-    currentSnapshot = await observe();
+    const next = await observe();
+    if (currentSnapshot?.snapshotId !== next.snapshotId) pendingConfirmation = null;
+    currentSnapshot = next;
     return currentSnapshot;
   }
 
@@ -42,19 +77,34 @@ export function createPageAgentController(options = {}) {
         : null;
       const gateContext = { currentUrl: currentSnapshot.url, taskGoal: message.taskGoal || '' };
       const decision = gate(message.action, target || {}, message.mode || 'assist', gateContext);
-      const confirmationKey = decision.confirmationRequired ? actionConfirmationKey(currentSnapshot.snapshotId, message.action, target || {}, gateContext) : null;
       if (!decision.allowed) {
-        if (decision.confirmationRequired && message.confirmed === true && message.confirmationKey === confirmationKey) {
-          // Confirmation is bound to this exact semantic action, task, and snapshot.
-        } else {
-          return {
-            ok: false,
-            code: decision.confirmationRequired ? 'CONFIRMATION_REQUIRED' : 'ACTION_BLOCKED',
-            risk: decision.risk,
-            target,
-            confirmationKey,
-          };
+        if (!decision.confirmationRequired) {
+          pendingConfirmation = null;
+          return { ok: false, code: 'ACTION_BLOCKED', risk: decision.risk, target };
         }
+        const binding = confirmationBinding(currentSnapshot, message.action, target, gateContext);
+        if (message.confirmed === true) {
+          const accepted = Boolean(binding && pendingConfirmation &&
+            pendingConfirmation.binding === binding &&
+            pendingConfirmation.key === message.confirmationKey);
+          // Consume before executing; duplicate/parallel messages cannot replay it.
+          pendingConfirmation = null;
+          if (!accepted) return {
+            ok: false, code: 'CONFIRMATION_REQUIRED', risk: decision.risk,
+            target, confirmationKey: null,
+          };
+        } else {
+          pendingConfirmation = null;
+          const confirmationKey = binding ? issueToken() : null;
+          if (typeof confirmationKey !== 'string' || !/^confirm-[a-f0-9]{32}$/.test(confirmationKey)) {
+            return { ok: false, code: 'CONFIRMATION_UNAVAILABLE', risk: decision.risk, target };
+          }
+          pendingConfirmation = { key: confirmationKey, binding };
+          return { ok: false, code: 'CONFIRMATION_REQUIRED', risk: decision.risk, target, confirmationKey };
+        }
+      } else {
+        // An unrelated safe action invalidates any older pending approval.
+        pendingConfirmation = null;
       }
 
       const beforeSnapshotId = currentSnapshot.snapshotId;
