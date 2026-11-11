@@ -50,7 +50,7 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 
 | Capability | Status | Notes |
 |---|---|---|
-| Browser single-use approvals | Implemented / 16 isolated regression checks PASS; full Node tests **NOT RUN** | Random 128-bit token, exact action/target/page binding, one pending ticket, five-minute use-time expiry; no background timers. Installed Chrome/Edge unverified. |
+| Browser single-use approvals | Implemented / 18 isolated regression checks PASS; full Node tests **NOT RUN** | Random 128-bit token, exact action/target/page binding, one pending ticket, five-minute use-time expiry; failed observation and RNG errors invalidate or refuse approval; no background timers. Installed Chrome/Edge unverified. |
 | Browser action validation before confirmation | Implemented / isolated tests PASS; real browser **UNVERIFIED** | Reuses typed action protocol; oversized or invalid requests are denied before approval issuance and execution. |
 | Windows secret-free SetValue receipt | Implemented / tests added, **NOT RUN** | Internal readback compares exact requested value but never returns field contents. Mismatch is UnknownEffect, not a retry-safe failure. |
 
