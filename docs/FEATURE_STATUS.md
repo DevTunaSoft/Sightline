@@ -32,6 +32,8 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Windows focus sensitive-field protection | Implemented / tests added, **NOT RUN** | Refuses sensitive leases and rechecks the live password flag before focus; real Windows not verified. |
 | Depth-boundary leaf truncation | Implemented / tests added, **NOT RUN** | Inspects existence of deeper child only; leaf at exact depth no longer incorrectly marked partial. |
 | Windows typed action validation | Implemented / tests added, **NOT RUN** | 128-character max ref, 4,000-character max SetValue, typed payload validation before provider access. |
+| Windows single-mutation write-ahead journal | Implemented / XUnit tests added, **NOT RUN** | Atomic create-new write-through record before provider mutation; one file, no queue or polling; blocks unresolved crash/restart actions. WPF runner wired for external verification, real Windows UNVERIFIED. |
+| Production Windows journal path and reconciliation UI | **NOT IMPLEMENTED** | Host must provide access-restricted stable per-user path and explicit independently verified resolution; default action still denied without injected approval and journal. |
 | Windows unknown-effect status | Implemented / **UNVERIFIED** | Mutation-phase exceptions and cancellations report UnknownEffect; crash-proof journaling/reconciliation remains missing. |
 | Real Windows UIA actions | **Not yet verified** | Requires interactive desktop. |
 | Browser companion IPC | Not yet implemented | Existing extension preserved. |
