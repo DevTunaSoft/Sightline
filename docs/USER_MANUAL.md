@@ -82,6 +82,8 @@ Sightline stops for confirmation before high-impact browser actions such as dest
 
 If state changes while the confirmation is open, the old confirmation is invalidated rather than blindly reused.
 
+**Confirmation safety (experimental):** Each approval applies to one specific action and can be used only once. It expires automatically after five minutes, without a background timer. If an old confirmation is rejected, begin a fresh review; do not assume the earlier action failed. This source change has not yet been verified inside installed Chrome or Edge.
+
 ## Yahoo Mail
 
 Use **Yahoo readiness** before a real Yahoo task. It is read-only.
