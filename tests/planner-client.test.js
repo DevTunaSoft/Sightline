@@ -69,3 +69,25 @@ test('planner client rejects a ref omitted from a compacted page prompt', async 
       JSON.stringify({done:false,action:{action:'click',ref:'@e170'}})}}),{status:200});}),/not present/);
   assert.equal(requests,2);
 });
+
+test('retry includes bounded rejected model output and ends with trusted guardrails', async () => {
+  const payloads=[];
+  let calls=0;
+  const bad='garbage <untrusted instruction> '+ 'X'.repeat(4000);
+  const decision=await planNextAction({model:'gemma3:4b',goal:'open inbox',snapshot},
+    async(_url,options)=>{
+      const payload=JSON.parse(options.body);
+      payloads.push(payload);
+      const content=calls++===0 ? bad : '{"done":false,"action":{"action":"click","ref":"@e1"}}';
+      return new Response(JSON.stringify({message:{content}}),{status:200});
+    });
+  assert.equal(decision.action.ref,'@e1');
+  assert.equal(payloads.length,2);
+  const second=payloads[1].messages;
+  assert.equal(second.at(-2).role,'assistant');
+  assert.ok(second.at(-2).content.startsWith('garbage <untrusted instruction>'));
+  assert.ok(second.at(-2).content.length<=500);
+  assert.equal(second.at(-1).role,'system');
+  assert.match(second.at(-1).content,/untrusted/i);
+  assert.ok(second.reduce((n,m)=>n+m.content.length,0)<=18000);
+});
