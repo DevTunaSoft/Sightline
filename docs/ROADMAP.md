@@ -102,6 +102,14 @@ The shared normalizer now limits examined input to **32,768 UTF-16 units per val
 
 **Next gate:** Run full CI and Chrome/Edge controlled long-page stress tests, compare peak retained heap, scan latency, and idle CPU against the previous commit; resolve any real-device incompatibility before declaring production acceptance.
 
+## 2026-11-11 — Bounded browser actions follow-up
+
+The browser DOM adapter now applies the same strict text budgets used by observation: read/verify operations stop after 6,000 text nodes or 65,536 UTF-16 source units; an incomplete read cannot prove an action succeeded. Dropdown selection examines no more than 2,048 live options without copying the full option list. Both are fail-closed and add no resident memory, background tasks or dependencies.
+
+**Executed:** 45/45 observer and 20/20 DOM adapter targeted checks PASS in isolated JavaScript execution (**65/65 total**). Source readback and corrections to a misplaced temporary GitHub test-file write also verified. **NOT RUN:** complete Node test suite, installed Chrome/Edge acceptance, long-session heap/CPU measurements, and current Windows .NET tests.
+
+**Next release gate:** run the full suite on the exact `develop` commit; benchmark Chrome/Edge large DOMs and dropdowns for allocation, scan latency and stability; then complete Windows trusted consent and reconciliation acceptance. Review any remaining unbounded accessible-name/label construction.
+
 ## Resource policy
 
 Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
