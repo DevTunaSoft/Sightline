@@ -180,12 +180,24 @@ public sealed class FoundationTests
     {
         const string canary = "synthetic-application-field-secret-1202";
         var providerReceipt = new ActionReceipt(
-            Ok: true, ErrorCode: null, Verified: true, Readback: canary);
+            Ok: true, ErrorCode: null, Verified: true, Readback: canary, Detail: canary);
         var receipt = DesktopMutationOutcome.RequireVerifiedEffect(providerReceipt);
         Assert.True(receipt.Ok);
         Assert.True(receipt.Verified);
         Assert.Null(receipt.Readback);
         Assert.DoesNotContain(canary, System.Text.Json.JsonSerializer.Serialize(receipt));
+    }
+
+    [Fact]
+    public void Contradictory_verified_status_with_error_code_is_not_trusted()
+    {
+        var providerReceipt = new ActionReceipt(
+            Ok: true, ErrorCode: SightlineErrorCode.VerificationFailed, Verified: true);
+        var receipt = DesktopMutationOutcome.RequireVerifiedEffect(providerReceipt);
+
+        Assert.False(receipt.Ok);
+        Assert.False(receipt.Verified);
+        Assert.Equal(SightlineErrorCode.UnknownEffect, receipt.ErrorCode);
     }
 
     [Fact]
