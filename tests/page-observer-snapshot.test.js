@@ -269,3 +269,33 @@ test('editable password hint is redacted but show-password button remains availa
   assert.equal(snapshot.elements[1].sensitive,false);
   assert.equal(snapshot.elements[1].name,'Show password');
 });
+
+test('snapshot redacts credential fields identified exclusively by associated labels', () => {
+  const linked={
+    tagName:'INPUT',value:'synthetic-secret-707',
+    getAttribute:key=>key==='aria-labelledby'?'entryLabel':key==='type'?'text':null,
+    matches:()=>true,
+  };
+  const doc=fakeDocument('https://example.com/',[linked]);
+  doc.getElementById=id=>id==='entryLabel'?{textContent:'Enter password'}:null;
+  const snapshot=withPage(doc,()=>buildPageSnapshot());
+  assert.equal(snapshot.elements.length,1);
+  assert.equal(snapshot.elements[0].sensitive,true);
+  assert.equal(snapshot.elements[0].name,'[REDACTED SENSITIVE FIELD]');
+  assert.equal(Object.hasOwn(snapshot.elements[0].state,'valueLength'),false);
+  assert.doesNotMatch(JSON.stringify(snapshot),/synthetic-secret-707/);
+});
+
+test('snapshot preserves normal labels on ordinary nonsecret inputs', () => {
+  const field={
+    tagName:'INPUT',value:'hello',labels:[{textContent:'Notes'}],
+    getAttribute:key=>key==='type'?'text':null,
+    matches:()=>true,
+  };
+  const snapshot=withPage(fakeDocument('https://example.com/',[field]),
+    ()=>buildPageSnapshot());
+  assert.equal(snapshot.elements.length,1);
+  assert.equal(snapshot.truncated,false);
+  assert.equal(snapshot.elements[0].sensitive,false);
+  assert.equal(snapshot.elements[0].name,'Notes');
+});
