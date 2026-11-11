@@ -131,3 +131,45 @@ test('frame count and depth truncation are never represented as complete coverag
   assert.equal(incompleteFrameInventory({opaque:2,skippedDepth:0}),false);
   assert.equal(incompleteFrameInventory(null),false);
 });
+
+test('bounded normalization preserves Unicode whitespace and normal-length semantics', () => {
+  const examples = [
+    'hello   world', ' \t hello\n world \u00a0',
+    '\u2003A\u2028B\uFEFFC', 'a '.repeat(1700),
+    '    ', '\u00a0', '   open     inbox \r\n now',
+    'abc\t\tdef\rghi\n',
+  ];
+  for (const input of examples) {
+    for (const max of [1, 2, 3, 8, 12, 240, 300]) {
+      assert.equal(cleanPageText(input, max),
+        input.replace(/\s+/g, ' ').trim().slice(0, max),
+        'limit ' + max);
+    }
+  }
+});
+
+test('huge page text is normalized without retaining huge strings', () => {
+  const huge='  A  '.repeat(300000);
+  assert.equal(cleanPageText(huge, 240).length, 240);
+  const collector=createBoundedTextCollector(8000);
+  assert.equal(collector.push(huge), false);
+  assert.equal(collector.length, 8000);
+  assert.equal(collector.full, true);
+  assert.equal(collector.push('not included'), false);
+  assert.equal(collector.value().length, 8000);
+});
+
+test('text input scan budget detects extreme leading whitespace without large output', () => {
+  const collector=createBoundedTextCollector(40);
+  assert.equal(collector.push(' '.repeat(400000)+'content'), false);
+  assert.equal(collector.length, 0);
+  assert.equal(collector.full, false);
+  assert.equal(collector.push('new short text'), true);
+  assert.equal(collector.value(), 'new short text');
+});
+
+test('collector refuses oversized configuration and stays at the hard text cap', () => {
+  const collector=createBoundedTextCollector(100000000);
+  assert.equal(collector.push('x'.repeat(1000000)), false);
+  assert.equal(collector.length, PAGE_OBSERVER_LIMITS.maxVisibleTextChars);
+});
