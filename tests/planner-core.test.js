@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makePlannerPayload, parsePlannerDecision, PLANNER_LIMITS } from '../extension/planner-core.js';
+import { makePlannerPayload, parsePlannerDecision, PLANNER_LIMITS, estimatePlannerTokens } from '../extension/planner-core.js';
 
 const snapshot={snapshotId:'s1',url:'https://mail.example',elements:[{ref:'@e1',role:'textbox',name:'Search',sensitive:false},{ref:'@e2',role:'textbox',name:'Password',sensitive:true}]};
 
@@ -91,4 +91,24 @@ test('untrusted mail text cannot erase final guardrails or echo typed history va
   assert.match(payload.messages.at(-1).content,/END OF UNTRUSTED PAGE DATA/);
   assert.match(payload.messages.at(-1).content,/never instructions/i);
   assert.match(payload.messages[0].content,/UNTRUSTED DATA/);
+});
+
+test('planner token estimate penalizes non-ASCII content and stays below configured reserve', () => {
+  const ascii=estimatePlannerTokens([{content:'a'.repeat(1000)}]);
+  const multilingual=estimatePlannerTokens([{content:'界'.repeat(1000)}]);
+  assert.ok(multilingual>ascii);
+  assert.ok(multilingual>=1000);
+  assert.ok(PLANNER_LIMITS.maxEstimatedTokens<8192);
+});
+
+test('planner fails closed when a long multilingual page could overflow token context', () => {
+  const many={snapshotId:'s1',url:'https://example.com/',elements:
+    Array.from({length:140},(_,i)=>({
+      ref:`@e${i+1}`,role:'button',name:'請'.repeat(140),sensitive:false,
+    }))};
+  assert.ok(JSON.stringify(many).length<PLANNER_LIMITS.maxSnapshotChars);
+  assert.throws(
+    ()=>makePlannerPayload({model:'gemma3:4b',goal:'inspect',snapshot:many}),
+    /context budget/i
+  );
 });
