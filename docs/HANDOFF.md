@@ -1,5 +1,20 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Independent sensitive metadata and action-time guard
+
+**Reconciled actual `develop` baseline:** Audited current browser observer, shared field classifier, DOM adapter, action protocol, safety gate, user manual, audit issue #9, and open PR #8 (unrelated Windows inspection). No duplicate branch or PR, dependency, worker or polling was added. Previously implemented field-type/name/autocomplete checks and click/keyboard guards were preserved.
+
+**Confirmed security gap:** The observer and adapter passed `name || id` as a single field. Thus a harmless `name` could hide a sensitive `id`, and prefixed HTML autocomplete tokens or accessible hints on text-entry controls were overlooked. These could cause the observer to expose a text field as nonsensitive and the adapter to act on it.
+
+**Code:** `extension/page-observer-core.js` commits `edf09d4`, `835ce71` independently examine name and ID (each bounded at 256 chars), recognize space-delimited autocomplete tokens (including `section-login current-password`), inspect aria-label/placeholder on editable roles (but not ordinary Show password buttons), and conservatively deny overlong uninspectable metadata. Observer and action adapter call the same classifier with consistent metadata in commits `046f7ec` and `3c64674`. Max processed metadata is fixed and no data is cached.
+
+**Regressions:** `tests/page-observer-core.test.js` (`dc324b5`, `d88c684`), `tests/dom-action-adapter.test.js` (`0688390`), and `tests/page-observer-snapshot.test.js` (`5de5af0`) cover name-masked password IDs, prefixed autocomplete, text-entry aria/placeholder, long strings, readonly observations, post-snapshot execution gating, credential redaction and ordinary button compatibility.
+
+**Executed evidence:** `79/79 PASS` across the exact current GitHub observer-core, visibility, snapshot and DOM-adapter test functions in isolated V8 with URL/DOM/Abort shims. An initial local test harness omitted injected `PAGE_OBSERVER_LIMITS` and `DOMException`, producing 6 harness-related failures; after correcting the harness injection, all `78/78` tests passed, then the additional long-metadata test brought the current result to `79/79`, no failures. The final source and regression files were read back from `develop`. This is not the Node `npm run check` runner or installed browser.
+
+**Still NOT RUN / UNVERIFIED:** complete Node suite, Chrome/Edge real-site credential controls, external linked-label-only custom fields, DOM change/race testing, actual memory/CPU/heap metrics, .NET/Windows acceptance and CI at this SHA. The credential guards are a partial security mitigation rather than complete browser safety certification. Next check linked-label-only controls with a bounded approach; add installed Chrome/Edge acceptance and measure long-session resource usage.
+
+
 ### 2026-11-11 — Bounded accessible-name extraction and reduced per-control allocations
 
 **Baseline audited:** Existing `develop` code already had a hard-bounded DOM/frame scan, text normalizer, select-option limit and observer regression suite. Issue #9 remains the audit tracker and PR #8 remains the only open PR. A distinct allocation defect remained in `extension/page-observer.js`: `aria-labelledby` used unbounded `split/map/join`, and the live `element.labels` collection was expanded with `[...labels]` before applying its short text limit. This could allocate large temporary arrays/strings while observing a webpage despite the final name being capped.
