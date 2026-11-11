@@ -38,23 +38,27 @@ const INTERACTIVE_TAGS = new Set([
 ]);
 
 function appendBoundedPageText(root, collector, maxVisited) {
-  if (!root || collector.full) return { visited: 0, truncated: false };
+  if (!root) return { visited: 0, truncated: false };
+  if (collector.full) return { visited: 0, truncated: true };
   const doc = root.ownerDocument || document;
   const nodeFilter = doc.defaultView?.NodeFilter || globalThis.NodeFilter;
   if (!doc.createTreeWalker || !nodeFilter) return { visited: 0, truncated: true };
   const walker = doc.createTreeWalker(root, nodeFilter.SHOW_TEXT);
   let visited = 0;
+  let textLimitReached = false;
   let node = walker.nextNode();
   while (node && !collector.full && visited < maxVisited) {
     visited += 1;
     const parent = node.parentElement;
     if (parent && !SKIPPED_TEXT_TAGS.has(parent.tagName) && !parent.closest?.('[hidden],[aria-hidden="true"]')) {
       const rects = typeof parent.getClientRects === 'function' ? parent.getClientRects() : null;
-      if (!rects || rects.length > 0) collector.push(node.nodeValue);
+      if ((!rects || rects.length > 0) && !collector.push(node.nodeValue))
+        textLimitReached = true;
     }
     node = walker.nextNode();
   }
-  return { visited, truncated: Boolean(node && !collector.full) };
+  // A full text budget or unvisited nodes means incomplete page context.
+  return { visited, truncated: textLimitReached || Boolean(node) };
 }
 
 // Shared bounded walker: neither frame discovery nor interactive discovery
