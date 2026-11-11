@@ -87,12 +87,13 @@ export function createPageAgentController(options = {}) {
           const accepted = Boolean(binding && pendingConfirmation &&
             pendingConfirmation.binding === binding &&
             pendingConfirmation.key === message.confirmationKey);
-          // Consume before executing; duplicate/parallel messages cannot replay it.
-          pendingConfirmation = null;
           if (!accepted) return {
             ok: false, code: 'CONFIRMATION_REQUIRED', risk: decision.risk,
             target, confirmationKey: null,
           };
+          // Consume only an authentic token, immediately before the side effect.
+          // An invalid guess does not revoke the legitimate user's pending review.
+          pendingConfirmation = null;
         } else {
           pendingConfirmation = null;
           const confirmationKey = binding ? issueToken() : null;
