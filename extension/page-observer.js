@@ -219,7 +219,13 @@ function describeElement(element, index, limits, frameContext, labelStatus) {
   const sensitive = isSensitiveField({
     type: element.getAttribute('type'),
     autocomplete: element.getAttribute('autocomplete'),
-    name: element.getAttribute('name') || element.id,
+    name: element.getAttribute('name') || element.name,
+    id: element.getAttribute('id') || element.id,
+    ariaLabel: element.getAttribute('aria-label'),
+    placeholder: element.getAttribute('placeholder'),
+    tagName: element.tagName,
+    role,
+    isContentEditable: element.isContentEditable === true,
   });
   const rect = element.getBoundingClientRect();
   const state = {};
