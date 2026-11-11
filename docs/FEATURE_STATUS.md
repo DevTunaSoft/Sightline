@@ -14,7 +14,7 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Bounded UIA traversal/resolution | Implemented / automated-test verified | Node/depth/time bounded; actions fail closed on incomplete scans. |
 | Element leases | Implemented / automated-test verified | Snapshot/process/window bound, non-reused refs, hard-bounded lazy storage. |
 | Invoke | Implemented / compile verified | App-specific effect verification still required. |
-| SetValue + readback | Implemented / compile verified | Exact value readback. |
+| SetValue + readback | Implemented / regression tests added, **NOT RUN** | In-process comparison only; `Readback` is never returned. Mismatch returns `UnknownEffect` (no automatic retry). |
 | Focus verification | Implemented / automated-test verified | One focus request/readback; no polling. |
 | User-activity lease | Implemented / automated-test verified | Win32 last-input stamp; no hook/poll loop. |
 | UIA circuit breaker | Implemented / automated-test verified | Bounded process table + cooldown/half-open probe. |
