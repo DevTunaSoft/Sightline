@@ -1,4 +1,4 @@
-import { PAGE_OBSERVER_LIMITS, isSensitiveField, cleanPageText, createBoundedTextCollector } from './page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, isSensitiveField, hasSensitiveAssociatedLabel, cleanPageText, createBoundedTextCollector } from './page-observer-core.js';
 
 const MAX_SELECT_OPTIONS_INSPECTED = 2048;
 
@@ -17,7 +17,7 @@ function sensitiveElement(element) {
     tagName: element?.tagName,
     role: attr(element, 'role'),
     isContentEditable: element?.isContentEditable === true,
-  });
+  }) || hasSensitiveAssociatedLabel(element);
 }
 
 function boundedElementText(element, maxChars = 4000) {
