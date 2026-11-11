@@ -46,6 +46,8 @@ try
     // through an action receipt, even in a controlled acceptance fixture.
     if (!setReceipt.Ok || !setReceipt.Verified || setReceipt.Readback is not null)
         throw new InvalidOperationException("SetValue verification or readback privacy failed.");
+    if (journal.HasPending)
+        throw new InvalidOperationException("Verified SetValue must clear its durable record.");
 
     snapshot = await ObserveUntilAsync(
         session.Observer,
@@ -61,6 +63,8 @@ try
 
     if (!invokeReceipt.Ok)
         throw new InvalidOperationException("Invoke was rejected.");
+    if (!journal.HasPending)
+        throw new InvalidOperationException("Unverified Invoke must retain its durable record.");
 
     snapshot = await ObserveUntilAsync(
         session.Observer,
