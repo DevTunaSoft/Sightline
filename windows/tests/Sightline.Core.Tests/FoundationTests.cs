@@ -109,6 +109,46 @@ public sealed class FoundationTests
     }
 
     [Fact]
+    public void Verified_SetValue_receipt_never_returns_input_or_observed_text()
+    {
+        const string syntheticValue = "synthetic-private-value-601";
+        var receipt = DesktopValueVerification.FromReadback(syntheticValue, syntheticValue);
+
+        Assert.True(receipt.Ok);
+        Assert.True(receipt.Verified);
+        Assert.Null(receipt.ErrorCode);
+        Assert.Null(receipt.Readback);
+        var exported = System.Text.Json.JsonSerializer.Serialize(receipt);
+        Assert.DoesNotContain(syntheticValue, exported);
+    }
+
+    [Theory]
+    [InlineData("different-value")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void Unmatched_SetValue_readback_is_unknown_and_never_disclosed(string? observed)
+    {
+        const string syntheticValue = "synthetic-private-value-602";
+        var receipt = DesktopValueVerification.FromReadback(syntheticValue, observed);
+
+        Assert.False(receipt.Ok);
+        Assert.False(receipt.Verified);
+        Assert.Equal(SightlineErrorCode.UnknownEffect, receipt.ErrorCode);
+        Assert.Null(receipt.Readback);
+        Assert.Contains("reconcile", receipt.Detail!, StringComparison.OrdinalIgnoreCase);
+
+        var exported = System.Text.Json.JsonSerializer.Serialize(receipt);
+        Assert.DoesNotContain(syntheticValue, exported);
+        if (!string.IsNullOrEmpty(observed)) Assert.DoesNotContain(observed, exported);
+    }
+
+    [Fact]
+    public void SetValue_verification_requires_non_null_request()
+    {
+        Assert.Throws<ArgumentNullException>(() => DesktopValueVerification.FromReadback(null!, "value"));
+    }
+
+    [Fact]
     public void Desktop_action_validation_rejects_unbounded_or_unsupported_requests()
     {
         Assert.True(DesktopActionValidation.IsValid(new SemanticAction(SemanticActionKind.Invoke, "w:42:g1:e1")));
