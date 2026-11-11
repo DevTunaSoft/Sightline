@@ -37,8 +37,10 @@ try
         new SemanticAction(SemanticActionKind.SetValue, input.Ref, "SightlineAcceptance"),
         cancellation.Token);
 
-    if (!setReceipt.Ok || !setReceipt.Verified || setReceipt.Readback != "SightlineAcceptance")
-        throw new InvalidOperationException("SetValue readback verification failed.");
+    // The field was verified in-process but its value must never be exposed
+    // through an action receipt, even in a controlled acceptance fixture.
+    if (!setReceipt.Ok || !setReceipt.Verified || setReceipt.Readback is not null)
+        throw new InvalidOperationException("SetValue verification or readback privacy failed.");
 
     snapshot = await ObserveUntilAsync(
         session.Observer,
