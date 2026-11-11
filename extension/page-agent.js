@@ -1,4 +1,5 @@
 import { buildPageSnapshot } from './page-observer.js';
+import { hasTargetStructuralEffect } from './page-observer-core.js';
 import { RefRegistry } from './ref-registry.js';
 import { createDomActionAdapter } from './dom-action-adapter.js';
 import { executeValidatedAction } from './action-executor-core.js';
@@ -64,13 +65,15 @@ export function createPageAgentController(options = {}) {
       }
       let snapshot = await refresh();
       const consequential = decision.risk?.level === 'high' || decision.risk?.level === 'critical';
-      if (consequential && snapshot.snapshotId === beforeSnapshotId) {
-        for (let attempt = 0; attempt < 3 && snapshot.snapshotId === beforeSnapshotId; attempt += 1) {
+      let changed = hasTargetStructuralEffect(liveSnapshot, snapshot, message.action);
+      if (consequential && !changed) {
+        for (let attempt = 0; attempt < 3 && !changed; attempt += 1) {
           await sleep(100);
           snapshot = await refresh();
+          changed = hasTargetStructuralEffect(liveSnapshot, snapshot, message.action);
         }
       }
-      const changed = snapshot.snapshotId !== beforeSnapshotId;
+      // Generic visible text / snapshot hash movement is not effect proof.
       const verifiedReceipt = { ...receipt, beforeSnapshotId, afterSnapshotId: snapshot.snapshotId, changed };
       if (consequential && !changed) {
         return { ok: false, code: 'NO_VERIFIED_EFFECT', receipt: verifiedReceipt, snapshot };
