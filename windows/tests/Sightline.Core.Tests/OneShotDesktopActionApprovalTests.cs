@@ -70,6 +70,18 @@ public sealed class OneShotDesktopActionApprovalTests
     }
 
     [Fact]
+    public void Fingerprint_uses_exact_UTF16_units_not_lossy_encoding_replacement()
+    {
+        var approval = new OneShotDesktopActionApproval();
+        var original = new SemanticAction(SemanticActionKind.SetValue,
+            Invoke().Ref, "\uD800");
+        var different = original with { Value = "\uFFFD" };
+        Assert.True(approval.ArmAfterUserConfirmation(Snapshot(), original));
+        Assert.False(approval.IsApproved(Snapshot(), different));
+        Assert.True(approval.IsApproved(Snapshot(), original));
+    }
+
+    [Fact]
     public void Incomplete_or_ambiguous_targets_cannot_be_approved()
     {
         var approval = new OneShotDesktopActionApproval();
