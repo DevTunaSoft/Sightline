@@ -60,6 +60,11 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 Fail(SightlineErrorCode.StateChanged, "Element reference is stale.")));
         }
 
+        if (!locator.IsIdentifiable)
+            return ValueTask.FromResult(Recorded(
+                action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.StateChanged, "Control lacks reliable identifying metadata.")));
+
         // Never attach to a provider for a known-sensitive control.
         // This also blocks aliases after sensitive observation metadata was redacted.
         if (locator.IsSensitive || SensitiveControlPolicy.IsSensitive(false, locator.Name, locator.AutomationId))
