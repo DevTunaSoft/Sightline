@@ -1,5 +1,12 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Final receipt privacy correction and snapshot smoke check
+
+`DesktopMutationOutcome.RequireVerifiedEffect` now accepts a verified result only when `Ok=true`, `Verified=true`, and `ErrorCode=null`. The successful return is normalized to a fixed safe message instead of retaining arbitrary provider `Readback` or `Detail` text (`f8d37cc`). The Core XUnit regression now supplies the same synthetic sensitive value in both fields and rejects contradictory `Ok/Verified/ErrorCode` combinations (`a7d38d2`). **C# tests NOT RUN** due to missing .NET SDK; this change is still subject to real Windows validation.
+
+In addition to the **24/24 passing isolated V8 observer unit tests**, a direct controlled smoke execution of the exact GitHub `buildPageSnapshot` path on a minimal fake DOM **PASS**: one button observed, expected visible text captured, non-truncated snapshot, matching registry entry, and no broad interactive `querySelectorAll` call. It used a fake DOM, not Chrome/Edge or a full Node test run. No heap/CPU measurements were taken.
+
+
 ### 2026-11-11 — Frame-coverage fail-closed regression
 
 Follow-up inspection found a security omission in `buildPageSnapshot`: when `collectFrameContexts` stopped because it encountered more than 20 frames or skipped same-origin frame descendants past the depth limit, its `inventory.truncated` / `skippedDepth` status was not propagated into the overall `snapshot.truncated` flag. A consequential action could therefore interpret an incomplete frame inventory as complete. The new pure `incompleteFrameInventory` classifier (`65a3c83`) is used in the top-level snapshot (`6fb15d3`) and regression-tested for frame count and depth clipping (`2cae235`). Opaque cross-origin frames remain reported as opaque, not silently presented as visible controls.
