@@ -214,7 +214,7 @@ function accessibleName(element, maxLength, allowValueLabel = false) {
     incomplete: raw.length > maxLength };
 }
 
-function describeElement(element, index, limits, frameContext) {
+function describeElement(element, index, limits, frameContext, labelStatus) {
   const role = inferElementRole(element.tagName, element.getAttribute('role') || '', element.getAttribute('type') || '');
   const sensitive = isSensitiveField({
     type: element.getAttribute('type'),
@@ -239,11 +239,11 @@ function describeElement(element, index, limits, frameContext) {
     ? { text: '[REDACTED SENSITIVE FIELD]', incomplete: false }
     : accessibleName(element, limits.maxTextPerElement,
       mayUseValueAsAccessibleName(element.tagName, role, element.getAttribute('type') || ''));
+  if (label.incomplete) labelStatus.incomplete = true;
   return {
     ref: `@e${index + 1}`,
     role,
     name: label.text,
-    incompleteLabel: label.incomplete,
     sensitive,
     state,
     ...(frame ? { frame } : {}),
@@ -266,6 +266,7 @@ export function buildPageSnapshot(options = {}) {
   let truncated = false;
   let textVisitsRemaining = limits.maxTextNodesVisited;
   let domVisitsRemaining = limits.maxDomNodesVisited;
+  const labelStatus = { incomplete: false };
 
   for (const frameContext of contexts) {
     const textScan = appendBoundedPageText(
@@ -277,11 +278,10 @@ export function buildPageSnapshot(options = {}) {
       frameContext.doc, INTERACTIVE_SELECTOR, domVisitsRemaining, candidate => {
         if (!isVisible(candidate)) return true;
         if (elements.length >= limits.maxElements) return false;
-        const description = describeElement(candidate, elements.length, limits, frameContext);
-        const { incompleteLabel, ...semantic } = description;
-        elements.push(semantic);
-        registryEntries.push({ ref: semantic.ref, value: candidate });
-        if (incompleteLabel) { truncated = true; return false; }
+        const description = describeElement(candidate, elements.length, limits, frameContext, labelStatus);
+        elements.push(description);
+        registryEntries.push({ ref: description.ref, value: candidate });
+        if (labelStatus.incomplete) { truncated = true; return false; }
         return true;
       });
     domVisitsRemaining -= domScan.visited;
