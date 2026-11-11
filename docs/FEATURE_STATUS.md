@@ -54,9 +54,9 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Capability | Status | Evidence and limitation |
 |---|---|---|
 | Hard observer overrides | Implemented / isolated JS checks **PASS** | 300 control refs, 8k visible text chars, 48k snapshot chars; caller overrides cannot raise limits. |
-| Lazy browser DOM and frame scanning | Implemented / isolated JS checks **PASS** | Shared lazy walker; at most 12,000 interactive DOM nodes, 6,000 text nodes and 6,000 frame-discovery nodes per scan. No unbounded frame/interactive selector result arrays. |
+| Lazy browser DOM and frame scanning | Implemented / isolated JS checks **PASS** | Shared lazy walker; at most 12,000 interactive DOM nodes, 6,000 text nodes and 6,000 frame-discovery nodes per scan. No unbounded frame/interactive selector result arrays. |\n| Bounded text normalization and shared scan CPU budget | Implemented / isolated tests **PASS**, Chrome/Edge **UNVERIFIED** | Normalizes huge strings without allocating an equally huge cleaned copy; per-value scan capped at 32,768 UTF-16 units, cumulative page-text scan at 65,536 units, output at 8,000 chars; overflow marks observation incomplete. |
 | Incomplete large pages and nested frames | Implemented / isolated JS checks **PASS**, installed browsers **UNVERIFIED** | Marks DOM/text scan limits, exhausted visible-text budget, frame-count and frame-discovery limits, and nested-frame depth limits as truncated; consequential actions fail closed. |
-| Chrome/Edge memory and CPU regression | **NOT RUN** | 35/35 observer unit and integrated-snapshot tests pass under isolated V8 shims; measured browser heap/CPU and full Node suite still required. |
+| Chrome/Edge memory and CPU regression | **NOT RUN** | 45/45 observer unit, deterministic fuzz and integrated-snapshot tests pass under isolated V8 shims; measured browser heap/CPU and full Node suite still required. |
 
 ## Browser memory and post-action safety (2026-11-11)
 
