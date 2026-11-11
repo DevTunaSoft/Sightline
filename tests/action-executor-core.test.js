@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { executeValidatedAction } from '../extension/action-executor-core.js';
+import { runTaskLoop } from '../extension/task-loop-core.js';
 
 test('executor rejects stale refs before invoking adapter', async () => {
   let called=false;
@@ -68,4 +69,28 @@ test('cancellation during wait remains a safe aborted result', async () => {
     {wait:async()=>{controller.abort();return {ok:false,code:'ABORTED'};}},
     controller.signal);
   assert.equal(result.code,'ABORTED');
+});
+
+test('mutating adapter exception survives write-ahead checkpoint and cannot replay on resume', async () => {
+  const checkpoints=[];
+  let clicks=0;
+  const deps={
+    goal:'delete synthetic item',
+    observe:async()=>({snapshotId:'snap-1'}),
+    plan:async()=>({action:{action:'click',ref:'@e1'}}),
+    execute:action=>executeValidatedAction(action,{hasRef:()=>true,click:async()=>{
+      clicks++;
+      throw new Error('provider disconnected after click');
+    }}),
+    verify:async()=>({ok:true}),
+    onCheckpoint:async state=>{checkpoints.push(JSON.parse(JSON.stringify(state)));},
+  };
+  const result=await runTaskLoop(deps);
+  assert.equal(result.code,'UNKNOWN_EFFECT');
+  assert.equal(clicks,1);
+  assert.equal(result.timeline.at(-1).receipt.code,'UNKNOWN_EFFECT');
+  assert.equal(checkpoints.at(-1).timeline.at(-1).receipt.code,'UNKNOWN_EFFECT');
+  const resumed=await runTaskLoop({...deps,resume:checkpoints.at(-1)});
+  assert.equal(resumed.code,'ACTION_RECONCILIATION_REQUIRED');
+  assert.equal(clicks,1);
 });
