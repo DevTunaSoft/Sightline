@@ -278,7 +278,7 @@ test('browser task uses one vision fallback when semantic planner explicitly req
     if(fetchCalls===2) return new Response(JSON.stringify({message:{content:'The visible Continue button is the relevant control.'}}),{status:200});
     if(fetchCalls===3) {
       const payload=JSON.parse(options.body);
-      const user=JSON.parse(payload.messages.at(-1).content);
+      const user=JSON.parse(payload.messages.find(message=>message.role==='user').content);
       assert.match(user.page.visualContext,/Continue button/);
       return new Response(JSON.stringify({message:{content:'{"done":false,"action":{"action":"click","ref":"@e1"}}'}}),{status:200});
     }
