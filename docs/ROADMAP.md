@@ -28,9 +28,9 @@ Remaining: crash/recovery bundle, broader fault injection, real interactive evid
 ## Phase 3 — Safe Windows actions
 Status: **PARTIAL**
 
-Implemented: Invoke, SetValue/readback, live re-resolution, stale rejection, focus verification, user-activity lease, typed failures.
+Implemented: Invoke, SetValue/readback, live re-resolution, stale rejection, focus verification, user-activity lease, typed failures, and a bounded single-use approval primitive (SHA-256 digest only; no cached typed values, polling or background worker).
 
-Next: moving-target/geometry protection and additional semantic patterns only as needed.
+Next: verify the new approval unit tests and disposable WPF acceptance runner on Windows; implement the **trusted production confirmation GUI** and secure reconciliation UI, plus moving-target/geometry protection and additional semantic patterns only as needed.
 
 ## Phase 4 — Reliability and recovery
 Status: **PARTIAL**
