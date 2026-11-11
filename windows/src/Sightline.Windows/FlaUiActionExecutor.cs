@@ -174,12 +174,13 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
             }
             else
             {
-                // Invoke has no generic effect oracle. Even if UIA accepted it,
-                // never silently allow a second mutation until external review.
+                // An accepted Invoke is NOT a verified effect. The journal
+                // remains pending, so returning Ok=true would mislead callers
+                // into continuing a workflow that must be reconciled first.
+                // This also covers failed SetValue verification after dispatch.
                 try { _journal.PreserveUnknown(); } catch { }
-                if (!receipt.Ok)
-                    receipt = Fail(SightlineErrorCode.UnknownEffect,
-                        "Action outcome is uncertain; reconcile before retry.");
+                receipt = Fail(SightlineErrorCode.UnknownEffect,
+                    "Action effect is unverified; reconcile before retry.");
             }
             _circuitBreaker.RecordSuccess(snapshot.ProcessId);
             return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started, receipt));
