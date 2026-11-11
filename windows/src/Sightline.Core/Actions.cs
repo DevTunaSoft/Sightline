@@ -48,9 +48,11 @@ public static class DesktopValueVerification
 /// </summary>
 public static class DesktopMutationOutcome
 {
-    public static ActionReceipt Unverified(ActionReceipt providerReceipt)
+    public static ActionReceipt RequireVerifiedEffect(ActionReceipt providerReceipt)
     {
         ArgumentNullException.ThrowIfNull(providerReceipt);
+        if (providerReceipt.Ok && providerReceipt.Verified)
+            return providerReceipt with { Readback = null };
         return new ActionReceipt(
             Ok: false,
             ErrorCode: SightlineErrorCode.UnknownEffect,
