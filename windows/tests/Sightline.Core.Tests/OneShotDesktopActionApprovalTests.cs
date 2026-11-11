@@ -109,6 +109,39 @@ public sealed class OneShotDesktopActionApprovalTests
     }
 
     [Fact]
+    public void Backward_clock_change_revokes_approval_instead_of_extending_it()
+    {
+        var now = Captured;
+        var approval = new OneShotDesktopActionApproval(
+            TimeSpan.FromSeconds(30), () => now);
+        Assert.True(approval.ArmAfterUserConfirmation(Snapshot(), Invoke()));
+        now = now.AddSeconds(-1);
+        Assert.False(approval.IsApproved(Snapshot(), Invoke()));
+        now = Captured;
+        Assert.False(approval.IsApproved(Snapshot(), Invoke()));
+    }
+
+    [Fact]
+    public void Failing_clock_cannot_create_or_consume_approval()
+    {
+        var throwClock = false;
+        var approval = new OneShotDesktopActionApproval(clock: () =>
+        {
+            if (throwClock) throw new InvalidOperationException("clock unavailable");
+            return Captured;
+        });
+        Assert.True(approval.ArmAfterUserConfirmation(Snapshot(), Invoke()));
+        throwClock = true;
+        Assert.False(approval.IsApproved(Snapshot(), Invoke()));
+        throwClock = false;
+        Assert.False(approval.IsApproved(Snapshot(), Invoke()));
+        throwClock = true;
+        Assert.False(approval.ArmAfterUserConfirmation(Snapshot(), Invoke()));
+        throwClock = false;
+        Assert.False(approval.IsApproved(Snapshot(), Invoke()));
+    }
+
+    [Fact]
     public void Only_short_validity_periods_are_supported()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
