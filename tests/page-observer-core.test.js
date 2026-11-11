@@ -173,3 +173,33 @@ test('collector refuses oversized configuration and stays at the hard text cap',
   assert.equal(collector.push('x'.repeat(1000000)), false);
   assert.equal(collector.length, PAGE_OBSERVER_LIMITS.maxVisibleTextChars);
 });
+
+test('shared page text scan budget limits work across many huge text nodes', () => {
+  const collector=createBoundedTextCollector(8000,65536);
+  for (let n=0; n<20 && !collector.exhausted; n += 1)
+    assert.equal(collector.push(' '.repeat(100000)),false);
+  assert.equal(collector.scannedChars,65536);
+  assert.equal(collector.exhausted,true);
+  assert.equal(collector.length,0);
+  assert.equal(collector.push('not observed'),false);
+});
+
+test('custom smaller scan budget is counted exactly', () => {
+  const collector=createBoundedTextCollector(100,20);
+  assert.equal(collector.push('  hello  '),true);
+  assert.equal(collector.scannedChars,9);
+  assert.equal(collector.push('  world  '),true);
+  assert.equal(collector.scannedChars,18);
+  assert.equal(collector.push('more'),false);
+  assert.equal(collector.scannedChars,20);
+  assert.equal(collector.exhausted,true);
+  assert.equal(collector.value(),'hello world mo');
+});
+
+test('huge whitespace-only text cannot fabricate a trailing separator', () => {
+  const collector=createBoundedTextCollector(12,40000);
+  assert.equal(collector.push('hello'),true);
+  assert.equal(collector.push(' '.repeat(100000)),false);
+  assert.equal(collector.value(),'hello');
+  assert.equal(collector.scannedChars,32773);
+});
