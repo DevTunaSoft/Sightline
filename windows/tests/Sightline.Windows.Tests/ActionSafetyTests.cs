@@ -137,7 +137,9 @@ public sealed class ActionSafetyTests
 
         var receipt = await executor.ExecuteAsync(
             Snapshot("fresh"),
-            new SemanticAction(kind, elementRef, "should-not-be-sent"));
+            kind == SemanticActionKind.Invoke
+                ? new SemanticAction(kind, elementRef)
+                : new SemanticAction(kind, elementRef, "should-not-be-sent"));
 
         Assert.False(receipt.Ok);
         Assert.False(receipt.Verified);
