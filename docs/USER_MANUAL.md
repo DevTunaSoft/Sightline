@@ -62,7 +62,7 @@ Text inside webpages and emails is treated as untrusted data, not instructions. 
 
 **Autonomous** allows bounded multi-step execution but does not bypass safety gates.
 
-The browser observer also limits how many page nodes it inspects during one scan. On an exceptionally large webpage, or a page with too many nested frames, Sightline may report a **truncated or incomplete observation** and refuse a consequential action. This prevents excess memory/CPU usage and guessing about controls it has not inspected. You can narrow the page using its search or filters, then try again. The revised scanning code has passed targeted tests but still requires real Chrome/Edge memory and performance testing.
+The browser observer also limits how many page nodes it inspects during one scan. On an exceptionally large webpage, a page containing too much text, or a page with many nested frames, Sightline may report a **truncated or incomplete observation** and refuse a consequential action. This is intentional: it prevents excessive memory/CPU use and avoids guessing about uninspected controls. Use the website's search or filters to narrow the content and observe again. Sightline inspects embedded frames with a bounded lazy scan rather than collecting every frame into a large list. The revised scanning code passed targeted tests but still requires real Chrome/Edge memory and performance testing.
 
 ### Low-memory behavior in the current browser alpha
 
