@@ -87,10 +87,10 @@ export const yahooMailSkill = Object.freeze({
       element?.role === 'checkbox' &&
       /select\s+all|all\s+(?:messages?|mail)/i.test(String(element?.name || '')) &&
       element?.state?.checked === true);
-    if (selectedAll && !searchEvidence) {
+    if (selectedAll) {
       return {
         applicable: true, allowed: false, code: 'DESTRUCTIVE_SCOPE_UNVERIFIED',
-        reason: 'Selected-all scope cannot be verified against bounded search results.',
+        reason: 'Select-all may include messages beyond the visible page. Stable selected-message identities are required before bulk Trash.',
       };
     }
 
