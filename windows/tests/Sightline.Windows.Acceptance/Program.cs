@@ -20,10 +20,15 @@ try
 {
     try { process.WaitForInputIdle(5000); } catch { }
 
+    // Disposable fixture only. Production must use a stable, access-restricted
+    // per-user journal location so unresolved mutations survive process restart.
+    using var journal = new FileDesktopMutationJournal(
+        Path.Combine(Path.GetTempPath(), "sightline-acceptance-" + Guid.NewGuid().ToString("N") + ".pending"));
     await using var session = new WindowsAutomationSession(
         leaseCapacity: 256,
         resolutionBudget: new ObservationBudget(256, 20, TimeSpan.FromMilliseconds(750)),
-        actionApproval: new TestTargetApproval(process.Id));
+        actionApproval: new TestTargetApproval(process.Id),
+        actionJournal: journal);
 
     var snapshot = await ObserveUntilAsync(
         session.Observer,
@@ -62,6 +67,11 @@ try
         process.Id,
         s => string.Equals(Find(s, "ResultText")?.Name, "Applied:SightlineAcceptance", StringComparison.Ordinal),
         cancellation.Token);
+
+    // Invoke is not self-verifying. The fixture's ResultText above supplies
+    // independent application evidence before clearing the pending record.
+    if (!journal.TryCompleteVerified())
+        throw new InvalidOperationException("Externally verified Invoke record could not be reconciled.");
 
     Console.WriteLine($"PASS: observed {snapshot.Elements.Count} bounded elements and verified SetValue -> Invoke -> result readback.");
     return 0;
