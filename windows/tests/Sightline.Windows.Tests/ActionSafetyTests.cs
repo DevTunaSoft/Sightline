@@ -47,6 +47,39 @@ public sealed class ActionSafetyTests
     }
 
     [Fact]
+    public async Task Existing_mutation_record_blocks_approved_action_before_UIA_attach()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator("ApplyButton", "Apply", "Button"));
+        var journal = new PendingJournal();
+        var executor = new FlaUiActionExecutor(leases,
+            approval: new AllowingApproval(), journal: journal);
+
+        var receipt = await executor.ExecuteAsync(
+            Snapshot("fresh"), new SemanticAction(SemanticActionKind.Invoke, reference));
+
+        Assert.Equal(SightlineErrorCode.UnknownEffect, receipt.ErrorCode);
+        Assert.False(receipt.Ok);
+        Assert.Equal(0, journal.BeginCalls);
+    }
+
+    private sealed class PendingJournal : IDesktopMutationJournal
+    {
+        public bool HasPending => true;
+        public int BeginCalls { get; private set; }
+        public bool TryBegin(SemanticSnapshot snapshot, SemanticAction action)
+        {
+            BeginCalls++;
+            return false;
+        }
+        public bool TryCompleteVerified() => false;
+        public void PreserveUnknown() { }
+    }
+
+
+
+    [Fact]
     public async Task Unapproved_SetValue_must_not_echo_candidate_values()
     {
         var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
