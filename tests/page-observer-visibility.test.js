@@ -27,6 +27,8 @@ test('zero opacity, display none, hidden visibility and zero geometry hide contr
 
 function fakeTreeDocument(count) {
   const nodes=Array.from({length:count},(_,i)=>({
+    tagName:i%2===0?'BUTTON':'DIV',
+    hasAttribute:()=>false,
     matches:()=>i%2===0,
   }));
   let nextCalls=0;
@@ -76,4 +78,23 @@ test('unsupported observation documents fail closed without collecting candidate
   const result=visitInteractiveNodes(null,'button',20,()=>{throw new Error('unexpected');});
   assert.equal(result.truncated,true);
   assert.equal(result.visited,0);
+});
+
+test('plain layout nodes bypass expensive selector checks', () => {
+  let matchingCalls=0;
+  const plain={tagName:'DIV',hasAttribute:()=>false,matches:()=>{throw new Error('layout selector called');}};
+  const button={tagName:'BUTTON',hasAttribute:()=>false,matches:()=>{matchingCalls++;return true;}};
+  const role={tagName:'DIV',hasAttribute:name=>name==='role',matches:()=>{matchingCalls++;return true;}};
+  const nodes=[plain,button,role];
+  const doc={
+    documentElement:plain,
+    defaultView:{NodeFilter:{SHOW_ELEMENT:1}},
+    createTreeWalker(){let index=0;return {nextNode:()=>nodes[++index]||null};},
+  };
+  let matched=0;
+  const result=visitInteractiveNodes(doc,'button',10,()=>{matched++;return true;});
+  assert.equal(result.truncated,false);
+  assert.equal(result.visited,3);
+  assert.equal(matchingCalls,2);
+  assert.equal(matched,2);
 });
