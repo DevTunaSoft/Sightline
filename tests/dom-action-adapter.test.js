@@ -148,3 +148,44 @@ test('verify receipts contain only a verdict and never echo the expectation text
   assert.equal(Object.hasOwn(result,'expectation'),false);
   assert.doesNotMatch(JSON.stringify(result),/synthetic-sensitive-canary-007/);
 });
+
+test('many completed waits release abort listeners instead of retaining closures', async () => {
+  const adapter=setup(fakeElement());
+  const controller=new AbortController();
+  const signal=controller.signal;
+  const add=signal.addEventListener.bind(signal);
+  const remove=signal.removeEventListener.bind(signal);
+  let registered=0;
+  let peak=0;
+  signal.addEventListener=(...args)=>{
+    if(args[0]==='abort'){registered++;peak=Math.max(peak,registered);}
+    return add(...args);
+  };
+  signal.removeEventListener=(...args)=>{
+    if(args[0]==='abort')registered--;
+    return remove(...args);
+  };
+  for(let i=0;i<120;i++){
+    const result=await adapter.wait({ms:0},{signal});
+    assert.equal(result.ok,true);
+    assert.equal(registered,0,'wait '+i);
+  }
+  assert.equal(peak,1);
+});
+
+test('aborting a wait cancels its timer and removes the listener', async () => {
+  const adapter=setup(fakeElement());
+  const controller=new AbortController();
+  let adds=0, removes=0;
+  const add=controller.signal.addEventListener.bind(controller.signal);
+  const remove=controller.signal.removeEventListener.bind(controller.signal);
+  controller.signal.addEventListener=(...args)=>{adds++;return add(...args);};
+  controller.signal.removeEventListener=(...args)=>{removes++;return remove(...args);};
+  const pending=adapter.wait({ms:5000},{signal:controller.signal});
+  controller.abort();
+  const result=await pending;
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'ABORTED');
+  assert.equal(adds,1);
+  assert.equal(removes,1);
+});
