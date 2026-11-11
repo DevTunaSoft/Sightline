@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
-using System.Text;
+using System.Runtime.InteropServices;
 
 namespace Sightline.Core;
 
@@ -146,18 +146,14 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
 
     private static void Append(IncrementalHash hash, string? value)
     {
-        var bytes = Encoding.UTF8.GetBytes(value ?? "");
-        try
-        {
-            Span<byte> length = stackalloc byte[4];
-            System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(
-                length, value is null ? -1 : bytes.Length);
-            hash.AppendData(length);
-            hash.AppendData(bytes);
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(bytes);
-        }
+        // Hash the exact UTF-16 code units in place. This avoids temporary
+        // plaintext buffers and preserves differences between malformed
+        // surrogate sequences that UTF-8 replacement would otherwise collapse.
+        Span<byte> length = stackalloc byte[4];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(
+            length, value is null ? -1 : value.Length);
+        hash.AppendData(length);
+        if (value is not null)
+            hash.AppendData(MemoryMarshal.AsBytes(value.AsSpan()));
     }
 }
