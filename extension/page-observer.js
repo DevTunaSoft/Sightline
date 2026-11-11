@@ -95,8 +95,14 @@ export function collectFrameContexts(
   }];
   const inventory = { total: 0, sameOrigin: 0, opaque: 0, skippedDepth: 0, origins: [] };
   const originSet = new Set();
+  const frameLimit = Number.isFinite(maxFrames)
+    ? Math.max(0, Math.min(20, Math.floor(maxFrames))) : 20;
+  const depthLimit = Number.isFinite(maxDepth)
+    ? Math.max(0, Math.min(3, Math.floor(maxDepth))) : 3;
   let inspected = 0;
-  let remaining = maxVisitedNodes;
+  let remaining = Number.isFinite(maxVisitedNodes)
+    ? Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxFrameNodesVisited, Math.floor(maxVisitedNodes)))
+    : PAGE_OBSERVER_LIMITS.maxFrameNodesVisited;
 
   for (let contextIndex = 0; contextIndex < contexts.length; contextIndex += 1) {
     const context = contexts[contextIndex];
@@ -105,7 +111,7 @@ export function collectFrameContexts(
       const tag = node.tagName;
       if (tag !== 'IFRAME' && tag !== 'FRAME' &&
           tag !== 'iframe' && tag !== 'frame') return true;
-      if (inspected >= maxFrames) return false;
+      if (inspected >= frameLimit) return false;
       inspected += 1;
       frameIndex += 1;
       inventory.total += 1;
@@ -123,7 +129,7 @@ export function collectFrameContexts(
         return true;
       }
       inventory.sameOrigin += 1;
-      if (context.depth >= maxDepth || !isVisible(node)) {
+      if (context.depth >= depthLimit || !isVisible(node)) {
         if (context.depth >= maxDepth) inventory.skippedDepth += 1;
         return true;
       }
