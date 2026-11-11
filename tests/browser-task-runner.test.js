@@ -69,9 +69,10 @@ test('Yahoo destructive confirmation receives deterministic count and message pr
   let confirmedArgs = null;
   let confirmed = false;
   const snapshot = {
-    snapshotId:'ys1', url:'https://mail.yahoo.com/d/search/name=amazon', visibleText:'Search results 12 messages',
+    snapshotId:'ys1', url:'https://mail.yahoo.com/d/search/name=amazon', visibleText:'12 search results',
     elements:[
       {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
+      {ref:'@e4',role:'textbox',name:'Search mail',sensitive:false},
       {ref:'@e2',role:'link',name:'Amazon order shipped yesterday',sensitive:false},
       {ref:'@e3',role:'link',name:'Amazon receipt order 42',sensitive:false},
     ],
@@ -97,7 +98,7 @@ test('Yahoo destructive confirmation receives deterministic count and message pr
     confirmAction:async args=>{ confirmedArgs=args; return true; },
     limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5},
   });
-  assert.equal(result.ok,true);
+  assert.equal(result.ok,false); assert.equal(result.code,'NO_VERIFIED_EFFECT');
   assert.equal(confirmed,true);
   assert.equal(confirmedArgs.skill.id,'yahoo-mail');
   assert.equal(confirmedArgs.preview.visibleCount,12);
@@ -133,11 +134,12 @@ test('NO_VERIFIED_EFFECT terminates task even when low-level click receipt was o
 
 test('Yahoo confirmation receipt includes site-specific verification evidence', async () => {
   let confirmed=false, plannerCalls=0;
-  const before={snapshotId:'ys1',url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[
+  const before={snapshotId:'ys1',url:'https://mail.yahoo.com/d/search',visibleText:'12 search results',elements:[
     {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
+    {ref:'@e3',role:'textbox',name:'Search mail',sensitive:false},
     {ref:'@e2',role:'link',name:'Amazon order shipped yesterday',sensitive:false},
   ]};
-  const after={snapshotId:'ys2',url:before.url,visibleText:'10 messages. Selected messages moved to Trash.',elements:[]};
+  const after={snapshotId:'ys2',url:before.url,visibleText:'10 search results. Selected messages moved to Trash.',elements:[]};
   const chromeApi={tabs:{query:async()=>[{id:1,url:before.url}],sendMessage:async(_id,msg)=>{
     if(msg.type==='SIGHTLINE_PING') return {ok:true};
     if(msg.type==='SIGHTLINE_OBSERVE') return {ok:true,snapshot:before};
@@ -146,11 +148,11 @@ test('Yahoo confirmation receipt includes site-specific verification evidence', 
   }},scripting:{executeScript:async()=>{}}};
   const fetchImpl=async()=>new Response(JSON.stringify({message:{content:plannerCalls++===0?' {"done":false,"action":{"action":"click","ref":"@e1"}} ':'{"done":true,"result":"done"}'}}),{status:200});
   const result=await runBrowserTask({goal:'Move selected Amazon mail to Trash',model:'gemma3:4b',chromeApi,fetchImpl,confirmAction:async()=>true,limits:{maxActions:5,maxRepeatedAction:5,maxRepeatedState:5}});
-  assert.equal(result.ok,true);
+  assert.equal(result.ok,false); assert.equal(result.code,'NO_VERIFIED_EFFECT');
   assert.equal(confirmed,true);
   const receipt=result.timeline[0].receipt;
-  assert.equal(receipt.siteVerification.verified,true);
-  assert.ok(receipt.siteVerification.evidence.length>0);
+  assert.equal(receipt.code,'NO_VERIFIED_EFFECT');
+  assert.equal(receipt.ok,false);
 });
 
 
