@@ -44,6 +44,9 @@ async function requestPlanner(payload, fetchImpl, signal) {
 
 export async function planNextAction(args, fetchImpl = fetch, signal, requestOptions = {}) {
   const payload = makePlannerPayload(args);
+  // Validate model refs against exactly what was shown, not hidden elements
+  // trimmed out of the bounded prompt.
+  const presentedPage = JSON.parse(payload.messages[1].content).page;
   const timeoutMs = Number.isFinite(requestOptions.timeoutMs)
     ? Math.max(1, Math.min(PLANNER_REQUEST_TIMEOUT_MS, Math.round(requestOptions.timeoutMs)))
     : PLANNER_REQUEST_TIMEOUT_MS;
@@ -54,7 +57,7 @@ export async function planNextAction(args, fetchImpl = fetch, signal, requestOpt
       if (requestAbort.signal.aborted) throw requestAbort.signal.reason || new DOMException('Aborted', 'AbortError');
       const content = await requestPlanner(payload, fetchImpl, requestAbort.signal);
       try {
-        return parsePlannerDecision(content, args.snapshot);
+        return parsePlannerDecision(content, presentedPage);
       } catch (error) {
         lastError = error;
         if (attempt >= PLANNER_MAX_ATTEMPTS) break;
