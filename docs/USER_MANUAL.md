@@ -116,6 +116,8 @@ The Windows foundation currently includes:
 
 It does **not** yet have a normal end-user GUI, installer, complete focus protection, or real-desktop acceptance evidence.
 
+**Windows approvals (engineering preview):** The Windows foundation now has a one-use approval mechanism. A specific action can be approved only for a short period and cannot reuse an approval after it is consumed or the observed target changes. The feature retains a small fingerprint instead of the text typed into a field. The full user-facing review and confirmation screen has **not** been completed, so this is not an end-user-ready Windows automation feature. The included acceptance runner can use the mechanism only against its disposable test application.
+
 **Windows recovery safeguard (engineering preview):** Sightline now requires a durable, single-action journal before performing an approved Windows UI Automation mutation. If an action is interrupted or cannot be verified, the journal records that the result is uncertain and blocks further Windows mutations, including after a restart. This is intentional: **do not repeat the action or delete the pending record without independently checking the application**. An end-user recovery dialog and a stable production storage location are still being developed. The Windows implementation and acceptance tests have not yet been run on the newest source revision.
 
 **Windows value-entry safety:** Sightline does not put the text from a Windows input field into the action result. If it reports `UnknownEffect` after trying to change a field, the field may already have changed. Examine the application before attempting the operation again. This protection is implemented in source but has not passed real-Windows acceptance yet.
