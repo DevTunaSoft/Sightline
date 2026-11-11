@@ -86,6 +86,12 @@ Windows Invoke now reports `UnknownEffect` until independently verified, even if
 
 Next: full Node and .NET build/test pipelines at the exact commit, real-browser heap/CPU long-session measurements, controlled WPF confirmation/recovery acceptance, then production trusted approval UX.
 
+## 2026-11-11 — Bounded frame discovery and complete-coverage safeguards
+
+The browser observer now discovers embedded frames with the same lazy DOM-walk primitive used for interactive controls; no full `querySelectorAll('iframe,frame')` list is created. Frame discovery visits at most 6,000 DOM nodes, inspects at most 20 frames, and retains at most 21 document contexts including the top page. Existing interactive-node, text-node and snapshot limits remain enforced. Visible-text overflow and partial frame discovery now correctly flag incomplete observations and prevent consequential actions from proceeding on missing context.
+
+**Executed:** 35/35 targeted observer-core/visibility/integrated snapshot tests PASS in isolated V8. **NOT RUN:** full Node `npm run check`, installed Chrome/Edge behavior, heap/CPU profiling, and Windows .NET tests. Lower peak collection allocation is the design goal, not a verified RAM benchmark. Next: full CI acceptance and controlled real-browser scan-latency/memory comparisons, then production Windows consent and recovery UX.
+
 ## Resource policy
 
 Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
