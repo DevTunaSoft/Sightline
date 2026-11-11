@@ -216,7 +216,7 @@ function accessibleName(element, maxLength, allowValueLabel = false) {
 
 function describeElement(element, index, limits, frameContext, labelStatus) {
   const role = inferElementRole(element.tagName, element.getAttribute('role') || '', element.getAttribute('type') || '');
-  const sensitive = isSensitiveField({
+  const field = {
     type: element.getAttribute('type'),
     autocomplete: element.getAttribute('autocomplete'),
     name: element.getAttribute('name') || element.name,
@@ -226,7 +226,19 @@ function describeElement(element, index, limits, frameContext, labelStatus) {
     tagName: element.tagName,
     role,
     isContentEditable: element.isContentEditable === true,
-  });
+  };
+  let sensitive = isSensitiveField(field);
+  // Use the accessible name already collected for presentation to recognize
+  // fields labelled through <label> or aria-labelledby, with no second DOM walk.
+  const label = sensitive
+    ? { text: '[REDACTED SENSITIVE FIELD]', incomplete: false }
+    : accessibleName(element, limits.maxTextPerElement,
+      mayUseValueAsAccessibleName(element.tagName, role, element.getAttribute('type') || ''));
+  if (!sensitive && label.text) {
+    field.ariaLabel = label.text;
+    sensitive = isSensitiveField(field);
+  }
+  if (label.incomplete) labelStatus.incomplete = true;
   const rect = element.getBoundingClientRect();
   const state = {};
   if ('disabled' in element) state.disabled = Boolean(element.disabled);
@@ -241,15 +253,10 @@ function describeElement(element, index, limits, frameContext, labelStatus) {
   const frame = frameContext?.depth > 0
     ? { path: frameContext.path, depth: frameContext.depth, origin: frameContext.origin || null }
     : undefined;
-  const label = sensitive
-    ? { text: '[REDACTED SENSITIVE FIELD]', incomplete: false }
-    : accessibleName(element, limits.maxTextPerElement,
-      mayUseValueAsAccessibleName(element.tagName, role, element.getAttribute('type') || ''));
-  if (label.incomplete) labelStatus.incomplete = true;
   return {
     ref: `@e${index + 1}`,
     role,
-    name: label.text,
+    name: sensitive ? '[REDACTED SENSITIVE FIELD]' : label.text,
     sensitive,
     state,
     ...(frame ? { frame } : {}),
