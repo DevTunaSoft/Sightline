@@ -1,5 +1,18 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Linked-label-only secret protection, bounded and action-time rechecked
+
+**Remaining gap from prior checkpoint:** text-entry controls whose only credential hint was the text of an external `<label>` or `aria-labelledby` target could be missed by attribute-only checks. This was not a completed security feature despite independent metadata hardening. The current `develop` baseline, open issue #9, observer and adapter modules were reconciled before coding; no parallel branch, extra PR or external dependency.
+
+**Implementation:** `extension/page-observer-core.js` commit `5370648` adds one shared, deterministic `hasSensitiveAssociatedLabel` that checks linked IDs (at most 16 over 2,048 attribute characters) and native indexed labels (at most 16). It runs only for text-entry roles, fails closed on oversized associations, and never materializes a label list. `fce4561` reuses one short-lived metadata object across label checks rather than cloning it for every reference. `extension/dom-action-adapter.js` commit `c339012` calls this shared helper immediately before every sensitive-capable DOM operation, including focused-key dispatch. `extension/page-observer.js` commit `4540a6d` reuses the already bounded accessible name to identify and redact linked-label credential fields without a duplicate label traversal. Changes retain existing source-text/DOM/element caps and create no resident cache, worker, timer or polling loop.
+
+**Regression evidence:** `tests/page-observer-core.test.js` `577b8a4` tests linked labels, million-entry synthetic label collections and overlong linked IDs; `tests/dom-action-adapter.test.js` `da63347` checks read/verify/click/type/clear/key refusal and live label changes; `tests/page-observer-snapshot.test.js` `3b6ec1c` checks redacted linked-only credentials and ordinary label compatibility. **PASS: 86/86 original/current observer-core, visibility, integrated snapshot and DOM-adapter test functions** in an isolated V8 harness using the exact latest `develop` source, URL/DOM/Abort shims, after the final per-label allocation optimization. GitHub source and tests were committed and read back.
+
+**Acceptance limitations:** Real installed Chrome/Edge and extension end-to-end tests are **UNVERIFIED**; complete `npm run check`, Windows .NET, CI at exact commit, heap/CPU/latency profiling and malicious DOM fault injection are **NOT RUN** here. Native `textContent` access may still allocate within the browser; Sightline limits follow-up processing and retained objects but has no measured production RAM ceiling. Inspect any failed or unusually ambiguous credential association manually rather than attempting repeated mutations.
+
+**Next:** full `npm run check` and Chrome/Edge acceptance for custom labels, dynamically changing frames and external label associations; measure scan latency and heap use under many text controls. Continue the existing Windows trusted consent/reconciliation work when the .NET target environment is available.
+
+
 ### 2026-11-11 — Independent sensitive metadata and action-time guard
 
 **Reconciled actual `develop` baseline:** Audited current browser observer, shared field classifier, DOM adapter, action protocol, safety gate, user manual, audit issue #9, and open PR #8 (unrelated Windows inspection). No duplicate branch or PR, dependency, worker or polling was added. Previously implemented field-type/name/autocomplete checks and click/keyboard guards were preserved.
