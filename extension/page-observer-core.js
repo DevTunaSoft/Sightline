@@ -160,8 +160,12 @@ export function isSensitiveField(input = '') {
     if (SENSITIVE_AUTOCOMPLETE.has(token)) return true;
   }
 
-  if (SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.name)) ||
-      SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.id))) return true;
+  const name = String(input?.name || '');
+  const id = String(input?.id || '');
+  // A secret suffix beyond the inspection prefix must not evade detection.
+  if (name.length > 256 || id.length > 256 ||
+      SENSITIVE_NAME_PATTERN.test(normalizedFieldName(name)) ||
+      SENSITIVE_NAME_PATTERN.test(normalizedFieldName(id))) return true;
 
   const tag = String(input?.tagName || '').toLowerCase();
   const role = String(input?.role || '').toLowerCase();
@@ -170,8 +174,11 @@ export function isSensitiveField(input = '') {
     (tag === 'input' && !['button', 'submit', 'reset', 'checkbox', 'radio', 'hidden'].includes(type)) ||
     ['textbox', 'searchbox'].includes(role);
   if (!textEntry) return false;
-  return SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.ariaLabel)) ||
-    SENSITIVE_NAME_PATTERN.test(normalizedFieldName(input?.placeholder));
+  const ariaLabel = String(input?.ariaLabel || '');
+  const placeholder = String(input?.placeholder || '');
+  return ariaLabel.length > 256 || placeholder.length > 256 ||
+    SENSITIVE_NAME_PATTERN.test(normalizedFieldName(ariaLabel)) ||
+    SENSITIVE_NAME_PATTERN.test(normalizedFieldName(placeholder));
 }
 
 export function fnv1aHash(value) {
