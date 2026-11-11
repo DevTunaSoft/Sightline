@@ -98,3 +98,17 @@ test('plain layout nodes bypass expensive selector checks', () => {
   assert.equal(matchingCalls,2);
   assert.equal(matched,2);
 });
+
+test('lazy walker includes lowercase SVG/XHTML interactive tags', () => {
+  const anchor={tagName:'a',hasAttribute:()=>false,matches:()=>true};
+  const doc={
+    documentElement:anchor,
+    defaultView:{NodeFilter:{SHOW_ELEMENT:1}},
+    createTreeWalker(){return {nextNode:()=>null};},
+  };
+  let matched=0;
+  const result=visitInteractiveNodes(doc,'a[href]',4,()=>{matched++;return true;});
+  assert.equal(result.truncated,false);
+  assert.equal(result.visited,1);
+  assert.equal(matched,1);
+});
