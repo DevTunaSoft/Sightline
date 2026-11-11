@@ -161,6 +161,65 @@ public sealed class ActionSafetyTests
         Assert.Null(receipt.Readback);
     }
 
+    [Theory]
+    [InlineData("ApplyButton", "Apply", "Button", true)]
+    [InlineData("ApplyButton", "Delete", "Button", false)]
+    [InlineData("OtherButton", "Apply", "Button", false)]
+    [InlineData("ApplyButton", "Apply", "Edit", false)]
+    public void Locator_requires_every_available_observed_identity_field(
+        string automationId, string name, string type, bool expected)
+    {
+        var locator = new WindowsElementLocator("ApplyButton", "Apply", "Button");
+        Assert.Equal(expected, locator.Matches(automationId, name, type));
+    }
+
+    [Fact]
+    public void Unnamed_controls_are_not_guessable_action_targets()
+    {
+        var locator = new WindowsElementLocator(null, null, "Button");
+        Assert.False(locator.IsIdentifiable);
+        Assert.False(locator.Matches(null, null, "Button"));
+        Assert.True(new WindowsElementLocator("ApplyButton", null, "Button").IsIdentifiable);
+        Assert.True(new WindowsElementLocator(null, "Apply", "Button").IsIdentifiable);
+    }
+
+    [Fact]
+    public async Task Unidentifiable_action_ref_is_rejected_without_process_access()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator(null, null, "Button"));
+        var executor = new FlaUiActionExecutor(leases);
+        var receipt = await executor.ExecuteAsync(Snapshot("fresh"),
+            new SemanticAction(SemanticActionKind.Invoke, reference));
+        Assert.False(receipt.Ok);
+        Assert.Equal(SightlineErrorCode.StateChanged, receipt.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Sensitive_focus_is_denied_before_attaching_to_process()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator(null, null, "Edit", IsSensitive: true));
+        var verifier = new FlaUiFocusVerifier(leases);
+        var receipt = await verifier.FocusAndVerifyAsync(Snapshot("fresh"), reference);
+        Assert.False(receipt.Ok);
+        Assert.Equal(SightlineErrorCode.PermissionDenied, receipt.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Unknown_identity_focus_is_denied_without_process_access()
+    {
+        var leases = new ElementLeaseRegistry<WindowsElementLocator>(16);
+        leases.BeginSnapshot("fresh", 42, 84);
+        var reference = leases.Register(new WindowsElementLocator(null, null, "Button"));
+        var verifier = new FlaUiFocusVerifier(leases);
+        var receipt = await verifier.FocusAndVerifyAsync(Snapshot("fresh"), reference);
+        Assert.False(receipt.Ok);
+        Assert.Equal(SightlineErrorCode.StateChanged, receipt.ErrorCode);
+    }
+
     [Fact]
     public async Task Focus_verifier_rejects_stale_ref_before_live_process_access()
     {
