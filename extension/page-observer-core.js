@@ -43,6 +43,7 @@ function normalizeTextPrefix(value, requestedChars, scanBudget = MAX_TEXT_INPUT_
 
   let text = '';
   let pendingSpace = false;
+  let sawNonWhitespace = false;
   const scanned = Math.min(source.length, maxScan);
   for (let i = 0; i < scanned; i += 1) {
     const char = source[i];
@@ -50,15 +51,16 @@ function normalizeTextPrefix(value, requestedChars, scanBudget = MAX_TEXT_INPUT_
       if (text) pendingSpace = true;
       continue;
     }
+    sawNonWhitespace = true;
     if (pendingSpace) {
-      if (text.length >= limit) return { text, complete: false, scanned: i + 1 };
+      if (text.length >= limit) return { text, complete: false, scanned: i + 1, sawNonWhitespace };
       text += ' ';
       pendingSpace = false;
     }
-    if (text.length >= limit) return { text, complete: false, scanned: i + 1 };
+    if (text.length >= limit) return { text, complete: false, scanned: i + 1, sawNonWhitespace };
     text += char;
   }
-  return { text, complete: scanned === source.length, scanned };
+  return { text, complete: scanned === source.length, scanned, sawNonWhitespace };
 }
 
 export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) {
@@ -73,27 +75,28 @@ export function createBoundedTextCollector(
     ? Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxVisibleTextChars, Math.floor(requested)))
     : PAGE_OBSERVER_LIMITS.maxVisibleTextChars;
   const requestedScan = Number(maxInspectedChars);
-  let remainingScan = Number.isFinite(requestedScan)
+  const scanLimit = Number.isFinite(requestedScan)
     ? Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxTextCharsInspected,
       Math.floor(requestedScan)))
     : PAGE_OBSERVER_LIMITS.maxTextCharsInspected;
+  let remainingScan = scanLimit;
   let text = '';
   return {
     push(value) {
       if (text.length >= limit || remainingScan === 0) return false;
       const remaining = limit - text.length;
-      const { text: chunk, complete, scanned } = normalizeTextPrefix(value,
+      const { text: chunk, complete, scanned, sawNonWhitespace } = normalizeTextPrefix(value,
         remaining - (text ? 1 : 0), remainingScan);
       remainingScan -= scanned;
       if (chunk) text += (text ? ' ' : '') + chunk;
-      else if (text && !complete) text += ' ';
+      else if (text && !complete && sawNonWhitespace) text += ' ';
       return complete && remainingScan > 0 && text.length < limit;
     },
     value() { return text; },
     get full() { return text.length >= limit; },
     get exhausted() { return remainingScan === 0; },
     get scannedChars() {
-      return PAGE_OBSERVER_LIMITS.maxTextCharsInspected - remainingScan;
+      return scanLimit - remainingScan;
     },
     get length() { return text.length; },
   };
