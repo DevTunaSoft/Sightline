@@ -48,6 +48,15 @@ public sealed class FlaUiFocusVerifier : IDesktopFocusVerifier
                 Fail(SightlineErrorCode.StateChanged, "Element reference is stale.")));
         }
 
+        // Focusing a password control can also expose it to subsequent keyboard
+        // events; reject it even when the requested operation is only focus.
+        if (locator.IsSensitive || SensitiveControlPolicy.IsSensitive(false, locator.Name, locator.AutomationId))
+            return ValueTask.FromResult(Recorded(elementRef, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.PermissionDenied, "Sensitive controls cannot be focused.")));
+        if (!locator.IsIdentifiable)
+            return ValueTask.FromResult(Recorded(elementRef, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.StateChanged, "Control lacks reliable identifying metadata.")));
+
         if (!_circuitBreaker.TryEnter(snapshot.ProcessId))
         {
             return ValueTask.FromResult(Recorded(
@@ -72,6 +81,14 @@ public sealed class FlaUiFocusVerifier : IDesktopFocusVerifier
             if (element is null)
                 return ValueTask.FromResult(HealthyFailure(elementRef, snapshot.ProcessId, started,
                     SightlineErrorCode.StateChanged, "Target element changed or is ambiguous."));
+
+            // Provider state may change between observation and focus.
+            var isPassword = Safe(() => element.Properties.IsPassword.Value, true);
+            var name = SafeText(() => element.Name);
+            var automationId = SafeText(() => element.AutomationId);
+            if (SensitiveControlPolicy.IsSensitive(isPassword, name, automationId))
+                return ValueTask.FromResult(HealthyFailure(elementRef, snapshot.ProcessId, started,
+                    SightlineErrorCode.PermissionDenied, "Sensitive controls cannot be focused."));
 
             if (!element.Properties.IsKeyboardFocusable.ValueOrDefault)
                 return ValueTask.FromResult(HealthyFailure(elementRef, snapshot.ProcessId, started,
@@ -140,6 +157,18 @@ public sealed class FlaUiFocusVerifier : IDesktopFocusVerifier
             ErrorCode: receipt.ErrorCode?.ToString(),
             Detail: $"process={processId}"));
         return receipt;
+    }
+
+    private static T Safe<T>(Func<T> read, T fallback)
+    {
+        try { return read(); }
+        catch { return fallback; }
+    }
+
+    private static string? SafeText(Func<string?> read)
+    {
+        try { return read(); }
+        catch { return null; }
     }
 
     private static FocusReceipt Fail(SightlineErrorCode code, string detail) =>
