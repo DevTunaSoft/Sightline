@@ -146,6 +146,48 @@ function normalizedFieldName(value) {
     .toLowerCase();
 }
 
+function isTextEntryField(input, type = String(input?.type || '').toLowerCase()) {
+  const tag = String(input?.tagName || '').toLowerCase();
+  const role = String(input?.role || '').toLowerCase();
+  return input?.isContentEditable === true || tag === 'textarea' ||
+    (tag === 'input' && !['button', 'submit', 'reset', 'checkbox', 'radio', 'hidden'].includes(type)) ||
+    ['textbox', 'searchbox'].includes(role);
+}
+
+/**
+ * Check existing, externally associated DOM labels for credential hints.
+ * Never enumerate an unbounded labels collection or process whole long texts.
+ * Used at action time, independently of the cached page snapshot.
+ */
+export function hasSensitiveAssociatedLabel(element) {
+  const meta = {
+    type: element?.getAttribute?.('type') || element?.type,
+    tagName: element?.tagName,
+    role: element?.getAttribute?.('role'),
+    isContentEditable: element?.isContentEditable === true,
+  };
+  if (!isTextEntryField(meta)) return false;
+  const isSecret = text => isSensitiveField({ ...meta, ariaLabel: text });
+
+  const ids = String(element?.getAttribute?.('aria-labelledby') || '');
+  if (ids.length > 2048) return true;
+  if (ids) {
+    let count = 0;
+    for (const match of ids.matchAll(/\S+/g)) {
+      if (++count > 16) return true;
+      const label = element?.ownerDocument?.getElementById?.(match[0]);
+      if (label && isSecret(label.textContent || '')) return true;
+    }
+  }
+  const labels = element?.labels;
+  if (labels?.length > 16) return true;
+  const count = Math.max(0, Math.min(16, Number(labels?.length) || 0));
+  for (let index = 0; index < count; index += 1) {
+    if (labels[index] && isSecret(labels[index].textContent || '')) return true;
+  }
+  return false;
+}
+
 // Inspect a fixed set of bounded metadata fields. Names, IDs and accessible
 // hints are independent: an innocent "name" must never hide a credential ID.
 // HTML autocomplete can include tokens such as "section-login current-password".
@@ -167,13 +209,7 @@ export function isSensitiveField(input = '') {
       SENSITIVE_NAME_PATTERN.test(normalizedFieldName(name)) ||
       SENSITIVE_NAME_PATTERN.test(normalizedFieldName(id))) return true;
 
-  const tag = String(input?.tagName || '').toLowerCase();
-  const role = String(input?.role || '').toLowerCase();
-  const textEntry = input?.isContentEditable === true ||
-    tag === 'textarea' ||
-    (tag === 'input' && !['button', 'submit', 'reset', 'checkbox', 'radio', 'hidden'].includes(type)) ||
-    ['textbox', 'searchbox'].includes(role);
-  if (!textEntry) return false;
+  if (!isTextEntryField(input, type)) return false;
   const ariaLabel = String(input?.ariaLabel || '');
   const placeholder = String(input?.placeholder || '');
   return ariaLabel.length > 256 || placeholder.length > 256 ||
