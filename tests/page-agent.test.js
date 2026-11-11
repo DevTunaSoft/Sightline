@@ -164,3 +164,85 @@ test('unrelated text changes after an approved click are not verified', async ()
   assert.equal(result.code,'NO_VERIFIED_EFFECT');
   assert.equal(result.receipt.changed,false);
 });
+
+test('confirmation is a one-shot capability and cannot be replayed', async () => {
+  let clicks=0, issued=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',url:'https://example.com/',elements:[{ref:'@e1',role:'button',name:'Delete item'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=>`confirm-${String(++issued).padStart(32,'0')}`,
+    sleep:async()=>{},
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const message={type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'},taskGoal:'delete item'};
+  const prompt=await controller.handle(message);
+  assert.equal(prompt.code,'CONFIRMATION_REQUIRED');
+  assert.match(prompt.confirmationKey,/^confirm-[a-f0-9]{32}$/);
+  const first=await controller.handle({...message,confirmed:true,confirmationKey:prompt.confirmationKey});
+  assert.equal(first.code,'NO_VERIFIED_EFFECT');
+  assert.equal(clicks,1);
+  const replay=await controller.handle({...message,confirmed:true,confirmationKey:prompt.confirmationKey});
+  assert.equal(replay.code,'CONFIRMATION_REQUIRED');
+  assert.equal(replay.confirmationKey,null);
+  assert.equal(clicks,1);
+});
+
+test('different task or target metadata cannot reuse an earlier confirmation', async () => {
+  let name='Delete item',clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',url:'https://example.com/',elements:[{ref:'@e1',role:'button',name}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=>`confirm-${'a'.repeat(32)}`,
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const action={action:'click',ref:'@e1'};
+  const pending=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action,taskGoal:'delete item'});
+  const wrongGoal=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action,taskGoal:'delete other item',
+    confirmed:true,confirmationKey:pending.confirmationKey,
+  });
+  assert.equal(wrongGoal.code,'CONFIRMATION_REQUIRED');
+  const pendingAgain=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action,taskGoal:'delete item'});
+  name='Delete different item';
+  const wrongTarget=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action,taskGoal:'delete item',
+    confirmed:true,confirmationKey:pendingAgain.confirmationKey,
+  });
+  assert.equal(wrongTarget.code,'CONFIRMATION_REQUIRED');
+  assert.equal(clicks,0);
+});
+
+test('missing secure token source fails closed before any consequential action', async () => {
+  let clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',elements:[{ref:'@e1',name:'Delete',role:'button'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=>null,
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const result=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'},
+  });
+  assert.equal(result.code,'CONFIRMATION_UNAVAILABLE');
+  assert.equal(clicks,0);
+});
+
+test('forged confirmation without an issued challenge cannot execute an action', async () => {
+  let clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',elements:[{ref:'@e1',name:'Delete item',role:'button'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const result=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'},
+    confirmed:true,confirmationKey:'confirm-'+ 'f'.repeat(32),
+  });
+  assert.equal(result.code,'CONFIRMATION_REQUIRED');
+  assert.equal(result.confirmationKey,null);
+  assert.equal(clicks,0);
+});
