@@ -94,6 +94,20 @@ public sealed class MutationJournalTests
     }
 
     [Fact]
+    public void One_pending_record_has_bounded_disk_footprint_with_no_action_values()
+    {
+        WithJournal(path =>
+        {
+            using var journal = new FileDesktopMutationJournal(path);
+            var longValue = new string('Q', DesktopActionValidation.MaxValueChars);
+            Assert.True(journal.TryBegin(Snapshot(), Action(longValue)));
+            Assert.InRange(new FileInfo(path).Length, 1, 512);
+            journal.PreserveUnknown();
+            Assert.DoesNotContain(longValue, File.ReadAllText(path));
+        });
+    }
+
+    [Fact]
     public void Relative_paths_are_rejected_before_any_write()
     {
         Assert.Throws<ArgumentException>(() => new FileDesktopMutationJournal("relative.pending"));
