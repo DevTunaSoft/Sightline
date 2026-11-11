@@ -41,6 +41,25 @@ public static class DesktopValueVerification
     }
 }
 
+/// <summary>
+/// An accepted UIA method call is not proof that the intended effect occurred.
+/// When a durable mutation record remains unresolved, never report success or
+/// expose a field value; the application must reconcile the effect before retry.
+/// </summary>
+public static class DesktopMutationOutcome
+{
+    public static ActionReceipt Unverified(ActionReceipt providerReceipt)
+    {
+        ArgumentNullException.ThrowIfNull(providerReceipt);
+        return new ActionReceipt(
+            Ok: false,
+            ErrorCode: SightlineErrorCode.UnknownEffect,
+            Verified: false,
+            Readback: null,
+            Detail: "Action effect is unverified; reconcile before retry.");
+    }
+}
+
 /// <summary>Reject malformed or oversized requests before any provider or approval call.</summary>
 public static class DesktopActionValidation
 {
