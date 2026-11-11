@@ -136,7 +136,9 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
         }
         if (target is null || !target.IsEnabled ||
             string.IsNullOrWhiteSpace(target.ControlType) || target.ControlType.Length > 128 ||
-            target.Name?.Length > 256 || target.AutomationId?.Length > 128)
+            (string.IsNullOrWhiteSpace(target.Name) && string.IsNullOrWhiteSpace(target.AutomationId)) ||
+            target.Name?.Length > 256 || target.AutomationId?.Length > 128 ||
+            SensitiveControlPolicy.IsSensitive(false, target.Name, target.AutomationId))
             return null;
 
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
