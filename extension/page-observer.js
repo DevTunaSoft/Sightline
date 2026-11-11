@@ -63,7 +63,13 @@ export function visitInteractiveNodes(doc, selector, budget, visit) {
   let visited = 0;
   while (node && visited < budget) {
     visited += 1;
-    if (node.matches?.(selector) && visit(node) === false)
+    // Avoid full selector matching for the many plain layout elements in
+    // modern pages; these cannot match INTERACTIVE_SELECTOR.
+    const tag = node.tagName;
+    const possiblyInteractive = tag === 'A' || tag === 'BUTTON' ||
+      tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' ||
+      node.hasAttribute?.('role') || node.hasAttribute?.('tabindex');
+    if (possiblyInteractive && node.matches?.(selector) && visit(node) === false)
       return { visited, truncated: true };
     node = walker.nextNode();
   }
