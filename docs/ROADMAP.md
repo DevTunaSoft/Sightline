@@ -78,6 +78,14 @@ Lightweight GUI/activity monitor, self-test, installer/uninstaller, safe update/
 
 **Next unblocked priorities:** Windows durable write-ahead action records and explicit single-use approval UX, real desktop UIA identity/acceptance, then browser end-to-end validation and lightweight optional local AI provisioning. Preserve structured-first and lazy loading policies.
 
+## 2026-11-11 — Low-memory observer and Windows safety checkpoint
+
+Implemented on `develop`: bounded lazy DOM/text walks avoid retaining large selector-result arrays; hard overrides cannot exceed 300 actionable elements, 12,000 inspected DOM nodes, or 6,000 text nodes. Observations reaching scan limits are marked partial, preventing unsafe high-impact actions. Existing ref registry and snapshot caps remain intact. **23/23 targeted observer tests passed** in an isolated V8 harness; actual Chrome/Edge memory/CPU measurements are **NOT RUN**.
+
+Windows Invoke now reports `UnknownEffect` until independently verified, even if a UIA provider accepted it. The one-time approval component also revokes permission after malformed/throwing observations and declines to approve credential-named or unidentifiable controls. Targeted XUnit regressions were written but **NOT RUN**, since .NET is unavailable in this environment.
+
+Next: full Node and .NET build/test pipelines at the exact commit, real-browser heap/CPU long-session measurements, controlled WPF confirmation/recovery acceptance, then production trusted approval UX.
+
 ## Resource policy
 
 Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
