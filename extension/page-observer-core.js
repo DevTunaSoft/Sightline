@@ -24,22 +24,58 @@ export function incompleteFrameInventory(inventory) {
   return Boolean(inventory?.truncated || inventory?.skippedDepth > 0);
 }
 
+// Prevent a single giant DOM text node or accessible name from allocating a
+// second giant normalized string. The output and inspected input are both
+// bounded; exhausted input budget is reported as incomplete to the collector.
+const MAX_TEXT_INPUT_SCAN = 32768;
+const WHITESPACE = /\s/;
+
+function normalizeTextPrefix(value, requestedChars) {
+  const source = String(value ?? '');
+  const limit = Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxVisibleTextChars,
+    Math.floor(Number(requestedChars) || 0)));
+  if (source.length <= Math.min(limit, 1024))
+    return { text: source.replace(/\s+/g, ' ').trim(), complete: true };
+
+  let text = '';
+  let pendingSpace = false;
+  const scanned = Math.min(source.length, MAX_TEXT_INPUT_SCAN);
+  for (let i = 0; i < scanned; i += 1) {
+    const char = source[i];
+    if (WHITESPACE.test(char)) {
+      if (text) pendingSpace = true;
+      continue;
+    }
+    if (pendingSpace) {
+      if (text.length >= limit) return { text, complete: false };
+      text += ' ';
+      pendingSpace = false;
+    }
+    if (text.length >= limit) return { text, complete: false };
+    text += char;
+  }
+  return { text, complete: scanned === source.length };
+}
+
 export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) {
-  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+  return normalizeTextPrefix(value, maxLength).text;
 }
 
 export function createBoundedTextCollector(maxChars = PAGE_OBSERVER_LIMITS.maxVisibleTextChars) {
-  const limit = Math.max(0, Math.min(100000, Number(maxChars) || 0));
+  const requested = Number(maxChars);
+  const limit = Number.isFinite(requested)
+    ? Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxVisibleTextChars, Math.floor(requested)))
+    : PAGE_OBSERVER_LIMITS.maxVisibleTextChars;
   let text = '';
   return {
     push(value) {
       if (text.length >= limit) return false;
-      const chunk = String(value ?? '').replace(/\s+/g, ' ').trim();
-      if (!chunk) return text.length < limit;
-      const prefix = text ? ' ' : '';
       const remaining = limit - text.length;
-      text += (prefix + chunk).slice(0, remaining);
-      return text.length < limit;
+      const { text: chunk, complete } = normalizeTextPrefix(value,
+        remaining - (text ? 1 : 0));
+      if (chunk) text += (text ? ' ' : '') + chunk;
+      else if (text && !complete) text += ' ';
+      return complete && text.length < limit;
     },
     value() { return text; },
     get full() { return text.length >= limit; },
