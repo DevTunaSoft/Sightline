@@ -31,6 +31,10 @@ export function isVisible(element) {
 }
 
 const SKIPPED_TEXT_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+const INTERACTIVE_TAGS = new Set([
+  'A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA',
+  'a', 'button', 'input', 'select', 'textarea',
+]);
 
 function appendBoundedPageText(root, collector, maxVisited) {
   if (!root || collector.full) return { visited: 0, truncated: false };
@@ -65,9 +69,7 @@ export function visitInteractiveNodes(doc, selector, budget, visit) {
     visited += 1;
     // Avoid full selector matching for the many plain layout elements in
     // modern pages; these cannot match INTERACTIVE_SELECTOR.
-    const tag = node.tagName;
-    const possiblyInteractive = tag === 'A' || tag === 'BUTTON' ||
-      tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' ||
+    const possiblyInteractive = INTERACTIVE_TAGS.has(node.tagName) ||
       node.hasAttribute?.('role') || node.hasAttribute?.('tabindex');
     if (possiblyInteractive && node.matches?.(selector) && visit(node) === false)
       return { visited, truncated: true };
