@@ -5,6 +5,7 @@ export const PAGE_OBSERVER_LIMITS = Object.freeze({
   maxVisibleTextChars: 8000,
   maxDomNodesVisited: 12000,
   maxTextNodesVisited: 6000,
+  maxTextCharsInspected: 65536,
   maxFrameNodesVisited: 6000,
 });
 
@@ -30,16 +31,19 @@ export function incompleteFrameInventory(inventory) {
 const MAX_TEXT_INPUT_SCAN = 32768;
 const WHITESPACE = /\s/;
 
-function normalizeTextPrefix(value, requestedChars) {
+function normalizeTextPrefix(value, requestedChars, scanBudget = MAX_TEXT_INPUT_SCAN) {
   const source = String(value ?? '');
   const limit = Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxVisibleTextChars,
     Math.floor(Number(requestedChars) || 0)));
-  if (source.length <= Math.min(limit, 1024))
-    return { text: source.replace(/\s+/g, ' ').trim(), complete: true };
+  const maxScan = Math.max(0, Math.min(MAX_TEXT_INPUT_SCAN,
+    Math.floor(Number(scanBudget) || 0)));
+  if (source.length <= Math.min(limit, 1024, maxScan))
+    return { text: source.replace(/\s+/g, ' ').trim(),
+      complete: true, scanned: source.length };
 
   let text = '';
   let pendingSpace = false;
-  const scanned = Math.min(source.length, MAX_TEXT_INPUT_SCAN);
+  const scanned = Math.min(source.length, maxScan);
   for (let i = 0; i < scanned; i += 1) {
     const char = source[i];
     if (WHITESPACE.test(char)) {
@@ -47,38 +51,50 @@ function normalizeTextPrefix(value, requestedChars) {
       continue;
     }
     if (pendingSpace) {
-      if (text.length >= limit) return { text, complete: false };
+      if (text.length >= limit) return { text, complete: false, scanned: i + 1 };
       text += ' ';
       pendingSpace = false;
     }
-    if (text.length >= limit) return { text, complete: false };
+    if (text.length >= limit) return { text, complete: false, scanned: i + 1 };
     text += char;
   }
-  return { text, complete: scanned === source.length };
+  return { text, complete: scanned === source.length, scanned };
 }
 
 export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) {
   return normalizeTextPrefix(value, maxLength).text;
 }
 
-export function createBoundedTextCollector(maxChars = PAGE_OBSERVER_LIMITS.maxVisibleTextChars) {
+export function createBoundedTextCollector(
+  maxChars = PAGE_OBSERVER_LIMITS.maxVisibleTextChars,
+  maxInspectedChars = PAGE_OBSERVER_LIMITS.maxTextCharsInspected) {
   const requested = Number(maxChars);
   const limit = Number.isFinite(requested)
     ? Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxVisibleTextChars, Math.floor(requested)))
     : PAGE_OBSERVER_LIMITS.maxVisibleTextChars;
+  const requestedScan = Number(maxInspectedChars);
+  let remainingScan = Number.isFinite(requestedScan)
+    ? Math.max(0, Math.min(PAGE_OBSERVER_LIMITS.maxTextCharsInspected,
+      Math.floor(requestedScan)))
+    : PAGE_OBSERVER_LIMITS.maxTextCharsInspected;
   let text = '';
   return {
     push(value) {
-      if (text.length >= limit) return false;
+      if (text.length >= limit || remainingScan === 0) return false;
       const remaining = limit - text.length;
-      const { text: chunk, complete } = normalizeTextPrefix(value,
-        remaining - (text ? 1 : 0));
+      const { text: chunk, complete, scanned } = normalizeTextPrefix(value,
+        remaining - (text ? 1 : 0), remainingScan);
+      remainingScan -= scanned;
       if (chunk) text += (text ? ' ' : '') + chunk;
       else if (text && !complete) text += ' ';
-      return complete && text.length < limit;
+      return complete && remainingScan > 0 && text.length < limit;
     },
     value() { return text; },
     get full() { return text.length >= limit; },
+    get exhausted() { return remainingScan === 0; },
+    get scannedChars() {
+      return PAGE_OBSERVER_LIMITS.maxTextCharsInspected - remainingScan;
+    },
     get length() { return text.length; },
   };
 }
