@@ -302,3 +302,43 @@ test('action confirmation binds normalized action, not extra untrusted message f
   assert.equal(result.code,'NO_VERIFIED_EFFECT');
   assert.equal(clicks,1);
 });
+
+test('failed live observation revokes a previously issued confirmation', async () => {
+  let scans=0, clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>{
+      scans++;
+      if(scans===3) throw new Error('synthetic observation failure');
+      return {snapshotId:'s1',elements:[{ref:'@e1',role:'button',name:'Delete'}]};
+    },
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=> 'confirm-'+'e'.repeat(32),
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const request={type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'}};
+  const prompt=await controller.handle(request);
+  let rejected=false;
+  try { await controller.handle({...request,confirmed:true,confirmationKey:prompt.confirmationKey}); }
+  catch { rejected=true; }
+  assert.equal(rejected,true);
+  const afterFailure=await controller.handle({...request,confirmed:true,confirmationKey:prompt.confirmationKey});
+  assert.equal(afterFailure.code,'STALE_SNAPSHOT');
+  assert.equal(clicks,0);
+});
+
+test('cryptographic token issuance errors fail closed rather than exposing a token', async () => {
+  let clicks=0;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:'s1',elements:[{ref:'@e1',role:'button',name:'Delete'}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{clicks++;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
+    issueConfirmationToken:()=>{throw new Error('RNG unavailable');},
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const result=await controller.handle({
+    type:'SIGHTLINE_EXECUTE',snapshotId:'s1',action:{action:'click',ref:'@e1'},
+  });
+  assert.equal(result.code,'CONFIRMATION_UNAVAILABLE');
+  assert.equal(clicks,0);
+});
