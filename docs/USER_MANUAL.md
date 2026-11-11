@@ -110,6 +110,8 @@ The Windows foundation currently includes:
 
 It does **not** yet have a normal end-user GUI, installer, complete focus protection, or real-desktop acceptance evidence.
 
+**Windows value-entry safety:** Sightline does not put the text from a Windows input field into the action result. If it reports `UnknownEffect` after trying to change a field, the field may already have changed. Examine the application before attempting the operation again. This protection is implemented in source but has not passed real-Windows acceptance yet.
+
 ### Developer verification
 
 On Windows with the .NET 8 SDK:
