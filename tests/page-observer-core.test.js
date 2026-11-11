@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName, hasTargetStructuralEffect } from '../extension/page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName, hasTargetStructuralEffect, normalizeObservationLimits } from '../extension/page-observer-core.js';
 
 test('observer defaults are deliberately bounded', () => {
   assert.equal(PAGE_OBSERVER_LIMITS.maxElements, 300);
@@ -97,4 +97,29 @@ test('duplicate targets and text-only changes cannot prove effects', () => {
     {action:'click',ref:'@e1'}),false);
   assert.equal(hasTargetStructuralEffect({url:'https://example.com/a',elements:[]},
     {url:'https://example.com/b',elements:[]},{action:'navigate',url:'https://example.com/b'}),true);
+});
+
+test('observation limits cannot be increased by unsafe overrides', () => {
+  const limits=normalizeObservationLimits({
+    maxElements:Infinity, maxSnapshotChars:100000000,
+    maxVisibleTextChars:100000000, maxTextNodesVisited:100000000,
+    maxDomNodesVisited:100000000,
+  });
+  for (const [key, maximum] of Object.entries(PAGE_OBSERVER_LIMITS)) {
+    assert.ok(limits[key]<=maximum,key);
+  }
+  assert.equal(limits.maxElements,300);
+  assert.equal(limits.maxTextNodesVisited,6000);
+  assert.equal(limits.maxDomNodesVisited,12000);
+});
+
+test('small observation limits still reduce work without accepting invalid budgets', () => {
+  const limits=normalizeObservationLimits({
+    maxElements:12.8, maxTextNodesVisited:9,
+    maxDomNodesVisited:0, maxTextPerElement:NaN,
+  });
+  assert.equal(limits.maxElements,12);
+  assert.equal(limits.maxTextNodesVisited,9);
+  assert.equal(limits.maxDomNodesVisited,PAGE_OBSERVER_LIMITS.maxDomNodesVisited);
+  assert.equal(limits.maxTextPerElement,PAGE_OBSERVER_LIMITS.maxTextPerElement);
 });
