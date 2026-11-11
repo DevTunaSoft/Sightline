@@ -51,8 +51,11 @@ public static class DesktopMutationOutcome
     public static ActionReceipt RequireVerifiedEffect(ActionReceipt providerReceipt)
     {
         ArgumentNullException.ThrowIfNull(providerReceipt);
-        if (providerReceipt.Ok && providerReceipt.Verified)
-            return providerReceipt with { Readback = null };
+        if (providerReceipt.Ok && providerReceipt.Verified &&
+            providerReceipt.ErrorCode is null)
+            return new ActionReceipt(
+                Ok: true, ErrorCode: null, Verified: true,
+                Readback: null, Detail: "Application effect verified.");
         return new ActionReceipt(
             Ok: false,
             ErrorCode: SightlineErrorCode.UnknownEffect,
