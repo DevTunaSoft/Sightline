@@ -149,3 +149,36 @@ export function boundSnapshot(snapshot, maxChars = PAGE_OBSERVER_LIMITS.maxSnaps
 
   return finalizeCandidate(base, allElements.slice(0, low), visibleText, true);
 }
+
+/**
+ * Conservative structural evidence, not application-specific proof of success.
+ * Ignore volatile page text, snapshot hashes and unrelated control changes.
+ * Unavailable or truncated observations are inconclusive.
+ */
+export function hasTargetStructuralEffect(before, after, action) {
+  if (!before || !after || before.truncated || after.truncated) return false;
+  if (action?.action === 'navigate') {
+    return typeof action.url === 'string' &&
+      before.url !== after.url && after.url === action.url;
+  }
+  if (!action?.ref || !Array.isArray(before.elements) || !Array.isArray(after.elements))
+    return false;
+  const original = before.elements.find(element => element.ref === action.ref);
+  if (!original || !original.role || !original.name || original.sensitive) return false;
+  const matches = element => element?.role === original.role &&
+    element?.name === original.name && (element?.frame?.path || '') === (original.frame?.path || '');
+  if (before.elements.filter(matches).length !== 1) return false;
+  const current = after.elements.filter(matches);
+  if (current.length === 0) return action.action === 'click';
+  if (current.length !== 1) return false;
+  // Only observable control state counts. A clock, alert, or unrelated control
+  // must not turn a failed consequential action into a verified one.
+  const prevState = original.state || {};
+  const nextState = current[0].state || {};
+  for (const field of ['checked', 'expanded', 'selectedIndex', 'valueLength']) {
+    if (Object.hasOwn(prevState, field) &&
+        Object.hasOwn(nextState, field) && prevState[field] !== nextState[field])
+      return true;
+  }
+  return false;
+}
