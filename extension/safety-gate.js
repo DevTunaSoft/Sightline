@@ -63,6 +63,9 @@ export function classifyActionRisk(action, target = {}, context = {}) {
   return { level: 'normal', reason: 'No high-impact signal detected.' };
 }
 
+// Legacy deterministic action fingerprint for diagnostics and compatibility.
+// NOT an authorization credential. The page agent issues cryptographically
+// random, single-use tokens and validates exact action bindings separately.
 export function actionConfirmationKey(snapshotId, action, target = {}, context = {}) {
   const stable = {
     snapshotId: String(snapshotId || ''),
