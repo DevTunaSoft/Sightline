@@ -3,6 +3,7 @@ import { hasTargetStructuralEffect } from './page-observer-core.js';
 import { RefRegistry } from './ref-registry.js';
 import { createDomActionAdapter } from './dom-action-adapter.js';
 import { executeValidatedAction } from './action-executor-core.js';
+import { validateAction } from './action-protocol.js';
 import { gateAction } from './safety-gate.js';
 
 // A confirmation token is an unpredictable, single-use capability, not a
@@ -63,6 +64,11 @@ export function createPageAgentController(options = {}) {
       if (message.type === 'SIGHTLINE_OBSERVE') return { ok: true, snapshot: await refresh() };
       if (message.type !== 'SIGHTLINE_EXECUTE') return { ok: false, code: 'UNKNOWN_MESSAGE' };
 
+      // Reject malformed or oversized actions before approval issuance or DOM mutation.
+      const validated = validateAction(message.action);
+      if (!validated.ok) return { ok: false, code: 'INVALID_ACTION', error: validated.reason };
+      const action = validated.action;
+
       if (!currentSnapshot || message.snapshotId !== currentSnapshot.snapshotId) {
         return { ok: false, code: 'STALE_SNAPSHOT', snapshot: await refresh() };
       }
@@ -75,17 +81,17 @@ export function createPageAgentController(options = {}) {
         return { ok: false, code: 'STALE_SNAPSHOT', snapshot: liveSnapshot };
       }
 
-      const target = message.action?.ref
-        ? liveSnapshot.elements.find(element => element.ref === message.action.ref)
+      const target = action?.ref
+        ? liveSnapshot.elements.find(element => element.ref === action.ref)
         : null;
-      const gateContext = { currentUrl: currentSnapshot.url, taskGoal: message.taskGoal || '' };
-      const decision = gate(message.action, target || {}, message.mode || 'assist', gateContext);
+      const gateContext = { currentUrl: currentSnapshot.url, taskGoal: String(message.taskGoal || '').slice(0, 2000) };
+      const decision = gate(action, target || {}, message.mode || 'assist', gateContext);
       if (!decision.allowed) {
         if (!decision.confirmationRequired) {
           pendingConfirmation = null;
           return { ok: false, code: 'ACTION_BLOCKED', risk: decision.risk, target };
         }
-        const binding = confirmationBinding(currentSnapshot, message.action, target, gateContext);
+        const binding = confirmationBinding(currentSnapshot, action, target, gateContext);
         if (message.confirmed === true) {
           // Check expiry on use; no timer, polling, or background work.
           const age = pendingConfirmation ? now() - pendingConfirmation.issuedAt : Infinity;
@@ -120,19 +126,19 @@ export function createPageAgentController(options = {}) {
       }
 
       const beforeSnapshotId = currentSnapshot.snapshotId;
-      const receipt = await executeValidatedAction(message.action, adapterFactory(beforeSnapshotId));
+      const receipt = await executeValidatedAction(action, adapterFactory(beforeSnapshotId));
       if (!receipt.ok) {
         if (receipt.code === 'STALE_REF') return { ok: false, code: 'STALE_REF', receipt, snapshot: await refresh() };
         return { ok: false, code: receipt.code || 'ACTION_FAILED', receipt };
       }
       let snapshot = await refresh();
       const consequential = decision.risk?.level === 'high' || decision.risk?.level === 'critical';
-      let changed = hasTargetStructuralEffect(liveSnapshot, snapshot, message.action);
+      let changed = hasTargetStructuralEffect(liveSnapshot, snapshot, action);
       if (consequential && !changed) {
         for (let attempt = 0; attempt < 3 && !changed; attempt += 1) {
           await sleep(100);
           snapshot = await refresh();
-          changed = hasTargetStructuralEffect(liveSnapshot, snapshot, message.action);
+          changed = hasTargetStructuralEffect(liveSnapshot, snapshot, action);
         }
       }
       // Generic visible text / snapshot hash movement is not effect proof.
