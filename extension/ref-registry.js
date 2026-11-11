@@ -1,6 +1,11 @@
 export class RefRegistry {
   constructor(maxRefs = 300) {
-    this.maxRefs = Math.max(1, Number(maxRefs) || 300);
+    // A caller-supplied Infinity or enormous cap must not retain unbounded DOM
+    // nodes. Match the observer's existing 300-element hard ceiling.
+    const requested = Number(maxRefs);
+    this.maxRefs = Number.isFinite(requested)
+      ? Math.min(300, Math.max(1, Math.floor(requested)))
+      : 300;
     this.snapshotId = null;
     this.refs = new Map();
   }
