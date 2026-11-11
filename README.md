@@ -1,3 +1,7 @@
+## Engineering takeover documentation
+
+The complete [Sightline V3 master engineering handoff](docs/handoff/SIGHTLINE_MASTER_HANDOFF_V3_2026-11-11.md) captures the product vision, user-request rationale, design decisions, architecture, implementation history, acceptance requirements, and next-engineer instructions. The chronological [development ledger](docs/HANDOFF.md) remains the source of truth for verified recent work. The V3 dossier is a point-in-time reference; reconcile its claims with the current code and tests before implementing changes.
+
 # Sightline
 
 > **See. Understand. Act.**
