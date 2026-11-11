@@ -171,16 +171,16 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 if (!cleared)
                     receipt = Fail(SightlineErrorCode.UnknownEffect,
                         "Verified action could not clear its durable record; reconcile before retry.");
+                else
+                    receipt = DesktopMutationOutcome.RequireVerifiedEffect(receipt);
             }
             else
             {
-                // An accepted Invoke is NOT a verified effect. The journal
-                // remains pending, so returning Ok=true would mislead callers
-                // into continuing a workflow that must be reconciled first.
-                // This also covers failed SetValue verification after dispatch.
+                // An accepted Invoke is NOT proof of an application effect.
+                // Preserve the file and mark the attempt as unknown; callers
+                // must not continue or replay it until independent review.
                 try { _journal.PreserveUnknown(); } catch { }
-                receipt = Fail(SightlineErrorCode.UnknownEffect,
-                    "Action effect is unverified; reconcile before retry.");
+                receipt = DesktopMutationOutcome.RequireVerifiedEffect(receipt);
             }
             _circuitBreaker.RecordSuccess(snapshot.ProcessId);
             return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started, receipt));
