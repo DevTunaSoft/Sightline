@@ -1,5 +1,23 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Bounded nested-frame discovery and text-coverage integrity
+
+**Baseline and no-duplication check:** Audited live `develop`, existing observer/test modules, audit issue #9 and the only open PR (#8, Windows process inspection). Interactive DOM observation was already lazy and capped, but `collectFrameContexts` still allocated the entire `querySelectorAll('iframe,frame')` result before applying its 20-frame limit. The page-text collector also failed to mark snapshot coverage incomplete when it filled its character budget. No new branch, dependency, background thread or polling was introduced.
+
+**Code:**
+- `extension/page-observer-core.js` adds an explicit `maxFrameNodesVisited: 6000` hard ceiling; `normalizeObservationLimits` prevents external overrides from increasing it (`8161185`).
+- `extension/page-observer.js` shares one lazy `walkDocumentElements` helper between interactive discovery and nested-frame enumeration, avoiding an unbounded selector NodeList. Frame count stays capped at 20, nesting depth at 3, frame-node visits at 6000, interactive node visits at 12000, and text-node visits at 6000. Any partial frame scan sets `inventory.truncated`, which already feeds `snapshot.truncated` (`417b5fa`, `fb8c629`).
+- Page-text budget exhaustion now marks the observation incomplete. This prevents an 8k-character text cap (or smaller configured cap) from silently presenting unobserved page content as complete (`0d0cde8`).
+
+**Tests authored:** `tests/page-observer-visibility.test.js` adds synthetic large-frame, nested-frame/depth, strict-budget, no-frame and no-querySelectorAll scenarios (`56df4a8`, fixture corrected `4a3149e`). `tests/page-observer-snapshot.test.js` adds integrated snapshot tests for small pages, frame-discovery truncation, same-origin frame references, text-character exhaustion, text-node scan exhaustion and complete short text (`842186c`, selector-list fixture corrected `3184854`, further cases `19cedc0`). Existing observer-core tests remain unchanged.
+
+**Executed verification:** Original GitHub observer test functions and latest source were executed in isolated V8 with a URL test double: **35/35 PASS, 0 FAIL**, including six integrated `buildPageSnapshot` checks. First isolated attempts failed because the synthetic DOM omitted real elements' `nodeType` and used incorrect CSS selector-list matching; the test fixtures were corrected, and the complete exact-source suite was rerun successfully. This is **not** the Node test runner or installed Chrome/Edge. No actual browser heap/CPU measurement, full `npm run check`, Windows .NET build or interactive WPF acceptance was run. Local `git ls-remote` still fails GitHub DNS; `dotnet` is not installed. GitHub connector source writes/readbacks are verified.
+
+**Memory/CPU design and limits:** No complete frame selector array and no more than 20 retained frame contexts plus top-level; per-observation frame discovery capped at 6000 inspected nodes (plus existing 12000 interactive and 6000 text nodes). Unlike native selector enumeration, bounded TreeWalker may use additional CPU on some pages; **no measured improvement is claimed**. Incomplete scans intentionally block consequential actions pending narrower page context. All browser changes remain structured-first; no AI invocation or resident worker was added.
+
+**Next:** Run full Node test suite on the exact `develop` SHA, test real Chrome/Edge iframe and text-overflow scenarios, measure allocated/retained heap, idle CPU, scan latency and long-session retention against previous release. Continue Windows production approval UI and crash/reconciliation acceptance only after .NET build and XUnit evidence.
+
+
 ### 2026-11-11 — Final receipt privacy correction and snapshot smoke check
 
 `DesktopMutationOutcome.RequireVerifiedEffect` now accepts a verified result only when `Ok=true`, `Verified=true`, and `ErrorCode=null`. The successful return is normalized to a fixed safe message instead of retaining arbitrary provider `Readback` or `Detail` text (`f8d37cc`). The Core XUnit regression now supplies the same synthetic sensitive value in both fields and rejects contradictory `Ok/Verified/ErrorCode` combinations (`a7d38d2`). **C# tests NOT RUN** due to missing .NET SDK; this change is still subject to real Windows validation.
