@@ -3,7 +3,21 @@ export const PAGE_OBSERVER_LIMITS = Object.freeze({
   maxTextPerElement: 240,
   maxSnapshotChars: 48000,
   maxVisibleTextChars: 8000,
+  maxDomNodesVisited: 12000,
+  maxTextNodesVisited: 6000,
 });
+
+// Caller overrides may reduce work, never expand the hard RAM/CPU ceilings.
+export function normalizeObservationLimits(overrides = {}) {
+  const limits = {};
+  for (const [key, maximum] of Object.entries(PAGE_OBSERVER_LIMITS)) {
+    const requested = Number(overrides?.[key]);
+    limits[key] = Number.isFinite(requested) && requested > 0
+      ? Math.max(1, Math.min(maximum, Math.floor(requested)))
+      : maximum;
+  }
+  return limits;
+}
 
 export function cleanPageText(value, maxLength = PAGE_OBSERVER_LIMITS.maxTextPerElement) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
