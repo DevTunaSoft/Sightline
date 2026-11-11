@@ -64,6 +64,12 @@ Text inside webpages and emails is treated as untrusted data, not instructions. 
 
 The browser observer also limits how many page nodes it inspects during one scan. On an exceptionally large webpage, a page containing too much text, or a page with many nested frames, Sightline may report a **truncated or incomplete observation** and refuse a consequential action. This is intentional: it prevents excessive memory/CPU use and avoids guessing about uninspected controls. Use the website's search or filters to narrow the content and observe again. Sightline inspects embedded frames with a bounded lazy scan rather than collecting every frame into a large list. Long text is processed in small, limited portions, so a single unusually large text field or webpage cannot make the observer normalize millions of characters at once. If a text-processing limit is reached, Sightline marks its observation incomplete instead of assuming it has seen the whole page. The revised scanning code passed targeted tests but still requires real Chrome/Edge memory and performance testing.
 
+### Large fields, text verification, and dropdowns
+
+When Sightline reads a webpage element, it examines only a bounded amount of text. If the element contains too much content, the read reports **INCOMPLETE_OBSERVATION** and Sightline does not treat a matching phrase in that partial sample as proof an action succeeded. Narrow the webpage or inspect the result manually before trying a consequential operation.
+
+Very large dropdowns are also limited. If the requested item is beyond the checked portion, Sightline reports **OPTION_SCOPE_UNVERIFIED** rather than searching every option or selecting an unverified value. Selecting a different, smaller set of choices on the website may resolve this. These changes have targeted automated test evidence but have not yet been accepted in installed Chrome or Edge.
+
 ### Low-memory behavior in the current browser alpha
 
 Sightline keeps a limited set of webpage controls in memory and releases those references when the page observation changes. Pauses between actions do not require a continuously running background monitor. Repeated short waits clean up their cancellation listeners. These safeguards are present in source, but total memory usage still requires testing in installed Chrome and Edge.
