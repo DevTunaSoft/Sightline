@@ -66,8 +66,11 @@ try
     if (approval.IsApproved(snapshot, invokeAction))
         throw new InvalidOperationException("Invoke confirmation was reused.");
 
-    if (!invokeReceipt.Ok)
-        throw new InvalidOperationException("Invoke was rejected.");
+    // A provider accepting Invoke does not prove the intended application
+    // effect. Sightline must fail closed until the fixture verifies ResultText.
+    if (invokeReceipt.Ok || invokeReceipt.Verified ||
+        invokeReceipt.ErrorCode != SightlineErrorCode.UnknownEffect)
+        throw new InvalidOperationException("Unverified Invoke was incorrectly reported as successful.");
     if (!journal.HasPending)
         throw new InvalidOperationException("Unverified Invoke must retain its durable record.");
 
