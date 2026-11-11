@@ -16,6 +16,7 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
     private readonly Func<DateTimeOffset> _clock;
     private readonly TimeSpan _validFor;
     private byte[]? _fingerprint;
+    private DateTimeOffset _issuedAt;
     private DateTimeOffset _expiresAt;
 
     public OneShotDesktopActionApproval(
@@ -39,9 +40,20 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
         {
             Clear();
             if (fingerprint is null) return false;
-            _fingerprint = fingerprint;
-            _expiresAt = _clock().Add(_validFor);
-            return true;
+            try
+            {
+                _issuedAt = _clock();
+                _expiresAt = _issuedAt.Add(_validFor);
+                _fingerprint = fingerprint;
+                return true;
+            }
+            catch
+            {
+                // A failed or untrusted clock must never leave an old ticket.
+                CryptographicOperations.ZeroMemory(fingerprint);
+                Clear();
+                return false;
+            }
         }
     }
 
@@ -51,7 +63,15 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
         lock (_gate)
         {
             if (_fingerprint is null) return false;
-            if (_clock() >= _expiresAt)
+            DateTimeOffset now;
+            try { now = _clock(); }
+            catch
+            {
+                Clear();
+                return false;
+            }
+            // Wall-clock adjustments cannot extend an approval indefinitely.
+            if (now < _issuedAt || now >= _expiresAt)
             {
                 Clear();
                 return false;
@@ -83,6 +103,7 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
         if (_fingerprint is not null)
             CryptographicOperations.ZeroMemory(_fingerprint);
         _fingerprint = null;
+        _issuedAt = default;
         _expiresAt = default;
     }
 
