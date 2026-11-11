@@ -87,8 +87,8 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 |---|---|---|
 | Independent credential metadata checks | Implemented / isolated tests **PASS**, browser **UNVERIFIED** | A harmless name cannot mask a sensitive ID; prefixed password/OTP/payment autocomplete tokens, editable aria-labels, placeholders and contenteditable roles are checked. |
 | Long metadata fail-closed | Implemented / isolated tests **PASS** | Name, ID, accessible hint or autocomplete exceeding a 256-character inspection bound is treated as sensitive instead of trusting only its prefix. |
-| Unified observation/action gating | Implemented / 79 isolated tests **PASS**; full Node **NOT RUN** | Shared deterministic detector runs when describing controls and immediately before DOM actions, including focused-key dispatch; ordinary Show password buttons remain clickable. |
-| Dynamic linked-label-only custom inputs | **UNVERIFIED** | Custom text inputs identified solely through separate associated label nodes still require dedicated installed-browser safety checks. |
+| Unified observation/action gating | Implemented / 86 isolated tests **PASS**; full Node **NOT RUN** | Shared deterministic detector runs when describing controls and immediately before DOM actions, including focused-key dispatch; ordinary Show password buttons remain clickable. |
+| Linked-label-only credential fields | Implemented / 86 isolated tests **PASS**, installed browsers **UNVERIFIED** | Native `labels` and `aria-labelledby` are checked at observation and action time with a 16-label / 2,048-ID-character ceiling; changed credential labels block actions. |
 
 ## Browser security and local-planner hardening (2026-11-11)
 
