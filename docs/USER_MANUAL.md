@@ -76,7 +76,7 @@ Very large dropdowns are also limited. If the requested item is beyond the check
 
 Sightline is designed to refuse autonomous reading, typing, clicking or keyboard activation on password, one-time-code and payment-security fields. The current browser alpha checks more than just the visible field type: it also considers independent field IDs, autocomplete values, and accessible hints on text-entry controls. For example, a text field labelled **Enter password** is treated as sensitive even if its HTML type is not `password`. An ordinary **Show password** button is not automatically treated as a text-entry field.
 
-These safeguards are implemented and covered by targeted source tests, but custom websites and fields identified only by external labels still need installed-browser acceptance. Do not use Sightline to enter credentials or payment security codes automatically.
+These safeguards also check native associated labels and `aria-labelledby` links on editable controls. If a page changes an input's label to indicate a password or one-time code, Sightline rechecks before attempting an action. These protections passed targeted source tests but still require installed Chrome/Edge acceptance on custom websites. Do not use Sightline to enter credentials or payment security codes automatically.
 
 ### Low-memory behavior in the current browser alpha
 
