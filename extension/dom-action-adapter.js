@@ -1,4 +1,4 @@
-import { isSensitiveField, cleanPageText, createBoundedTextCollector } from './page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, isSensitiveField, cleanPageText, createBoundedTextCollector } from './page-observer-core.js';
 
 function attr(element, name) {
   return typeof element?.getAttribute === 'function' ? element.getAttribute(name) : null;
@@ -13,22 +13,36 @@ function sensitiveElement(element) {
 }
 
 function boundedElementText(element, maxChars = 4000) {
-  if (!element) return '';
-  if (typeof element.value === 'string' && ['INPUT', 'TEXTAREA', 'SELECT'].includes(String(element.tagName || '').toUpperCase())) {
-    return cleanPageText(element.value, maxChars);
+  if (!element) return { text: '', truncated: false };
+  const limit = Math.min(PAGE_OBSERVER_LIMITS.maxVisibleTextChars, maxChars);
+  if (typeof element.value === 'string' &&
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(String(element.tagName || '').toUpperCase())) {
+    return {
+      text: cleanPageText(element.value, limit),
+      truncated: element.value.length >= limit,
+    };
   }
   const doc = element.ownerDocument || globalThis.document;
   const nodeFilter = doc?.defaultView?.NodeFilter || globalThis.NodeFilter;
-  const collector = createBoundedTextCollector(maxChars);
-  if (!doc?.createTreeWalker || !nodeFilter) return cleanPageText(element.textContent || '', maxChars);
+  if (!doc?.createTreeWalker || !nodeFilter) {
+    const raw = String(element.textContent || '');
+    return { text: cleanPageText(raw, limit), truncated: raw.length >= limit };
+  }
+  const collector = createBoundedTextCollector(limit);
   const walker = doc.createTreeWalker(element, nodeFilter.SHOW_TEXT);
+  let visited = 0;
+  let truncated = false;
   let node = walker.nextNode();
-  while (node && !collector.full) {
+  while (node && !collector.full && !collector.exhausted &&
+      visited < PAGE_OBSERVER_LIMITS.maxTextNodesVisited) {
+    visited += 1;
     const parent = node.parentElement;
-    if (parent && !parent.closest?.('[hidden],[aria-hidden="true"]')) collector.push(node.nodeValue);
+    if (parent && !parent.closest?.('[hidden],[aria-hidden="true"]') &&
+        !collector.push(node.nodeValue)) truncated = true;
     node = walker.nextNode();
   }
-  return collector.value();
+  return { text: collector.value(), truncated: truncated || Boolean(node) ||
+    collector.full || collector.exhausted };
 }
 
 function ensureElement(element) {
@@ -89,7 +103,9 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     async read(action) {
       const element = resolve(action.ref);
       if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive field content is not readable.' };
-      return { ok: true, ref: action.ref, text: textOf(element) };
+      const observed = textOf(element);
+      return { ok: !observed.truncated, ref: action.ref, text: observed.text,
+        ...(observed.truncated ? { code: 'INCOMPLETE_OBSERVATION', truncated: true } : {}) };
     },
     async click(action) {
       const element = resolve(action.ref);
@@ -188,8 +204,11 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
     async verify(action) {
       const target = action.ref ? resolve(action.ref) : null;
       if (target && sensitiveElement(target)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be verified by content matching.' };
-      const haystack = target ? textOf(target) : boundedElementText(documentObject?.body, 12000);
-      const ok = haystack.toLowerCase().includes(action.expect.toLowerCase());
+      const observed = target ? textOf(target) : boundedElementText(documentObject?.body, 8000);
+      if (observed.truncated) return {
+        ok: false, ref: action.ref, matched: false, code: 'INCOMPLETE_OBSERVATION',
+      };
+      const ok = observed.text.toLowerCase().includes(action.expect.toLowerCase());
       // The caller gets only the match verdict. Do not echo expectation text,
       // which may contain personal data or an untrusted secret probe.
       return { ok, ref: action.ref, matched: ok };
