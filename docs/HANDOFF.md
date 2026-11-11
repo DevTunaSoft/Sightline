@@ -1,5 +1,18 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Mail challenge safety and bounded local-planner prompt
+
+**Baseline:** inspected `develop`, existing audit issue #9, open PR #8, and the current browser/planner tests before touching code. No duplicate feature branch or PR created.
+
+**Changes:** `extension/skills/yahoo-mail.js` now ignores email body/subject phrases when detecting MFA/CAPTCHA/recovery while on the mailbox route, but still recognizes named authentication UI controls and non-mailbox login pages (commit `df7882a`; tests `b9b28a2`). This is structure-based preventive hardening, not verified Yahoo markup coverage.
+
+`extension/planner-core.js` now projects semantic page state into a bounded prompt (11,000-character presented snapshot, 2,000-character visible-text slice, 18,000-character total message budget) while keeping original snapshot identity, sanitizing recent action history to omit typed values and URLs, and repeating untrusted-page security rules at the end of the prompt (commit `fbf2785`). `extension/planner-client.js` parses model decisions against the **presented** refs, blocking refs omitted from compacted pages; its one repair retry includes at most 500 characters of rejected model output and finishes with a trusted instruction under the same message budget (commits `408946d`, `2f34b57`). Tests added in `tests/planner-core.test.js` and `tests/planner-client.test.js` (commits `8b23211`, `6e591d3`, `fc01962`).
+
+**Evidence:** PASS — 5 original Yahoo blocker tests and 9 original planner-core tests executed in isolated V8 with explicit URL/dependency shims; focused exact-source local-planner integration checks confirmed a trimmed ref was rejected after 2 bounded attempts, a visible ref accepted, and capped invalid-output feedback with final trusted guardrails. Source syntax checked for the planner client. GitHub commits and file readback are verified. These checks are **not the complete Node suite, a true Ollama tokenizer/context-window validation, or live installed Yahoo/Chrome/Edge acceptance**. BLOCKED: this environment cannot resolve github.com through git; `.NET` SDK unavailable. Full `npm run check` / browser acceptance **NOT RUN**; runtime performance remains **UNVERIFIED**.
+
+**Remaining:** dynamic page/message-role challenge detection and local-model prompt truncation need actual browser/Ollama testing. Character budget is conservative but **not a tokenizer guarantee** for all languages/models. No claim of full prompt-injection resistance, production readiness or acceptance. Next: execute Node regression suite on the current `develop` SHA; investigate any failures, then validate with installed Chrome/Edge/Yahoo and local Ollama; continue Windows approval lifecycle and effect reconciliation.
+
+
 ### 2026-11-11 — Structural action evidence and Yahoo Trash fail-closed verification
 
 **Baseline inspected:** `develop`, existing issue #9 and open PR #8. Browser write-ahead checkpoints/replay blockers already existed and were preserved; no duplicate recovery implementation or PR created.
