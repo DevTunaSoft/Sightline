@@ -10,7 +10,13 @@ function sensitiveElement(element) {
   return isSensitiveField({
     type: attr(element, 'type') || element?.type,
     autocomplete: attr(element, 'autocomplete') || element?.autocomplete,
-    name: attr(element, 'name') || element?.name || element?.id,
+    name: attr(element, 'name') || element?.name,
+    id: attr(element, 'id') || element?.id,
+    ariaLabel: attr(element, 'aria-label'),
+    placeholder: attr(element, 'placeholder'),
+    tagName: element?.tagName,
+    role: attr(element, 'role'),
+    isContentEditable: element?.isContentEditable === true,
   });
 }
 
