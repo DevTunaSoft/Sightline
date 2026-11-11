@@ -33,7 +33,8 @@ Hosted CI does not substitute for interactive desktop acceptance.
 - bounded UIA observation and fail-closed bounded target re-resolution
 - session-scoped non-reused element refs
 - stale snapshot/window/ref rejection
-- semantic Invoke and SetValue; SetValue has exact readback verification
+- semantic Invoke and SetValue; SetValue verifies readback **internally**, never returns field text in receipts
+- a changed-but-unverified SetValue reports `UnknownEffect` and must be reconciled before retry
 - exact focus request/readback
 - zero-polling Win32 user-activity lease
 - bounded per-process UIA circuit breaker
