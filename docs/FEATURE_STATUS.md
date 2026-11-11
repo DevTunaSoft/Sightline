@@ -1,4 +1,4 @@
-# Sightline Feature Status
+> **Current-head CI correction (2026-11-11):** GitHub Actions [run 43107375307](https://github.com/DevTunaSoft/Sightline/actions/runs/43107375307) for develop SHA `9060181f` **FAILED**: Node validation 264/272 PASS, 8 FAIL; Windows restore PASS, build FAIL due two xUnit2031 analyzer errors. The historical statuses below describe implemented features and earlier evidence, **not a passing current-head CI**. See the [verified takeover addendum](handoff/V3-package/LIVE_REPOSITORY_VERIFICATION_2026-11-11.md).\n\n# Sightline Feature Status
 
 Last updated: 2026-11-11
 
