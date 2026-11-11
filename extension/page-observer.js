@@ -157,21 +157,61 @@ export function collectFrameContexts(
   return { contexts, inventory };
 }
 
+// Accessible names are untrusted DOM data. Inspect at most 16 references and
+// 2,048 attribute code units; do not allocate split/map/join arrays or concatenate
+// arbitrarily long label text before normalizing it.
+const MAX_LABEL_REFERENCES = 16;
+const MAX_LABEL_ID_CHARS = 2048;
+const MAX_LABEL_TEXT_SCAN = 4096;
+
 function accessibleName(element, maxLength, allowValueLabel = false) {
   const doc = element.ownerDocument || document;
   const labelledBy = element.getAttribute('aria-labelledby');
   if (labelledBy) {
-    const text = labelledBy.split(/\s+/).map(id => doc.getElementById(id)?.textContent || '').join(' ');
-    if (text.trim()) return cleanPageText(text, maxLength);
+    const collector = createBoundedTextCollector(maxLength, MAX_LABEL_TEXT_SCAN);
+    const ids = String(labelledBy);
+    const matcher = /\S+/g;
+    const boundedIds = ids.slice(0, MAX_LABEL_ID_CHARS);
+    let matched;
+    let count = 0;
+    let incomplete = ids.length > MAX_LABEL_ID_CHARS;
+    while ((matched = matcher.exec(boundedIds)) !== null) {
+      if (++count > MAX_LABEL_REFERENCES) { incomplete = true; break; }
+      const label = doc.getElementById?.(matched[0]);
+      if (label && !collector.push(label.textContent || '')) {
+        incomplete = true;
+        break;
+      }
+    }
+    if (collector.value() || incomplete)
+      return { text: collector.value(), incomplete };
   }
   const aria = element.getAttribute('aria-label');
-  if (aria) return cleanPageText(aria, maxLength);
-  if (element.labels?.length) return cleanPageText([...element.labels].map(x => x.textContent).join(' '), maxLength);
+  if (aria) return { text: cleanPageText(aria, maxLength),
+    incomplete: aria.length > maxLength };
+  const labels = element.labels;
+  if (labels?.length) {
+    const collector = createBoundedTextCollector(maxLength, MAX_LABEL_TEXT_SCAN);
+    const count = Math.min(labels.length, MAX_LABEL_REFERENCES);
+    let incomplete = labels.length > MAX_LABEL_REFERENCES;
+    for (let index = 0; index < count; index += 1) {
+      if (!collector.push(labels[index]?.textContent || '')) {
+        incomplete = true;
+        break;
+      }
+    }
+    return { text: collector.value(), incomplete };
+  }
   const placeholder = element.getAttribute('placeholder');
-  if (placeholder) return cleanPageText(placeholder, maxLength);
+  if (placeholder) return { text: cleanPageText(placeholder, maxLength),
+    incomplete: placeholder.length > maxLength };
   const title = element.getAttribute('title');
-  if (title) return cleanPageText(title, maxLength);
-  return cleanPageText(element.innerText || element.textContent || (allowValueLabel ? element.getAttribute('value') : '') || '', maxLength);
+  if (title) return { text: cleanPageText(title, maxLength),
+    incomplete: title.length > maxLength };
+  const raw = element.innerText || element.textContent ||
+    (allowValueLabel ? element.getAttribute('value') : '') || '';
+  return { text: cleanPageText(raw, maxLength),
+    incomplete: raw.length > maxLength };
 }
 
 function describeElement(element, index, limits, frameContext) {
@@ -195,10 +235,15 @@ function describeElement(element, index, limits, frameContext) {
   const frame = frameContext?.depth > 0
     ? { path: frameContext.path, depth: frameContext.depth, origin: frameContext.origin || null }
     : undefined;
+  const label = sensitive
+    ? { text: '[REDACTED SENSITIVE FIELD]', incomplete: false }
+    : accessibleName(element, limits.maxTextPerElement,
+      mayUseValueAsAccessibleName(element.tagName, role, element.getAttribute('type') || ''));
   return {
     ref: `@e${index + 1}`,
     role,
-    name: sensitive ? '[REDACTED SENSITIVE FIELD]' : accessibleName(element, limits.maxTextPerElement, mayUseValueAsAccessibleName(element.tagName, role, element.getAttribute('type') || '')),
+    name: label.text,
+    incompleteLabel: label.incomplete,
     sensitive,
     state,
     ...(frame ? { frame } : {}),
@@ -233,8 +278,10 @@ export function buildPageSnapshot(options = {}) {
         if (!isVisible(candidate)) return true;
         if (elements.length >= limits.maxElements) return false;
         const description = describeElement(candidate, elements.length, limits, frameContext);
-        elements.push(description);
-        registryEntries.push({ ref: description.ref, value: candidate });
+        const { incompleteLabel, ...semantic } = description;
+        elements.push(semantic);
+        registryEntries.push({ ref: semantic.ref, value: candidate });
+        if (incompleteLabel) { truncated = true; return false; }
         return true;
       });
     domVisitsRemaining -= domScan.visited;
