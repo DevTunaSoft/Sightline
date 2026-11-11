@@ -4,7 +4,7 @@ import { buildPageSnapshot } from '../extension/page-observer.js';
 
 // A deliberately small, deterministic DOM test double. Selector collections
 // are forbidden to catch accidental reintroduction of unbounded querySelectorAll.
-function fakeDocument(url, elements = []) {
+function fakeDocument(url, elements = [], textNodes = []) {
   const doc = {
     location: { href: url },
     title: 'Fixture',
@@ -26,7 +26,7 @@ function fakeDocument(url, elements = []) {
     element.matches ||= selector => selector.includes('button') && element.tagName === 'BUTTON';
   }
   doc.createTreeWalker = (_root, show) => {
-    const nodes = show === 1 ? elements : [];
+    const nodes = show === 1 ? elements : textNodes;
     let offset = 0;
     return { nextNode: () => nodes[offset++] || null };
   };
@@ -97,4 +97,49 @@ test('same-origin embedded control carries a bounded frame identity', () => {
   assert.equal(snapshot.elements.length, 1);
   assert.equal(snapshot.elements[0].frame.path, 'top/f1');
   assert.equal(snapshot.elements[0].frame.origin, 'https://example.com');
+});
+
+function fakeText(value) {
+  return {
+    nodeValue: value,
+    parentElement: {
+      tagName: 'DIV',
+      closest: () => null,
+      getClientRects: () => [{}],
+    },
+  };
+}
+
+test('visible text overflow sets incomplete coverage instead of false success', () => {
+  const doc = fakeDocument('https://example.com/', [button()], [
+    fakeText('one two three four five'),
+  ]);
+  const snapshot = withPage(doc, () => buildPageSnapshot({
+    maxVisibleTextChars: 10,
+  }));
+  assert.equal(snapshot.truncated, true);
+  assert.equal(snapshot.visibleText.length, 10);
+  assert.equal(snapshot.elements.length, 1);
+});
+
+test('text node visit exhaustion reports incomplete coverage', () => {
+  const doc = fakeDocument('https://example.com/', [button()], [
+    fakeText('one'), fakeText('two'), fakeText('three'),
+  ]);
+  const snapshot = withPage(doc, () => buildPageSnapshot({
+    maxTextNodesVisited: 1,
+  }));
+  assert.equal(snapshot.truncated, true);
+  assert.equal(snapshot.visibleText, 'one');
+});
+
+test('short complete visible text keeps a non-truncated observation', () => {
+  const doc = fakeDocument('https://example.com/', [button()], [
+    fakeText('hello'),
+  ]);
+  const snapshot = withPage(doc, () => buildPageSnapshot({
+    maxVisibleTextChars: 40,
+  }));
+  assert.equal(snapshot.truncated, false);
+  assert.equal(snapshot.visibleText, 'hello');
 });
