@@ -218,3 +218,22 @@ test('verification that cannot confirm effect is recorded and stops replanning',
   assert.equal(checkpoints[0][0].receipt.code,'UNKNOWN_EFFECT');
   assert.equal(checkpoints[1][0].receipt.code,'NO_VERIFIED_EFFECT');
 });
+
+test('progress guard stores a fixed-size fingerprint instead of private action strings', () => {
+  const guard=new TaskProgressGuard({limits:{maxRepeatedState:99,maxRepeatedAction:2,maxActions:12}});
+  const privateText='synthetic-private-value-'+ 'x'.repeat(4000);
+  const action={action:'type',ref:'@e1',text:privateText};
+  assert.equal(guard.beforeAction(action,'s1').ok,true);
+  assert.equal(typeof guard.lastActionKey,'number');
+  assert.doesNotMatch(JSON.stringify(guard),/synthetic-private-value/);
+  assert.equal(guard.beforeAction(action,'s2').ok,true);
+  assert.equal(guard.beforeAction(action,'s3').code,'REPEATED_ACTION_STALL');
+});
+
+test('progress guard distinguishes scroll amounts and nonidentical typed content', () => {
+  const guard=new TaskProgressGuard({limits:{maxRepeatedState:99,maxRepeatedAction:1,maxActions:10}});
+  assert.equal(guard.beforeAction({action:'scroll',direction:'down',amount:100},'s1').ok,true);
+  assert.equal(guard.beforeAction({action:'scroll',direction:'down',amount:250},'s2').ok,true);
+  assert.equal(guard.beforeAction({action:'type',ref:'@e1',text:'first'},'s3').ok,true);
+  assert.equal(guard.beforeAction({action:'type',ref:'@e1',text:'second'},'s4').ok,true);
+});
