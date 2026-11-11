@@ -55,3 +55,36 @@ test('Yahoo rejects selected-all on an unverified Inbox scope', () => {
   assert.equal(result.allowed,false);
   assert.equal(result.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
 });
+
+test('Yahoo does not verify a Trash action merely because sampled messages disappear', () => {
+  const before={url:'https://mail.yahoo.com/d/search?q=example',visibleText:'Showing 1-50 of 300',
+    elements:[{ref:'@e2',role:'link',name:'Example receipt #12345'}]};
+  const after={...before,visibleText:'Showing 1-50 of 300',elements:[
+    {ref:'@e3',role:'link',name:'Other receipt #67890'}]};
+  const result=yahooMailSkill.verifyActionEffect({
+    action:{action:'click',ref:'@e1'},target:{name:'Move selected messages to Trash'},before,after});
+  assert.equal(result.applicable,true);
+  assert.equal(result.verified,null);
+  assert.equal(result.evidence.length,1);
+  assert.doesNotMatch(result.evidence.join(' '),/disappeared|removed/i);
+});
+
+test('Yahoo count decreases alone are evidence, not proof of successful Trash', () => {
+  const before={url:'https://mail.yahoo.com/d/search?q=example',visibleText:'Showing 1-50 of 300',elements:[]};
+  const after={...before,visibleText:'Showing 1-50 of 250'};
+  const result=yahooMailSkill.verifyActionEffect({
+    action:{action:'click',ref:'@e1'},target:{name:'Move to Trash'},before,after});
+  assert.equal(result.verified,null);
+  assert.match(result.evidence.join(' '),/count decreased/i);
+});
+
+test('Yahoo pagination or route changes cannot certify deletion', () => {
+  const before={url:'https://mail.yahoo.com/d/search?q=example',visibleText:'Showing 1-50 of 300',
+    elements:[{ref:'@e2',role:'link',name:'Example receipt #12345'}]};
+  const after={url:'https://mail.yahoo.com/d/folders/1',visibleText:'Selected messages moved to Trash',
+    elements:[]};
+  const result=yahooMailSkill.verifyActionEffect({
+    action:{action:'click',ref:'@e1'},target:{name:'Delete'},before,after});
+  assert.equal(result.verified,null);
+  assert.deepEqual(result.evidence,[]);
+});
