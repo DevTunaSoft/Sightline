@@ -82,6 +82,28 @@ public sealed class MutationJournalTests
     }
 
     [Fact]
+    public async Task Concurrent_journal_instances_allow_only_one_atomic_begin()
+    {
+        var directory = Path.Combine(Path.GetTempPath(),
+            "sightline-journal-race-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "pending.txt");
+            using var first = new FileDesktopMutationJournal(path);
+            using var second = new FileDesktopMutationJournal(path);
+            var results = await Task.WhenAll(
+                Task.Run(() => first.TryBegin(Snapshot(), Action())),
+                Task.Run(() => second.TryBegin(Snapshot(), Action())));
+            Assert.Single(results.Where(result => result));
+            Assert.True(File.Exists(path));
+            first.PreserveUnknown();
+            second.PreserveUnknown();
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
     public void Missing_journal_directory_fails_closed_without_creating_a_process()
     {
         WithJournal(path =>
