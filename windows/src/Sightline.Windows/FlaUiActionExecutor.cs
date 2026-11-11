@@ -12,6 +12,7 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
     private readonly UiaCircuitBreaker _circuitBreaker;
     private readonly DiagnosticRecorder? _diagnostics;
     private readonly IDesktopActionApproval? _approval;
+    private readonly IDesktopMutationJournal? _journal;
 
     public FlaUiActionExecutor(
         ElementLeaseRegistry<WindowsElementLocator> leases,
@@ -19,7 +20,8 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         UiaRuntimeOptions? runtimeOptions = null,
         UiaCircuitBreaker? circuitBreaker = null,
         DiagnosticRecorder? diagnostics = null,
-        IDesktopActionApproval? approval = null)
+        IDesktopActionApproval? approval = null,
+        IDesktopMutationJournal? journal = null)
     {
         _leases = leases ?? throw new ArgumentNullException(nameof(leases));
         _resolver = new FlaUiElementResolver(resolutionBudget);
@@ -28,6 +30,7 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         _circuitBreaker = circuitBreaker ?? new UiaCircuitBreaker();
         _diagnostics = diagnostics;
         _approval = approval;
+        _journal = journal;
     }
 
     public ValueTask<ActionReceipt> ExecuteAsync(
@@ -88,6 +91,10 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 Fail(SightlineErrorCode.ConfirmationRequired, "Explicit trusted Windows action approval is required.")));
         }
 
+        if (_journal is null)
+            return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started,
+                Fail(SightlineErrorCode.PermissionDenied, "Durable Windows mutation journal is required.")));
+
         if (!_circuitBreaker.TryEnter(snapshot.ProcessId))
         {
             return ValueTask.FromResult(Recorded(
@@ -127,9 +134,19 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
                     SightlineErrorCode.ControlNotActionable, "Target control is disabled."));
 
-            // Once the provider call begins, any exception may mean the mutation
-            // succeeded. Never classify that situation as safe-to-retry.
+            // Persist a single bounded record *before* touching the provider.
+            // Missing storage and unresolved actions both fail closed.
+            cancellationToken.ThrowIfCancellationRequested();
+            bool durable;
+            try { durable = _journal.TryBegin(snapshot, action); }
+            catch { durable = false; }
+            if (!durable)
+                return ValueTask.FromResult(HealthyFailure(action, snapshot.ProcessId, started,
+                    SightlineErrorCode.UnknownEffect, "Unresolved or unavailable action journal; reconcile before retry."));
+
+            // An exception after this boundary may mean the action was applied.
             mutationStarted = true;
+            cancellationToken.ThrowIfCancellationRequested();
             var receipt = action.Kind switch
             {
                 SemanticActionKind.Invoke => Invoke(element),
@@ -137,6 +154,24 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
                 _ => Fail(SightlineErrorCode.ControlNotActionable, "Unsupported semantic action.")
             };
 
+            if (receipt.Ok && receipt.Verified)
+            {
+                bool cleared;
+                try { cleared = _journal.TryCompleteVerified(); }
+                catch { cleared = false; }
+                if (!cleared)
+                    receipt = Fail(SightlineErrorCode.UnknownEffect,
+                        "Verified action could not clear its durable record; reconcile before retry.");
+            }
+            else
+            {
+                // Invoke has no generic effect oracle. Even if UIA accepted it,
+                // never silently allow a second mutation until external review.
+                try { _journal.PreserveUnknown(); } catch { }
+                if (!receipt.Ok)
+                    receipt = Fail(SightlineErrorCode.UnknownEffect,
+                        "Action outcome is uncertain; reconcile before retry.");
+            }
             _circuitBreaker.RecordSuccess(snapshot.ProcessId);
             return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started, receipt));
         }
@@ -144,14 +179,21 @@ public sealed class FlaUiActionExecutor : IDesktopActionExecutor
         {
             _circuitBreaker.RecordNeutral(snapshot.ProcessId);
             if (mutationStarted)
+            {
+                try { _journal?.PreserveUnknown(); } catch { }
                 return ValueTask.FromResult(Recorded(action, snapshot.ProcessId, started,
                     Fail(SightlineErrorCode.UnknownEffect, "Action was interrupted after mutation began; reconcile before retry.")));
+            }
             RecordCancelled(action, snapshot.ProcessId, started);
             throw;
         }
         catch
         {
             _circuitBreaker.RecordFailure(snapshot.ProcessId);
+            if (mutationStarted)
+            {
+                try { _journal?.PreserveUnknown(); } catch { }
+            }
             return ValueTask.FromResult(Recorded(
                 action, snapshot.ProcessId, started,
                 mutationStarted
