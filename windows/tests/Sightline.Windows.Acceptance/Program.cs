@@ -24,10 +24,11 @@ try
     // per-user journal location so unresolved mutations survive process restart.
     using var journal = new FileDesktopMutationJournal(
         Path.Combine(Path.GetTempPath(), "sightline-acceptance-" + Guid.NewGuid().ToString("N") + ".pending"));
+    var approval = new OneShotDesktopActionApproval(TimeSpan.FromSeconds(30));
     await using var session = new WindowsAutomationSession(
         leaseCapacity: 256,
         resolutionBudget: new ObservationBudget(256, 20, TimeSpan.FromMilliseconds(750)),
-        actionApproval: new TestTargetApproval(process.Id),
+        actionApproval: approval,
         actionJournal: journal);
 
     var snapshot = await ObserveUntilAsync(
@@ -37,10 +38,12 @@ try
         cancellation.Token);
 
     var input = Require(snapshot, "InputBox");
+    var setAction = new SemanticAction(SemanticActionKind.SetValue, input.Ref, "SightlineAcceptance");
+    ArmTestFixtureApproval(approval, snapshot, setAction, process.Id, "InputBox");
     var setReceipt = await session.Actions.ExecuteAsync(
-        snapshot,
-        new SemanticAction(SemanticActionKind.SetValue, input.Ref, "SightlineAcceptance"),
-        cancellation.Token);
+        snapshot, setAction, cancellation.Token);
+    if (approval.IsApproved(snapshot, setAction))
+        throw new InvalidOperationException("SetValue confirmation was reused.");
 
     // The field was verified in-process but its value must never be exposed
     // through an action receipt, even in a controlled acceptance fixture.
@@ -56,10 +59,12 @@ try
         cancellation.Token);
 
     var apply = Require(snapshot, "ApplyButton");
+    var invokeAction = new SemanticAction(SemanticActionKind.Invoke, apply.Ref);
+    ArmTestFixtureApproval(approval, snapshot, invokeAction, process.Id, "ApplyButton");
     var invokeReceipt = await session.Actions.ExecuteAsync(
-        snapshot,
-        new SemanticAction(SemanticActionKind.Invoke, apply.Ref),
-        cancellation.Token);
+        snapshot, invokeAction, cancellation.Token);
+    if (approval.IsApproved(snapshot, invokeAction))
+        throw new InvalidOperationException("Invoke confirmation was reused.");
 
     if (!invokeReceipt.Ok)
         throw new InvalidOperationException("Invoke was rejected.");
@@ -138,19 +143,22 @@ static async Task<SemanticSnapshot> ObserveUntilAsync(
     throw new InvalidOperationException("Timed out waiting for deterministic test state.", lastError);
 }
 
-sealed class TestTargetApproval(int processId) : IDesktopActionApproval
+// Dedicated disposable fixture only. Production must call the same approval
+// implementation from a real trusted confirmation UI, never from the model.
+static void ArmTestFixtureApproval(
+    OneShotDesktopActionApproval approval,
+    SemanticSnapshot snapshot,
+    SemanticAction action,
+    int fixtureProcessId,
+    string expectedAutomationId)
 {
-    // Only the dedicated disposable WPF fixture may be modified.
-    // Production Sightline intentionally has no default approval policy.
-    public bool IsApproved(SemanticSnapshot snapshot, SemanticAction action)
-    {
-        if (snapshot.ProcessId != processId || snapshot.WindowHandle == 0 || snapshot.Truncated)
-            return false;
-        var target = snapshot.Elements.SingleOrDefault(e => e.Ref == action.Ref);
-        if (target is null || !target.IsEnabled)
-            return false;
-        return (action.Kind == SemanticActionKind.SetValue &&
-                target.AutomationId == "InputBox" && action.Value == "SightlineAcceptance") ||
-               (action.Kind == SemanticActionKind.Invoke && target.AutomationId == "ApplyButton");
-    }
+    var target = snapshot.Elements.SingleOrDefault(e => e.Ref == action.Ref);
+    if (snapshot.ProcessId != fixtureProcessId || snapshot.Truncated ||
+        snapshot.WindowHandle == 0 || target is null || !target.IsEnabled ||
+        target.AutomationId != expectedAutomationId ||
+        (action.Kind == SemanticActionKind.SetValue &&
+         (expectedAutomationId != "InputBox" || action.Value != "SightlineAcceptance")) ||
+        (action.Kind == SemanticActionKind.Invoke && expectedAutomationId != "ApplyButton") ||
+        !approval.ArmAfterUserConfirmation(snapshot, action))
+        throw new InvalidOperationException("Disposable fixture confirmation was rejected.");
 }
