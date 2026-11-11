@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName } from '../extension/page-observer-core.js';
+import { PAGE_OBSERVER_LIMITS, cleanPageText, inferElementRole, isSensitiveField, boundSnapshot, snapshotIdentity, createBoundedTextCollector, safeOrigin, mayUseValueAsAccessibleName, hasTargetStructuralEffect } from '../extension/page-observer-core.js';
 
 test('observer defaults are deliberately bounded', () => {
   assert.equal(PAGE_OBSERVER_LIMITS.maxElements, 300);
@@ -63,4 +63,38 @@ test('sensitive field matching uses tokens, not substrings of everyday labels', 
   for(const name of ['password', 'new_password', 'newPassword', 'Pin', 'security-code', 'cardNumber', 'oneTimeCode', 'payment_cvv']) {
     assert.equal(isSensitiveField({name}),true,name);
   }
+});
+
+test('structural effect ignores clocks, unrelated controls and hash changes', () => {
+  const before={url:'https://example.com/inbox',snapshotId:'s1',visibleText:'Clock 10:00',elements:[
+    {ref:'@e1',role:'button',name:'Delete item',state:{disabled:false}},
+    {ref:'@e2',role:'button',name:'Refresh',state:{disabled:false}},
+  ]};
+  const after={...before,snapshotId:'s2',visibleText:'Clock 10:01',elements:[
+    {...before.elements[0],ref:'@e9'},
+    {ref:'@e8',role:'button',name:'Refresh',state:{disabled:true}},
+  ]};
+  assert.equal(hasTargetStructuralEffect(before,after,{action:'click',ref:'@e1'}),false);
+});
+test('target removal and concrete control-state changes count as structural evidence', () => {
+  const before={url:'https://example.com/',elements:[
+    {ref:'@e1',role:'button',name:'Delete item',state:{}},
+  ]};
+  assert.equal(hasTargetStructuralEffect(before,{...before,elements:[]},{action:'click',ref:'@e1'}),true);
+  const checkbox={url:'https://example.com/',elements:[
+    {ref:'@e2',role:'checkbox',name:'Select',state:{checked:false}},
+  ]};
+  const checked={...checkbox,elements:[{ref:'@e10',role:'checkbox',name:'Select',state:{checked:true}}]};
+  assert.equal(hasTargetStructuralEffect(checkbox,checked,{action:'check',ref:'@e2'}),true);
+  assert.equal(hasTargetStructuralEffect(checkbox,{...checked,truncated:true},{action:'check',ref:'@e2'}),false);
+});
+test('duplicate targets and text-only changes cannot prove effects', () => {
+  const target={ref:'@e1',role:'button',name:'Delete',state:{}};
+  const before={url:'https://example.com/',elements:[target,{...target,ref:'@e2'}]};
+  assert.equal(hasTargetStructuralEffect(before,{...before,elements:[]},{action:'click',ref:'@e1'}),false);
+  assert.equal(hasTargetStructuralEffect({url:before.url,elements:[target]},
+    {url:before.url,elements:[target],visibleText:'Successfully deleted'},
+    {action:'click',ref:'@e1'}),false);
+  assert.equal(hasTargetStructuralEffect({url:'https://example.com/a',elements:[]},
+    {url:'https://example.com/b',elements:[]},{action:'navigate',url:'https://example.com/b'}),true);
 });
