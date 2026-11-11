@@ -59,3 +59,13 @@ test('planner client propagates external cancellation immediately', async () => 
   controller.abort(new DOMException('User cancelled','AbortError'));
   await assert.rejects(()=>pending,/User cancelled|AbortError|abort/i);
 });
+
+test('planner client rejects a ref omitted from a compacted page prompt', async () => {
+  const fullSnapshot={snapshotId:'original',url:'https://example.com/',elements:
+    Array.from({length:170},(_,i)=>({ref:`@e${i+1}`,role:'button',name:'Item '+i+' '+ 'x'.repeat(150),sensitive:false}))};
+  let requests=0;
+  await assert.rejects(()=>planNextAction({model:'gemma3:4b',goal:'inspect',snapshot:fullSnapshot},
+    async()=>{requests+=1;return new Response(JSON.stringify({message:{content:
+      JSON.stringify({done:false,action:{action:'click',ref:'@e170'}})}}),{status:200});}),/not present/);
+  assert.equal(requests,2);
+});
