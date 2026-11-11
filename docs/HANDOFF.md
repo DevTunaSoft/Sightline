@@ -1,5 +1,16 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Follow-up hardening: multilingual prompt ceiling and Yahoo select-all scope
+
+**Baseline:** same `develop` branch, existing audit #9 and open Windows PR #8. No new PR or branch, no duplicate implementation.
+
+Additional changes since the preceding checkpoint: `2d4a4dd` refuses any active Select-all checkbox when evaluating Yahoo bulk Trash, **even when a search URL/control/count are present**; the selected message identity and page-spanning selection scope are still unknown. Regression test added at `348484b`. `8c78a90` adds a conservative 6,400-token heuristic ceiling to the existing 18k-char local planner budget; `f9304c2` adds multilingual input/fail-closed tests. `f3bf6ae` applies the same estimated token reserve to model-output repair attempts; no unbounded retry loop. Tests and payload refinements are in `fbf2785`, `408946d`, `8b23211`, `6e591d3`, `2f34b57`, `fc01962`.
+
+**Executed evidence:** 16 original Yahoo skill + challenge-blocker tests **PASS** under isolated V8 URL/assert shims, 0 failed; 11 original planner-core tests **PASS** with the real checked action validator and page-bounder injected into V8, 0 failed; focused original-source planner-client checks showed omitted ref rejection (2 bounded attempts), visible-ref acceptance, and capped invalid-response feedback ending in a system guardrail. Full Node `npm run check`, actual Ollama model/tokenizer behavior, Chrome/Edge/Yahoo target acceptance, .NET/Windows, and performance soak remain **NOT RUN / UNVERIFIED**. GitHub DNS resolution fails for local git; no verified new CI result yet. The estimate is deliberately conservative, **not a proven tokenizer guarantee**, and cannot prove immunity to prompt injection.
+
+**Behavioral caveat:** Select-all Trash remains fail-closed until reliable message identities and selected-count evidence exist. Do not auto-retry uncertain Trash actions or claim Yahoo acceptance.
+
+
 ### 2026-11-11 — Mail challenge safety and bounded local-planner prompt
 
 **Baseline:** inspected `develop`, existing audit issue #9, open PR #8, and the current browser/planner tests before touching code. No duplicate feature branch or PR created.
