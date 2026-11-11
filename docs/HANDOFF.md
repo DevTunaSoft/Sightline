@@ -1,5 +1,18 @@
 # Sightline Engineering Handoff
 
+### 2026-11-11 — Structural action evidence and Yahoo Trash fail-closed verification
+
+**Baseline inspected:** `develop`, existing issue #9 and open PR #8. Browser write-ahead checkpoints/replay blockers already existed and were preserved; no duplicate recovery implementation or PR created.
+
+**Change set:** `extension/skills/yahoo-mail.js` no longer treats disappearance of sampled mail rows, pagination changes, a falling result count, or untrusted page-body success text as proof that a Trash operation succeeded (commit `c2c1883`). Result-count decreases on an unchanged search route remain **supporting evidence only**, with `verified: null`. Fail-closed behavior intentionally requires manual reconciliation until a trustworthy result oracle exists. `tests/yahoo-mail-skill.test.js` and the Yahoo browser-task-runner fixtures were updated for this stricter contract (commits `35203bd`, `2efda0b`). **Production limitation:** automated Yahoo Trash completion is blocked by inconclusive verification, even when the UI may have executed the mutation; never auto-retry.
+
+`extension/page-observer-core.js` now provides `hasTargetStructuralEffect`: rejects truncated/incomplete snapshots and duplicate targets; compares exact intended navigation, target disappearance and meaningful target control state rather than general visible text, volatile snapshot hashes or unrelated controls (commit `eae4c35`). `extension/page-agent.js` uses bounded re-observation against that predicate before treating a consequential action as changed (commit `0099d88`). Regression tests cover clocks, unrelated control changes, duplicated targets, target disappearance, checkbox changes, and false verification (commits `b4b1592`, `6ce251d`).
+
+**Executed verification in this session:** PASS — original GitHub `tests/yahoo-mail-skill.test.js` through isolated V8 test shim: 10 passed, 0 failed; original GitHub `tests/page-agent.test.js` through isolated V8 dependency injection: 9 passed, 0 failed; three direct structural predicate checks passed; extracted source syntax compilation PASS. **Not equivalent to `npm test`:** tests ran with small shims, not the Node runner, Chrome, Edge, or actual Yahoo DOM; host URL handling was simulated. Full `npm run check` and installed-browser/Windows acceptance remain **NOT RUN / UNVERIFIED**, because repository checkout over GitHub DNS is unavailable. No CPU/RAM soak results recorded for these changes.
+
+**Remaining:** #13/#14 site-specific effect oracles and real target-identity validation still need device acceptance, especially dynamic pages; #28 stable message-ID and observed selection confirmation remain incomplete. Review the tests on the exact latest `develop` commit, fix any regressions, and preserve fail-closed no-replay behavior.
+
+
 ### Browser confirmation and verification correctness — 2026-11-10
 
 **Source on `develop`:** `40987f4` and `0673305`; regression test `abd3141`. Confirmation context is cleared at the beginning and in `finally` for each browser action invocation so failed/throwing actions cannot leave stale confirmation context attached to a later action. `verifyBrowserReceipt` rejects site-specific checks that are explicitly false or inconclusive, rather than accepting generic `receipt.ok` as proof of effect. Synthetic regression tests cover failed/inconclusive/passing site checks.
