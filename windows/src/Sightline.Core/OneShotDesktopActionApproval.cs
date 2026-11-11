@@ -35,13 +35,16 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
     /// </summary>
     public bool ArmAfterUserConfirmation(SemanticSnapshot snapshot, SemanticAction action)
     {
-        var fingerprint = Fingerprint(snapshot, action);
         lock (_gate)
         {
+            // Revoke the previous ticket before reading any potentially invalid
+            // UIA snapshot. Exceptions must not leave an old approval usable.
             Clear();
-            if (fingerprint is null) return false;
+            byte[]? fingerprint = null;
             try
             {
+                fingerprint = Fingerprint(snapshot, action);
+                if (fingerprint is null) return false;
                 _issuedAt = _clock();
                 _expiresAt = _issuedAt.Add(_validFor);
                 _fingerprint = fingerprint;
@@ -49,8 +52,8 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
             }
             catch
             {
-                // A failed or untrusted clock must never leave an old ticket.
-                CryptographicOperations.ZeroMemory(fingerprint);
+                if (fingerprint is not null)
+                    CryptographicOperations.ZeroMemory(fingerprint);
                 Clear();
                 return false;
             }
@@ -77,18 +80,25 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
                 return false;
             }
 
-            var requested = Fingerprint(snapshot, action);
-            if (requested is null) return false;
+            byte[]? requested = null;
             try
             {
+                requested = Fingerprint(snapshot, action);
+                if (requested is null) return false;
                 if (!CryptographicOperations.FixedTimeEquals(_fingerprint, requested))
                     return false;
                 Clear();
                 return true;
             }
+            catch
+            {
+                Clear(); // An invalid provider snapshot revokes the capability.
+                return false;
+            }
             finally
             {
-                CryptographicOperations.ZeroMemory(requested);
+                if (requested is not null)
+                    CryptographicOperations.ZeroMemory(requested);
             }
         }
     }
@@ -119,6 +129,7 @@ public sealed class OneShotDesktopActionApproval : IDesktopActionApproval
         SemanticElement? target = null;
         foreach (var element in snapshot.Elements)
         {
+            if (element is null) return null;
             if (!string.Equals(element.Ref, action.Ref, StringComparison.Ordinal)) continue;
             if (target is not null) return null; // Duplicate refs are ambiguous.
             target = element;
