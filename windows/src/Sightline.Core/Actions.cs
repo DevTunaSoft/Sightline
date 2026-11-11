@@ -41,11 +41,6 @@ public static class DesktopValueVerification
     }
 }
 
-/// <summary>
-/// Trusted host confirmation boundary. The production host must bind approval to
-/// the exact observed window, target and action and invalidate it on state changes.
-/// A null implementation is deny-by-default. Page/model text must never approve.
-/// </summary>
 /// <summary>Reject malformed or oversized requests before any provider or approval call.</summary>
 public static class DesktopActionValidation
 {
@@ -67,6 +62,11 @@ public static class DesktopActionValidation
     }
 }
 
+/// <summary>
+/// Trusted host approval boundary. Approval must bind the observed window,
+/// target and action and be invalidated when state changes. A null provider
+/// means denial; page content and AI output must never grant approval.
+/// </summary>
 public interface IDesktopActionApproval
 {
     bool IsApproved(SemanticSnapshot snapshot, SemanticAction action);
