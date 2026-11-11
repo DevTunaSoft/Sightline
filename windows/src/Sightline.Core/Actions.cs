@@ -19,6 +19,29 @@ public sealed record ActionReceipt(
     string? Detail = null);
 
 /// <summary>
+/// Converts UIA ValuePattern readback into a verification-only receipt.
+/// Never return the observed or requested text to callers or diagnostics.
+/// A SetValue operation already ran, so a mismatch is an UNKNOWN effect,
+/// not proof that retrying the mutation is safe.
+/// </summary>
+public static class DesktopValueVerification
+{
+    public static ActionReceipt FromReadback(string requestedValue, string? observedValue)
+    {
+        ArgumentNullException.ThrowIfNull(requestedValue);
+        var verified = string.Equals(requestedValue, observedValue, StringComparison.Ordinal);
+        return new ActionReceipt(
+            Ok: verified,
+            ErrorCode: verified ? null : SightlineErrorCode.UnknownEffect,
+            Verified: verified,
+            Readback: null,
+            Detail: verified
+                ? "Value readback matched."
+                : "SetValue returned uncertain state; reconcile before retry.");
+    }
+}
+
+/// <summary>
 /// Trusted host confirmation boundary. The production host must bind approval to
 /// the exact observed window, target and action and invalidate it on state changes.
 /// A null implementation is deny-by-default. Page/model text must never approve.
