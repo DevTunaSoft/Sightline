@@ -7,6 +7,7 @@ import {
   createBoundedTextCollector,
   safeOrigin,
   mayUseValueAsAccessibleName,
+  normalizeObservationLimits,
 } from './page-observer-core.js';
 
 const INTERACTIVE_SELECTOR = [
@@ -29,22 +30,44 @@ export function isVisible(element) {
   return Boolean(rect && rect.width > 0 && rect.height > 0);
 }
 
-function appendBoundedPageText(root, collector) {
-  if (!root || collector.full) return;
+const SKIPPED_TEXT_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+
+function appendBoundedPageText(root, collector, maxVisited) {
+  if (!root || collector.full) return { visited: 0, truncated: false };
   const doc = root.ownerDocument || document;
   const nodeFilter = doc.defaultView?.NodeFilter || globalThis.NodeFilter;
-  if (!doc.createTreeWalker || !nodeFilter) return;
+  if (!doc.createTreeWalker || !nodeFilter) return { visited: 0, truncated: true };
   const walker = doc.createTreeWalker(root, nodeFilter.SHOW_TEXT);
-  const skippedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+  let visited = 0;
   let node = walker.nextNode();
-  while (node && !collector.full) {
+  while (node && !collector.full && visited < maxVisited) {
+    visited += 1;
     const parent = node.parentElement;
-    if (parent && !skippedTags.has(parent.tagName) && !parent.closest?.('[hidden],[aria-hidden="true"]')) {
+    if (parent && !SKIPPED_TEXT_TAGS.has(parent.tagName) && !parent.closest?.('[hidden],[aria-hidden="true"]')) {
       const rects = typeof parent.getClientRects === 'function' ? parent.getClientRects() : null;
       if (!rects || rects.length > 0) collector.push(node.nodeValue);
     }
     node = walker.nextNode();
   }
+  return { visited, truncated: Boolean(node && !collector.full) };
+}
+
+/** Lazy, bounded element walk. Never materialize an unlimited CSS match list. */
+export function visitInteractiveNodes(doc, selector, budget, visit) {
+  const root = doc?.documentElement;
+  const nodeFilter = doc?.defaultView?.NodeFilter || globalThis.NodeFilter;
+  if (!root || !nodeFilter || typeof doc.createTreeWalker !== 'function')
+    return { visited: 0, truncated: true };
+  const walker = doc.createTreeWalker(root, nodeFilter.SHOW_ELEMENT);
+  let node = root;
+  let visited = 0;
+  while (node && visited < budget) {
+    visited += 1;
+    if (node.matches?.(selector) && visit(node) === false)
+      return { visited, truncated: true };
+    node = walker.nextNode();
+  }
+  return { visited, truncated: Boolean(node) };
 }
 
 function collectFrameContexts(rootDocument, maxFrames = 20, maxDepth = 3) {
@@ -55,7 +78,7 @@ function collectFrameContexts(rootDocument, maxFrames = 20, maxDepth = 3) {
 
   for (let contextIndex = 0; contextIndex < contexts.length; contextIndex += 1) {
     const context = contexts[contextIndex];
-    const frames = [...context.doc.querySelectorAll('iframe,frame')];
+    const frames = context.doc.querySelectorAll('iframe,frame');
     inventory.total += frames.length;
 
     for (let i = 0; i < frames.length; i += 1) {
@@ -151,22 +174,32 @@ function describeElement(element, index, limits, frameContext) {
 
 export function buildPageSnapshot(options = {}) {
   const { registry = null, ...limitOverrides } = options;
-  const limits = { ...PAGE_OBSERVER_LIMITS, ...limitOverrides };
+  const limits = normalizeObservationLimits(limitOverrides);
   const elements = [];
   const registryEntries = [];
   const { contexts, inventory } = collectFrameContexts(document);
   const textCollector = createBoundedTextCollector(limits.maxVisibleTextChars);
   let truncated = false;
+  let textVisitsRemaining = limits.maxTextNodesVisited;
+  let domVisitsRemaining = limits.maxDomNodesVisited;
 
   for (const frameContext of contexts) {
-    appendBoundedPageText(frameContext.doc.body, textCollector);
-    for (const candidate of frameContext.doc.querySelectorAll(INTERACTIVE_SELECTOR)) {
-      if (!isVisible(candidate)) continue;
-      if (elements.length >= limits.maxElements) { truncated = true; break; }
-      const description = describeElement(candidate, elements.length, limits, frameContext);
-      elements.push(description);
-      registryEntries.push({ ref: description.ref, value: candidate });
-    }
+    const textScan = appendBoundedPageText(
+      frameContext.doc.body, textCollector, textVisitsRemaining);
+    textVisitsRemaining -= textScan.visited;
+    if (textScan.truncated) truncated = true;
+
+    const domScan = visitInteractiveNodes(
+      frameContext.doc, INTERACTIVE_SELECTOR, domVisitsRemaining, candidate => {
+        if (!isVisible(candidate)) return true;
+        if (elements.length >= limits.maxElements) return false;
+        const description = describeElement(candidate, elements.length, limits, frameContext);
+        elements.push(description);
+        registryEntries.push({ ref: description.ref, value: candidate });
+        return true;
+      });
+    domVisitsRemaining -= domScan.visited;
+    if (domScan.truncated) truncated = true;
     if (truncated) break;
   }
 
