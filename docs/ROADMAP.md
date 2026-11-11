@@ -120,7 +120,7 @@ Sightline now limits accessible-name inspection to 16 `aria-labelledby` IDs or 1
 
 A shared field detector now independently inspects type, autocomplete tokens, name, ID and editable-field accessibility hints at both observation and action time. Section-prefixed password/OTP/card autocomplete tokens are recognized. Strings beyond the metadata inspection ceiling fail closed rather than allowing a sensitive suffix to bypass checks. No extra model call, cache, polling loop, timer, dependency or background worker was added.
 
-**PASS:** 79/79 current observer and DOM adapter regression checks under isolated V8 shims, including redaction, action blocking, benign button compatibility and overlong metadata. **NOT RUN:** full Node suite, real Chrome/Edge and Windows acceptance, measured RAM/CPU. Next: verify custom input fields whose secrets are identified only by linked external labels; run real-browser stress/security acceptance and benchmark costs.
+**PASS:** 86/86 current observer and DOM adapter regression checks under isolated V8 shims, including redaction, action blocking, linked external labels, changed labels, benign button compatibility and overlong metadata. Native and `aria-labelledby` associations now have bounded action-time checks without per-label metadata allocations. **NOT RUN:** full Node suite, real Chrome/Edge and Windows acceptance, measured RAM/CPU. Next: real-browser dynamic-label/long-session tests, CPU and heap benchmarks, and end-to-end browser and Windows acceptance.
 
 ## Resource policy
 
