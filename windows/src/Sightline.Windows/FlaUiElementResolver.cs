@@ -60,20 +60,11 @@ internal sealed class FlaUiElementResolver
 
     private static bool Matches(AutomationElement element, WindowsElementLocator locator)
     {
-        var controlType = Safe(() => element.ControlType.ToString());
-        if (!string.Equals(controlType, locator.ControlType, StringComparison.Ordinal))
-            return false;
-
-        if (!string.IsNullOrEmpty(locator.AutomationId))
-        {
-            return string.Equals(
-                Safe(() => element.AutomationId),
-                locator.AutomationId,
-                StringComparison.Ordinal);
-        }
-
-        return !string.IsNullOrEmpty(locator.Name) &&
-            string.Equals(Safe(() => element.Name), locator.Name, StringComparison.Ordinal);
+        if (!locator.IsIdentifiable || locator.IsSensitive) return false;
+        return locator.Matches(
+            Safe(() => element.AutomationId),
+            Safe(() => element.Name),
+            Safe(() => element.ControlType.ToString()));
     }
 
     private static string? Safe(Func<string?> read)
