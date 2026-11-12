@@ -342,3 +342,28 @@ test('cryptographic token issuance errors fail closed rather than exposing a tok
   assert.equal(result.code,'CONFIRMATION_UNAVAILABLE');
   assert.equal(clicks,0);
 });
+
+test('locate reports a rect for an approved ref and never acts on the page', async () => {
+  const fakeNode = { getBoundingClientRect: () => ({ x: 10, y: 20, width: 30, height: 40 }) };
+  const registry = { resolve: (ref, snapshotId) => (ref === '@e1' && snapshotId === 'L1' ? fakeNode : null) };
+  const controller = createPageAgentController({
+    registry,
+    observe: async () => ({ snapshotId: 'L1', url: 'https://example.com', elements: [{ ref: '@e1', name: 'Next', role: 'button', sensitive: false }] }),
+    adapterFactory: () => { throw new Error('locate must not create an action adapter'); },
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  const result = await controller.handle({ type: 'SIGHTLINE_LOCATE', ref: '@e1', snapshotId: 'L1' });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.rect, { x: 10, y: 20, width: 30, height: 40 });
+  assert.equal(result.sensitive, false);
+});
+
+test('locate refuses unknown refs and stale snapshots', async () => {
+  const controller = createPageAgentController({
+    registry: { resolve: () => null },
+    observe: async () => ({ snapshotId: 'L2', url: 'https://example.com', elements: [{ ref: '@e1', name: 'Next', role: 'button' }] }),
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  assert.equal((await controller.handle({ type: 'SIGHTLINE_LOCATE', ref: '@e1', snapshotId: 'old' })).code, 'STALE_SNAPSHOT');
+  assert.equal((await controller.handle({ type: 'SIGHTLINE_LOCATE', ref: '@e9', snapshotId: 'L2' })).code, 'LOCATE_FAILED');
+});

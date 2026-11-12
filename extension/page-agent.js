@@ -66,11 +66,36 @@ export function createPageAgentController(options = {}) {
     }
   }
 
+  // Read-only: reports where an approved reference sits on screen, so the runner can
+  // click it through the debugger path. Never clicks, types or changes the page.
+  async function locate(message) {
+    const ref = typeof message.ref === 'string' ? message.ref : '';
+    if (!ref || !currentSnapshot || message.snapshotId !== currentSnapshot.snapshotId) {
+      return { ok: false, code: 'STALE_SNAPSHOT', snapshot: await refresh() };
+    }
+    const live = await refresh();
+    if (message.snapshotId !== live.snapshotId) return { ok: false, code: 'STALE_SNAPSHOT', snapshot: live };
+    const element = live.elements.find(item => item.ref === ref);
+    const node = element ? registry.resolve(ref, live.snapshotId) : null;
+    if (!element || !node || typeof node.getBoundingClientRect !== 'function') return { ok: false, code: 'LOCATE_FAILED' };
+    const rect = node.getBoundingClientRect();
+    const win = globalThis.window ?? globalThis;
+    return {
+      ok: true,
+      snapshotId: live.snapshotId,
+      sensitive: element.sensitive === true,
+      inFrame: win.top !== undefined && win.top !== win,
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      viewport: { width: win.innerWidth, height: win.innerHeight },
+    };
+  }
+
   return {
     async handle(message) {
       if (!message || typeof message !== 'object') return { ok: false, code: 'INVALID_MESSAGE' };
       if (message.type === 'SIGHTLINE_PING') return { ok: true, code: 'READY' };
       if (message.type === 'SIGHTLINE_OBSERVE') return { ok: true, snapshot: await refresh() };
+      if (message.type === 'SIGHTLINE_LOCATE') return locate(message);
       if (message.type !== 'SIGHTLINE_EXECUTE') return { ok: false, code: 'UNKNOWN_MESSAGE' };
 
       // Reject malformed or oversized actions before approval issuance or DOM mutation.
