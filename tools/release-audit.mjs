@@ -28,7 +28,8 @@ if(manifest.version!=='0.2.0') fail(`Expected extension version 0.2.0, found ${m
 if(!String(manifest.version_name||'').startsWith('0.2.0-alpha')) fail('Manifest version_name must identify the 0.2.0 alpha.');
 if(!String(pkg.version||'').startsWith('0.2.0-alpha')) fail('package.json version must align with 0.2.0-alpha.');
 
-const allowedPermissions=new Set(['sidePanel','activeTab','scripting','storage']);
+// 'debugger' is used only by extension/cdp-input.js for visible, user-approved actions on the approved task tab. Chrome shows its banner while attached.
+const allowedPermissions=new Set(['sidePanel','activeTab','debugger','scripting','storage']);
 for(const permission of manifest.permissions||[]){
   if(!allowedPermissions.has(permission)) fail(`Unexpected extension permission: ${permission}`);
 }
