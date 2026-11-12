@@ -74,6 +74,8 @@ for(const path of files){
   for(const match of source.matchAll(/https?:\/\/[^"'\s)<>]+/g)){
     const literal=match[0];
     if(literal.startsWith('http://127.0.0.1:11434') || literal.startsWith('http://localhost:11434')) continue;
+    // OOXML namespace and relationship-type identifiers are XML names, never fetched at runtime.
+    if(literal.startsWith('http://schemas.openxmlformats.org/')) continue;
     // URLs in user-visible documentation are not part of the extension runtime; runtime JS/HTML should remain local.
     if(extname(path).toLowerCase()==='.js') fail(`Unexpected remote URL literal in extension JS ${rel}: ${literal.slice(0,120)}`);
   }
