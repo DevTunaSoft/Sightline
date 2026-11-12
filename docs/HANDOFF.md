@@ -323,6 +323,18 @@ A user-supplied 35-item reliability/security review is tracked in [issue #9](htt
 
 Last updated: 2026-11-10
 
+## Takeover baseline checkpoint — 2026-11-12
+
+Branch: `develop`. Head at write time: `fa3859d`.
+
+- Node suite: `npm run check` exits 0 locally with 272 tests passing, 0 failing (Linux, Node 22).
+- Application CI: green on `5f19279` (validate and windows-foundation) and on `fa3859d` (docs-only port).
+- Fixed in this checkpoint: xUnit2031 in MutationJournalTests and OneShotDesktopActionApprovalTests (a40ded3); planner now forwards bounded visualContext (a491adb); cancel during confirmation returns ABORTED, not a thrown UNKNOWN_EFFECT (712c2a2); stale planner-payload test reads the user message by role (5d64159); Yahoo fixtures use the strict 'Showing X-Y of Z' count and search-control shape, and the Trash verification test matches the rule that free text cannot certify deletion (5f19279).
+- Yahoo count parsing and destructive scope were deliberately kept strict. Live Yahoo page layout is UNVERIFIED; fixtures match the parser's expected format, not a captured page.
+- Main-only history: main has 20 commits that develop lacks. Two are an accidental root file and its removal (a836297, edc55d2). The nine new documentation files were ported in fa3859d. The remaining main commits are older-tree code and were not merged; do not force-push or merge main wholesale.
+- PR #8 (Windows process inspection) is based on an older develop. Its session diff removes approval and journal wiring, so it must not be merged as-is. The three new files and tests were ported onto develop on branch `feature/windows-process-inspection-v0-rebased` (not a PR). It has no CI run because the workflow triggers only on develop/main pushes and PRs into them. Build status: NOT RUN (no local .NET SDK).
+- Real Windows/UIA interactive acceptance, Chrome/Edge installed-extension acceptance, and live Ollama acceptance: NOT RUN / BLOCKED on a real desktop.
+
 ## Product
 
 **Sightline** — *See. Understand. Act.*
