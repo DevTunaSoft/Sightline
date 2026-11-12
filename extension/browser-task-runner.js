@@ -6,6 +6,8 @@ import { detectSkillBlocker } from './skill-blockers.js';
 import { analyzeFrame } from './client.js';
 import { skillPlannerContext, verifySkillActionEffect, checkSkillDestructiveScope } from './skill-registry.js';
 import { DiagnosticLedger } from './diagnostics-core.js';
+import { createCdpInput, CdpInputError } from './cdp-input.js';
+import { validateLocateResult, isSamePoint } from './click-point-core.js';
 import { TimingBook } from './performance-core.js';
 
 export function verifyBrowserReceipt(receipt) {
@@ -52,7 +54,7 @@ function performanceReport(timings) {
 export async function runBrowserTask({
   goal, model, mode = 'assist', chromeApi = chrome, fetchImpl = fetch,
   signal, limits, onProgress = () => {}, confirmAction = null, resume = null, onCheckpoint = null,
-  collector = null,
+  collector = null, useDebuggerClicks = false,
 }) {
   const diagnostics = new DiagnosticLedger();
   const timings = new TimingBook();
@@ -168,6 +170,35 @@ export async function runBrowserTask({
     }
   };
 
+  // Debugger clicks are opt-in. The input object can only target this task's tab.
+  const debuggerInput = useDebuggerClicks === true
+    ? createCdpInput(chromeApi, { isApprovedTab: id => id === taskTabId })
+    : null;
+
+  // Clicks an approved reference through the debugger path only after two
+  // independent locates agree on the same point. Returns a receipt-shaped result.
+  async function debuggerClickApproved(action, snapshot) {
+    const locate = () => chromeApi.tabs.sendMessage(taskTabId, { type: 'SIGHTLINE_LOCATE', ref: action.ref, snapshotId: snapshot.snapshotId });
+    const firstRaw = await locate();
+    const first = validateLocateResult(firstRaw, { expectedSnapshotId: snapshot.snapshotId, viewport: firstRaw?.viewport });
+    if (!first.ok) return { ok: false, code: first.code, error: first.error };
+    const secondRaw = await locate();
+    const second = validateLocateResult(secondRaw, { expectedSnapshotId: snapshot.snapshotId, viewport: secondRaw?.viewport });
+    if (!second.ok) return { ok: false, code: second.code, error: second.error };
+    if (!isSamePoint(first.point, second.point)) return { ok: false, code: 'STALE_TARGET', error: 'The element moved before the click.' };
+    try {
+      await debuggerInput.click(taskTabId, first.point.x, first.point.y);
+    } catch (error) {
+      // Refusals before any attach mean nothing was sent, so they are safe to report as failures.
+      if (error instanceof CdpInputError && ['TAB_NOT_APPROVED', 'ATTACH_FAILED', 'BAD_COORDINATES'].includes(error.code)) {
+        return { ok: false, code: error.code, error: error.message };
+      }
+      // Anything else may have reached the page; never report it as safe to retry.
+      return { ok: false, code: 'UNKNOWN_EFFECT', error: 'Debugger click could not be confirmed.' };
+    }
+    return { ok: true, receipt: { ok: true, changed: null, method: 'debugger-click' } };
+  }
+
   const execute = async (action, { snapshot }) => {
     // Confirmation evidence belongs only to this invocation, never the next one.
     lastConfirmedContext = null;
@@ -205,7 +236,9 @@ export async function runBrowserTask({
         } else if (action?.action === 'click' && result.target?.state?.hrefOrigin) {
           try { approvedOrigins.add(new URL(result.target.state.hrefOrigin).origin); } catch {}
         }
-        result = await timings.measure('execute', () => executeOnTab(taskTabId, {
+        result = debuggerInput && action?.action === 'click' && typeof action.ref === 'string'
+          ? await timings.measure('execute', () => debuggerClickApproved(action, snapshot))
+          : await timings.measure('execute', () => executeOnTab(taskTabId, {
           action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
         }, chromeApi));
       } else {
