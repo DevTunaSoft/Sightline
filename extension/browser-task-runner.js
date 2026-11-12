@@ -52,6 +52,7 @@ function performanceReport(timings) {
 export async function runBrowserTask({
   goal, model, mode = 'assist', chromeApi = chrome, fetchImpl = fetch,
   signal, limits, onProgress = () => {}, confirmAction = null, resume = null, onCheckpoint = null,
+  collector = null,
 }) {
   const diagnostics = new DiagnosticLedger();
   const timings = new TimingBook();
@@ -89,7 +90,7 @@ export async function runBrowserTask({
     return origin;
   }
 
-  const observe = async () => {
+  const observeInner = async () => {
     if (cachedSnapshot) {
       const snapshot = cachedSnapshot;
       cachedSnapshot = null;
@@ -252,6 +253,17 @@ export async function runBrowserTask({
 
   const verify = async ({ receipt }) => verifyBrowserReceipt(receipt);
   try {
+  // Every page the task sees passes through the optional collector. Collection
+  // is read-only and must never change what the task does, so its errors are
+  // recorded and swallowed.
+  const observe = async () => {
+    const snapshot = await observeInner();
+    if (collector) {
+      try { collector.observe(snapshot); }
+      catch (error) { diagnostics.record('collect-error', 'Collector could not read a page.', { message: String(error?.message || error).slice(0, 200) }); }
+    }
+    return snapshot;
+  };
     const checkpoint = state => {
       // Preserve sanitized progress even if planning, storage or a provider fails.
       latestSafeTimeline = sanitizeCheckpointTimeline(state.timeline);
@@ -266,7 +278,8 @@ export async function runBrowserTask({
       code: result?.code || null,
       actions: Array.isArray(result?.timeline) ? result.timeline.length : 0,
     });
-    return { ...result, diagnostics: diagnostics.export(), performance: performanceReport(timings) };
+    const collection = collector ? { collection: collector.summary() } : {};
+    return { ...result, ...collection, diagnostics: diagnostics.export(), performance: performanceReport(timings) };
   } catch (error) {
     const cancelled = signal?.aborted || error?.name === 'AbortError';
     const code = cancelled ? 'TASK_CANCELLED' : (typeof error?.code === 'string' ? error.code : 'TASK_ERROR');
