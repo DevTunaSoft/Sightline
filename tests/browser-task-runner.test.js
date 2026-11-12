@@ -399,14 +399,15 @@ test('task diagnostics never retain typed action text', async () => {
 
 test('stale confirmed Yahoo action cannot leak verification context into replanned action', async () => {
   let executeCount=0, plannerCalls=0;
-  const before={snapshotId:'ys1',url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[
+  const before={snapshotId:'ys1',url:'https://mail.yahoo.com/d/search',visibleText:'Showing 1-12 of 12',elements:[
+    {ref:'@e0',role:'textbox',name:'Search mail',sensitive:false},
     {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
     {ref:'@e2',role:'button',name:'Refresh',sensitive:false},
   ]};
-  const refreshed={snapshotId:'ys2',url:before.url,visibleText:'12 messages updated',elements:[
+  const refreshed={snapshotId:'ys2',url:before.url,visibleText:'Showing 1-12 of 12 updated',elements:[
     {ref:'@e2',role:'button',name:'Refresh',sensitive:false},
   ]};
-  const done={snapshotId:'ys3',url:before.url,visibleText:'12 messages refreshed',elements:[]};
+  const done={snapshotId:'ys3',url:before.url,visibleText:'Showing 1-12 of 12 refreshed',elements:[]};
   const chromeApi={tabs:{
     query:async()=>[{id:7,url:before.url,active:true,windowId:1}],
     get:async()=>({id:7,url:before.url,active:true,windowId:1}),

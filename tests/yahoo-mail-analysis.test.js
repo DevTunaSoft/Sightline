@@ -6,7 +6,7 @@ import { skillPlannerContext } from '../extension/skill-registry.js';
 test('Yahoo snapshot analyzer deterministically identifies core mail controls and count', () => {
   const snapshot = {
     url: 'https://mail.yahoo.com/d/search/name=amazon',
-    visibleText: 'Search results 327 messages',
+    visibleText: 'Search results: Showing 1-327 of 327',
     elements: [
       { ref: '@e1', role: 'textbox', name: 'Search mail', sensitive: false },
       { ref: '@e2', role: 'checkbox', name: 'Select all messages', sensitive: false },
@@ -27,7 +27,7 @@ test('Yahoo snapshot analyzer deterministically identifies core mail controls an
 test('Yahoo planner context includes bounded deterministic page hints', () => {
   const snapshot = {
     url: 'https://mail.yahoo.com/d/folders/1',
-    visibleText: 'Inbox 42 messages',
+    visibleText: 'Showing 1-42 of 42 messages',
     elements: [{ ref: '@e1', role: 'textbox', name: 'Search mail', sensitive: false }],
   };
   const context = skillPlannerContext(snapshot.url, snapshot);
@@ -51,20 +51,21 @@ test('Yahoo analyzer never samples sensitive fields or navigation chrome', () =>
 
 
 test('Yahoo Trash verification accepts count decrease and success signal', () => {
-  const before={url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[
+  const before={url:'https://mail.yahoo.com/d/search',visibleText:'Showing 1-12 of 12',elements:[
     {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
     {ref:'@e2',role:'link',name:'Amazon order shipped yesterday',sensitive:false},
   ]};
-  const after={url:before.url,visibleText:'10 messages. Selected messages moved to Trash.',elements:[]};
+  const after={url:before.url,visibleText:'Showing 1-10 of 10. Selected messages moved to Trash.',elements:[]};
   const result=yahooMailSkill.verifyActionEffect({action:{action:'click',ref:'@e1'},target:before.elements[0],before,after});
   assert.equal(result.applicable,true);
-  assert.equal(result.verified,true);
-  assert.ok(result.evidence.some(item=>/count decreased|success signal/.test(item)));
+  // Free-text success lines are untrusted and cannot certify deletion; only the count is evidence here.
+  assert.equal(result.verified,null);
+  assert.ok(result.evidence.some(item=>/count decreased/.test(item)));
 });
 
 test('Yahoo Trash verification remains inconclusive when only unrelated state changed', () => {
-  const before={url:'https://mail.yahoo.com/d/search',visibleText:'12 messages',elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
-  const after={url:before.url,visibleText:'12 messages',elements:[{ref:'@e9',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
+  const before={url:'https://mail.yahoo.com/d/search',visibleText:'Showing 1-12 of 12',elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
+  const after={url:before.url,visibleText:'Showing 1-12 of 12',elements:[{ref:'@e9',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
   const result=yahooMailSkill.verifyActionEffect({action:{action:'click',ref:'@e1'},target:before.elements[0],before,after});
   assert.equal(result.applicable,true);
   assert.equal(result.verified,null);
@@ -113,8 +114,8 @@ test('Yahoo destructive scope blocks unfiltered inbox Trash unless whole Inbox i
 test('Yahoo destructive scope accepts visible search-result state', () => {
   const snapshot={
     url:'https://mail.yahoo.com/d/search/name=amazon',
-    visibleText:'Search results 12 messages',
-    elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}],
+    visibleText:'Search results: Showing 1-12 of 12',
+    elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},{ref:'@e0',role:'textbox',name:'Search mail',sensitive:false}],
   };
   const result=yahooMailSkill.checkDestructiveScope({
     goal:'Delete old Amazon emails',snapshot,action:{action:'click',ref:'@e1'},target:snapshot.elements[0]

@@ -20,7 +20,7 @@ function chromeFor(snapshot) {
 test('Yahoo readiness passes signed-in page with visible search control', async () => {
   const snapshot={
     snapshotId:'y1',url:'https://mail.yahoo.com/d/folders/1',title:'Inbox',
-    visibleText:'Inbox 42 messages',
+    visibleText:'Showing 1-42 of 42 messages',
     elements:[
       {ref:'@e1',role:'textbox',name:'Search mail',sensitive:false},
       {ref:'@e2',role:'checkbox',name:'Select all messages',sensitive:false},
