@@ -186,3 +186,9 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Host access approved by the operator (ADR-011, 2026-11-16):** `http://127.0.0.1:8765/*` added to `host_permissions` and to the release-audit allowlist. Pinned in `tests/manifest-permissions.test.js`. The permission list is unchanged. Release audit PASS; `npm run check` 331 of 331.
 - **Why:** the self-test's "Observe fixture" check failed with Chrome's host-permission error in the operator's Chrome. The `activeTab` route did not hold there.
 - **Not yet verified:** the self-test in the operator's installed Chrome after this change (X-03).
+
+### 2026-11-16 UTC — Installed-Chrome browser self-test (operator run), after ADR-011
+- **Result reported by the operator:** the side panel shows `Self-test complete — SELF_TEST_PASS`. A pasted copy shows PASS for 11 of the 12 dossier section 10 checks. The 'Observe fixture' line is not in the copy and is pending the exported JSON. Chrome version not yet reported.
+- **Checks seen as PASS:** dedicated localhost fixture; semantic controls discovered (12 controls); sensitive fields redacted; opaque frame reported; same-origin frame reported; top-page search box found and type succeeded; search button found and top-page click succeeded; top-page state change verified; same-origin iframe controls found, frame metadata present, iframe type and click succeeded, iframe state change visible; destructive control found and requires confirmation (`CONFIRMATION_REQUIRED`); cross-origin link found and requires confirmation (`CONFIRMATION_REQUIRED`).
+- **Dossier updates:** X-03 moved to PARTIAL. S-01 and S-11 gained installed-Chrome evidence from this run. The debugger path (X-02) and the Chrome debugging banner (S-17) are still open. They are not part of this self-test.
+- **Previous blocker:** the first run failed with Chrome's host-permission error. Fixed by ADR-011 (`ed2fac6`).

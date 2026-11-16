@@ -202,7 +202,7 @@ These protect users. Weakening any of them needs an explicit operator decision a
 
 | ID | Rule | Evidence | Status |
 |---|---|---|---|
-| S-01 | High-risk actions need one-use confirmation bound to the exact action. | `extension/safety-gate.js`; `extension/page-agent.js` (pending confirmation, binding check) | VERIFIED |
+| S-01 | High-risk actions need one-use confirmation bound to the exact action. | `extension/safety-gate.js`; `extension/page-agent.js` (pending confirmation, binding check) | VERIFIED. Installed Chrome self-test (2026-11-16, operator): destructive and cross-origin controls return `CONFIRMATION_REQUIRED`. |
 | S-02 | Current classifier outputs: "Archive all" high, "Reject all" high, "Delete permanently" high, "Move to Trash" high, "Mark all as read" normal, "Empty Trash" blocked. | Probe run in this session against `classifyActionRisk` at `fb8c9ec`; tests in `tests/safety-gate.test.js` and `tests/safety-gate-bulk-actions.test.js` | VERIFIED at `fb8c9ec` |
 | S-03 | Blocked actions are refused without a confirmation prompt (`ACTION_BLOCKED`). | `extension/page-agent.js` (returns `ACTION_BLOCKED` when `confirmationRequired` is false) | VERIFIED |
 | S-04 | Yahoo Mail bulk Trash requires a search route, a search control, and a parseable count. | `extension/skills/yahoo-mail.js` `checkSkillDestructiveScope`; tests in `tests/yahoo-mail-analysis.test.js` | VERIFIED |
@@ -212,7 +212,7 @@ These protect users. Weakening any of them needs an explicit operator decision a
 | S-08 | Cancel during a mutating action returns `UNKNOWN_EFFECT`, because the page may already have changed. | `extension/action-executor-core.js` (`MUTATING_ACTIONS`, abort branch) | VERIFIED |
 | S-09 | Handler exceptions during a mutating action return `UNKNOWN_EFFECT` and never echo provider error text. | `extension/action-executor-core.js` catch branch | VERIFIED |
 | S-10 | Stale snapshots and stale refs are refused. The page agent re-observes the live page before executing. | `extension/page-agent.js` (`STALE_SNAPSHOT`, live refresh); `extension/action-executor-core.js` (`STALE_REF`) | VERIFIED |
-| S-11 | Sensitive targets cannot be clicked, typed into, or read autonomously. | `extension/dom-action-adapter.js` (`SENSITIVE_FIELD` branches) | VERIFIED |
+| S-11 | Sensitive targets cannot be clicked, typed into, or read autonomously. | `extension/dom-action-adapter.js` (`SENSITIVE_FIELD` branches) | VERIFIED. Installed Chrome self-test (2026-11-16, operator): 'Sensitive fields redacted' PASS. |
 | S-12 | Windows password reads fail closed. | `windows/src/Sightline.Windows/FlaUiActionExecutor.cs:135` (`Safe(() => element.Properties.IsPassword.Value, true)`) | VERIFIED |
 | S-13 | The debugger path is opt-in. `useDebuggerClicks` defaults to false. | `extension/browser-task-runner.js` option default | VERIFIED |
 | S-14 | The debugger path attaches only to the approved task tab, validates coordinates, and always detaches. | `extension/cdp-input.js` (`TAB_NOT_APPROVED`, `BAD_COORDINATES`, `finally` detach); tests in `tests/cdp-input.test.js` | VERIFIED |
@@ -305,7 +305,7 @@ Verification note: the debugger path re-observes the tab after input is dispatch
 |---|---|---|
 | X-01 | Debugger clicks had no outcome check after dispatch. Fixed in `1296283`: the runner re-observes and requires a structural effect, else `NO_VERIFIED_EFFECT`/`UNKNOWN_EFFECT`. Fake-browser tests only; real Chrome is X-02. | FIXED in code; live check BLOCKED (X-02) |
 | X-02 | Debugger clicks have not run in Chrome. Tests use fake browser objects. | BLOCKED on a Chrome run |
-| X-03 | Installed-browser acceptance (section 10) has not been run. | BLOCKED (needs Chrome on Windows) |
+| X-03 | Installed-browser acceptance (section 10). The browser self-test was run by the operator in installed Chrome on 2026-11-16 and the panel reported `SELF_TEST_PASS`. 11 of the 12 check lines are seen as PASS in a pasted copy; the first line, 'Observe fixture', is confirmed only through the overall result until the exported JSON is received. Chrome version not yet reported. The debugger path (X-02) and the debugging banner (S-17) are not part of this run. | PARTIAL: self-test PASS in installed Chrome (operator); export and Chrome version pending |
 | X-04 | Live Ollama acceptance has not been run. | BLOCKED (needs Ollama) |
 | X-05 | Live Yahoo Mail page layout has not been captured. Fixtures match the parser format, not a live page. | UNVERIFIED |
 | X-06 | Windows desktop acceptance has not been run on a real desktop. | BLOCKED |
@@ -344,6 +344,8 @@ This checks the real extension in a real browser. It does not use a model.
 7. The self-test returns `SELF_TEST_WRONG_PAGE` and takes no action unless the active page is the fixture on `localhost` or `127.0.0.1`.
 
 Record each check as PASS, FAIL, or BLOCKED. Do not mark the whole procedure PASS from a partial run. The debugger click path is not in this self-test. Test it as a separate step on the same fixture.
+
+Result, 2026-11-16 (operator, installed Chrome, version not yet reported): the panel shows `Self-test complete — SELF_TEST_PASS`. 11 of the 12 check lines are seen as PASS in a pasted copy (dedicated fixture, semantic controls, sensitive fields redacted, both frame checks, search and type, top-page click and state change, iframe checks, destructive control requires confirmation, cross-origin link requires confirmation). 'Observe fixture' is not in the copy and is pending the exported JSON.
 
 ## 11. Open decisions (ask the operator first)
 
