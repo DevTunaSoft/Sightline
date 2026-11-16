@@ -417,7 +417,7 @@ The rule for reporting is in CLAUDE.md section 5. A fixture is not evidence that
 
 The project's ledger in `docs/HANDOFF.md` contains many entries from 2026-11-11 that report isolated test results: for example, "PASS: 86/86" or "79/79 PASS" in V8 harnesses with URL and DOM shims. Those results were real runs of the source against the shims. They are not the Node suite, not installed Chrome, and not .NET. Several of those entries also record that the sandbox could not reach GitHub or had no .NET SDK, which is why the isolated harness was used.
 
-Read them as the record of what was checked and how, not as a current pass. The current, authoritative pass is the Node suite on the exact commit, which is 307 of 307 on `5725533`.
+Read them as the record of what was checked and how, not as a current pass. The pass recorded here is the Node suite on the exact commit, 307 of 307 on `5725533`. For the current count, see CLAUDE.md T-01: 331 of 331 at `0e6aca6`.
 
 ---
 

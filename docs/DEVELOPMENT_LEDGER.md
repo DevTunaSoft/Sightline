@@ -203,3 +203,14 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Browser:** Google Chrome 157.0.8103.79 (Official Build, 64-bit), reported by the operator as up to date.
 - **Result:** the browser self-test is PASS (`SELF_TEST_PASS`, 19 of 19 success-path checks; exported report `generatedAt` 2026-11-16T19:40:40Z).
 - **Still open:** the debugger-click path in installed Chrome (X-02) and the debugging-banner question (S-17). Both need the local planner (Ollama) on the operator's machine. Ollama is currently offline there, so the debugger test cannot run yet.
+
+### 2026-11-16 UTC — Test count correction (docs only)
+- Repository / branch / exact commit SHA / PR / issue: DevTunaSoft/Sightline; branch `claude/serene-mayer-ckp8ee`; measured at HEAD `0e6aca6` on a clean tree. This entry's commit changes docs only; its hash is in `git log`. No PR or issue.
+- Requirement IDs: none. Dossier currency (CLAUDE.md §1.1 step 4).
+- Baseline inspected: `git status --short` empty before the change; `ls tests/*.test.js | wc -l` = 41.
+- Changes: `CLAUDE.md` T-01 (passing counts at `fb8c9ec` and `0e6aca6`), T-02 (41 test files), §14 (current count 331), Appendix B; `docs/TAKEOVER.md` line 420 (the "current pass" sentence now points to CLAUDE.md T-01); this entry. No code, test or manifest change.
+- Commands run and environment: `npm run check` in the sandbox (Node 22): `# tests 331`, `# pass 331`, `# fail 0`, exit 0. Re-run after the docs edits and before the commit.
+- Tests: PASS, 331 of 331 (local, `0e6aca6`). CI for the pushed commit is not recorded here; see the next checkpoint.
+- Security/privacy checks: no credentials, account data or personal details added.
+- Known gaps and blockers: the 307 figures in `docs/TAKEOVER.md` and earlier entries stay as recorded at their own dates. The operator's Ollama is running, but no vision-capable model is installed yet (`ollama list` shows text-only models). The computer connection for the Sightline folder is not attached to this session.
+- Next three unblocked tasks: (1) `git ls-remote origin refs/heads/claude/serene-mayer-ckp8ee`, then record the CI result for the pushed commit when GitHub access is back. (2) When the folder attaches, `ollama pull gemma3:4b` and `ollama show gemma3:4b` on the operator's machine; confirm `vision` under capabilities. (3) Debugger-click check in installed Chrome (X-02) and the debugging-banner question (S-17), once a vision model is available.

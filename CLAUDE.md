@@ -139,8 +139,8 @@ Claude-Session: <session URL, if the operator gives one>
 
 | ID | Claim | Evidence | Status |
 |---|---|---|---|
-| T-01 | `npm run check` exits 0 with 307 tests passing and 0 failing. | Re-run during verification: `# tests 307`, `# pass 307`, `# fail 0`, exit 0 | VERIFIED at `fb8c9ec` |
-| T-02 | The repo has 38 Node test files under `tests/` (2026-11-16; 37 at `fb8c9ec`). | `ls tests/*.test.js \| wc -l` | VERIFIED 2026-11-16 |
+| T-01 | `npm run check` exits 0 with 0 failing. Passing counts: 307 at `fb8c9ec`; 331 at `0e6aca6` (2026-11-16). | Re-run during verification at `fb8c9ec`: `# tests 307`, `# pass 307`, `# fail 0`, exit 0. Re-run 2026-11-16 at `0e6aca6` (clean tree): `# tests 331`, `# pass 331`, `# fail 0`, exit 0. | VERIFIED at `fb8c9ec` and `0e6aca6` |
+| T-02 | The repo has 41 Node test files under `tests/` (2026-11-16 at `0e6aca6`; 37 at `fb8c9ec`). | `ls tests/*.test.js \| wc -l` | VERIFIED 2026-11-16 at `0e6aca6` |
 | T-03 | Every extension module is named in the `check` script. | Script comparison in this session: unchecked list was empty | VERIFIED |
 | T-04 | Node 22 is used in the sandbox and in CI. | `node -v` = v22.23.4; `.github/workflows/ci.yml` sets Node 22 | VERIFIED |
 | T-05 | There are no npm dependencies. | `package.json` has empty `dependencies` and `devDependencies` | VERIFIED |
@@ -403,7 +403,7 @@ Result, 2026-11-16 (operator, installed Chrome, version not yet reported): the e
 - **No .NET in the sandbox** (W-07). Do not claim a local C# build.
 - **Interactive checks need a desktop.** Chrome and WPF/UI Automation results cannot come from this sandbox.
 - **Live pages differ from fixtures** (X-05).
-- **Stale numbers.** A recommendation text the operator pasted in an earlier session cited eight JavaScript failures and 17 main-only commits. Those figures are out of date and are not in `docs/HANDOFF.md`. Current (2026-11-16, `63a3720`): 322 tests passing (T-01 is the `fb8c9ec` figure), 17 main-only commits (G-04).
+- **Stale numbers.** A recommendation text the operator pasted in an earlier session cited eight JavaScript failures and 17 main-only commits. Those figures are out of date and are not in `docs/HANDOFF.md`. Current (2026-11-16, `0e6aca6`): 331 tests passing (T-01 lists this and the `fb8c9ec` figure). 17 main-only commits (G-04, checked 2026-11-16).
 
 ## Appendix A. Re-verification commands
 
@@ -468,3 +468,4 @@ command -v dotnet || echo "no dotnet"
 - Dossier rewritten on 2026-11-12 after a verification pass against `fb8c9ec`. Corrections from the earlier draft: Windows UI framework (P-05, P-06), safety levels for "Empty Trash" and "Delete permanently" (S-02), the main-only commits (G-05), PR #8 branch size (G-08), the approval window (five minutes), the vision endpoint location (P-03), and the stale-number attribution (section 14).
 - The debugging-banner claim was downgraded from fact to UNVERIFIED (S-17) after the Chrome debugger reference was found silent on it.
 - 2026-11-16: Appendix A re-run where this container allows it (A-1, A-7, A-8, A-9, A-10, A-11). A-4, A-5 and A-6 use `gh`, which is not available here; the GitHub tools were used instead. Corrected G-03, C-01, T-02, §12 step 4 and §14. The per-change history is in `docs/DEVELOPMENT_LEDGER.md`, entries dated 2026-11-16.
+- 2026-11-16 (later): test counts corrected to the `0e6aca6` measurement (331 passing; 41 test files) in T-01, T-02 and §14. The ledger entry "Test count correction (docs only)" is dated 2026-11-16.
