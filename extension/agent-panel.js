@@ -20,7 +20,7 @@ function sync() {
   ui.observe.disabled = state.running;
   ui.selfTest.disabled = state.running;
   ui.yahooReadiness.disabled = state.running;
-  ui.aiTest.disabled = state.running;
+  if (ui.aiTest) ui.aiTest.disabled = state.running;
   ui.stop.disabled = !state.running;
   ui.taskCancel.disabled = !state.running;
   ui.report.disabled = state.running || !state.lastReport;
@@ -389,11 +389,13 @@ function cancelTask() {
   addProgress('Cancelling', 'Execution cancellation requested; checkpoint will be cleared.');
 }
 
-if (Object.values(ui).some(value => !value)) throw new Error('Sightline browser-agent UI is incomplete.');
+// The local-AI button is optional. panel.html does not have it, and a missing optional element
+// must not stop the other browser-agent buttons from being wired up.
+if (Object.entries(ui).some(([key, value]) => key !== 'aiTest' && !value)) throw new Error('Sightline browser-agent UI is incomplete.');
 ui.observe.addEventListener('click', () => void observePage());
 ui.selfTest.addEventListener('click', () => void runBrowserSelfTest());
 ui.yahooReadiness.addEventListener('click', () => void runYahooReadiness());
-ui.aiTest.addEventListener('click', () => void runLocalAISelfTest());
+ui.aiTest?.addEventListener('click', () => void runLocalAISelfTest());
 ui.run.addEventListener('click', () => void runTask());
 ui.stop.addEventListener('click', pauseTask);
 ui.taskCancel.addEventListener('click', cancelTask);
