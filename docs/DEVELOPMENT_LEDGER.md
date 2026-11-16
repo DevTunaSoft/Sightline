@@ -198,3 +198,8 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Correction to section 10:** the dossier listed "Observe fixture" as a success-path check. The source emits it only when observing the page fails. The section now lists the 19 success-path names.
 - **Chrome version:** not yet reported. Requested from `chrome://version`.
 - **Still open:** the debugger-click path in installed Chrome (X-02) and the Chrome debugging-banner question (S-17).
+
+### 2026-11-16 UTC — Chrome version recorded for the installed-Chrome self-test
+- **Browser:** Google Chrome 157.0.8103.79 (Official Build, 64-bit), reported by the operator as up to date.
+- **Result:** the browser self-test is PASS (`SELF_TEST_PASS`, 19 of 19 success-path checks; exported report `generatedAt` 2026-11-16T19:40:40Z).
+- **Still open:** the debugger-click path in installed Chrome (X-02) and the debugging-banner question (S-17). Both need the local planner (Ollama) on the operator's machine. Ollama is currently offline there, so the debugger test cannot run yet.

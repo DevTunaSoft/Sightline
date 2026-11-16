@@ -305,7 +305,7 @@ Verification note: the debugger path re-observes the tab after input is dispatch
 |---|---|---|
 | X-01 | Debugger clicks had no outcome check after dispatch. Fixed in `1296283`: the runner re-observes and requires a structural effect, else `NO_VERIFIED_EFFECT`/`UNKNOWN_EFFECT`. Fake-browser tests only; real Chrome is X-02. | FIXED in code; live check BLOCKED (X-02) |
 | X-02 | Debugger clicks have not run in Chrome. Tests use fake browser objects. | BLOCKED on a Chrome run |
-| X-03 | Installed-browser acceptance (section 10). The browser self-test was run by the operator in installed Chrome on 2026-11-16. The exported report has outcome `SELF_TEST_PASS` with all 19 success-path checks `ok: true`. Chrome version not yet reported. The debugger path (X-02) and the debugging banner (S-17) are not part of this run. | PASS for the browser self-test in installed Chrome (operator export); Chrome version pending |
+| X-03 | Installed-browser acceptance (section 10). The browser self-test was run by the operator in installed Chrome on 2026-11-16. The exported report has outcome `SELF_TEST_PASS` with all 19 success-path checks `ok: true`. Chrome 157.0.8103.79 (Official Build, 64-bit), reported as up to date. The debugger path (X-02) and the debugging banner (S-17) are not part of this run. | PASS for the browser self-test in installed Chrome (operator export, Chrome 157.0.8103.79) |
 | X-04 | Live Ollama acceptance has not been run. | BLOCKED (needs Ollama) |
 | X-05 | Live Yahoo Mail page layout has not been captured. Fixtures match the parser format, not a live page. | UNVERIFIED |
 | X-06 | Windows desktop acceptance has not been run on a real desktop. | BLOCKED |
@@ -352,7 +352,7 @@ This checks the real extension in a real browser. It does not use a model.
 
 Record each check as PASS, FAIL, or BLOCKED. Do not mark the whole procedure PASS from a partial run. The debugger click path is not in this self-test. Test it as a separate step on the same fixture.
 
-Result, 2026-11-16 (operator, installed Chrome, version not yet reported): the exported report (`generatedAt` 2026-11-16T19:40:40Z) has outcome `SELF_TEST_PASS` with all 19 success-path checks `ok: true`. The debugger click path is not in this self-test (X-02).
+Result, 2026-11-16 (operator, installed Chrome, version not yet reported): the exported report (`generatedAt` 2026-11-16T19:40:40Z) has outcome `SELF_TEST_PASS` with all 19 success-path checks `ok: true`. Chrome 157.0.8103.79 (Official Build, 64-bit). The debugger click path is not in this self-test (X-02).
 
 ## 11. Open decisions (ask the operator first)
 
