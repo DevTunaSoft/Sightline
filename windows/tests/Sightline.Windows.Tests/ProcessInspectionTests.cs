@@ -6,6 +6,16 @@ using Xunit;
 
 namespace Sightline.Windows.Tests;
 
+// The handle and thread counts measured below are process-wide. xUnit runs collections in
+// parallel by default, so other test classes could change the counts during the loop. This
+// collection runs alone. The bounds are unchanged; this only isolates the measurement (X-15).
+[CollectionDefinition(SerialProcessMeasurements.Name, DisableParallelization = true)]
+public sealed class SerialProcessMeasurements
+{
+    public const string Name = "Serial process measurements";
+}
+
+[Collection(SerialProcessMeasurements.Name)]
 public sealed class ProcessInspectionTests
 {
     [Fact]
