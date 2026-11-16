@@ -451,3 +451,20 @@ test('a confirmed navigation to a destructive endpoint is not verified by the UR
   assert.equal(result.ok, false, 'landing on the endpoint URL does not show the delete happened');
   assert.equal(result.code, 'NO_VERIFIED_EFFECT');
 });
+
+test('a click on an unnamed control is refused before any confirmation or execution', async () => {
+  let clicks = 0;
+  const controller = createPageAgentController({
+    observe: async () => ({ snapshotId: 's1', url: 'https://example.com/', elements: [{ ref: '@e1', name: '', role: 'button', state: {} }] }),
+    adapterFactory: () => ({ hasRef: () => true, click: async () => { clicks += 1; return { ok: true }; } }),
+    sleep: async () => {},
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  for (const mode of ['assist', 'autonomous']) {
+    const result = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', mode, action: { action: 'click', ref: '@e1' } });
+    assert.equal(result.ok, false, `refused in ${mode} mode`);
+    assert.equal(result.code, 'ACTION_BLOCKED');
+    assert.equal(result.confirmationKey, undefined, 'no approval is offered for a blocked action');
+  }
+  assert.equal(clicks, 0, 'the unnamed control is never clicked');
+});
