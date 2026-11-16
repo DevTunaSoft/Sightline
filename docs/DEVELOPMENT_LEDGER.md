@@ -97,3 +97,13 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - Audit of destructive paths (takeover item 10): click via page agent → generic check (now strict); click via debugger → same check; navigate to destructive endpoint → refused URL-only proof; pressKey Delete/Backspace/Enter → high, no ref, so `hasTargetStructuralEffect` returns false and it cannot verify; Yahoo Trash/delete → skill returns `verified: null`, always `NO_VERIFIED_EFFECT`. Residual gap: unnamed controls (X-13).
 - Not verified: any of this in installed Chrome (X-02, BLOCKED). The toggle has not been clicked in a browser.
 - Next unblocked: CI on the new commit (run to be recorded); then X-13 (decide how to classify unnamed controls, with a test).
+
+### 2026-11-16 UTC — CI result for `71fdfbb` (item 10 audit commit)
+- Commit: `71fdfbb9feff5de7755c74bb0722ae7aee20d3e3` on `claude/serene-mayer-ckp8ee`. Verified with `git ls-remote` after the push.
+- CI run `43868738845` (run 585), event push, conclusion **success**. Checked through the GitHub Actions tool; run started 12:40:36Z and finished 12:42:01Z.
+- Jobs:
+  - `validate` (ubuntu-latest, Node 22): success. Includes `npm run check`.
+  - `windows-foundation` (windows-latest, .NET 8): success. Restore, build, Core tests, safety-layer tests, resource baselines, repeated-session trend, and evidence upload all succeeded.
+  - `package-extension` (ubuntu-latest): success.
+- Meaning: hosted CI only. It does not drive a real desktop (C-07), and it does not test the extension in Chrome or Edge (X-02). The debugger toggle and the destructive-navigation change are covered by fake-browser tests only.
+- Earlier runs on this branch, for reference: `4a66f1d` run 583 success; `2a46c27` run 584 success.
