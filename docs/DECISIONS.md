@@ -104,6 +104,20 @@ Use this register for consequential design decisions. Decisions are not implemen
 
 **Requirement IDs:** G-07, G-08, G-09 (corrected), G-12, X-09, X-15.
 
+## ADR-010 — Add destructive and financial verbs to the high-impact label set
+
+**Status:** Accepted (engineering default). This only tightens the gate, so it needs no operator approval.
+
+**Context:** The takeover requires explicit approval for destructive, financial and account actions. The label pattern already covered most destructive verbs, but not `wipe`, `destroy`, `terminate`, `withdraw` or `refund`. A button labelled "Withdraw funds" would have run without a prompt.
+
+**Decision:** Add those five words to `HIGH_IMPACT_PATTERN`. Matching is on whole words, so "withdrawal" and "terminated" do not match.
+
+**Options rejected:** adding `approve`, `book` or `confirm`. They are too common in harmless labels, and blanket confirmation would make the agent unusable. Each can be added later on evidence.
+
+**Consequences:** Some read-only links with these words (for example "Refund policy") now need confirmation. That is a cost of failing closed and is accepted.
+
+**Requirement IDs:** S-01, S-27. **Tests:** `tests/safety-gate.test.js` (gate-level: not executed without confirmation, confirmation required, high risk).
+
 ## Proposed future decisions — do not presume accepted
 
 - Browser↔Windows IPC transport, authentication, message and permission protocol.

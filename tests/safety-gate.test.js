@@ -114,3 +114,13 @@ test('a click on a control with no accessible name is blocked, not treated as no
   const whitespaceOnly = gateAction({ action: 'click', ref: '@e2' }, { ref: '@e2', role: 'button', name: '   ', sensitive: false }, 'assist');
   assert.equal(whitespaceOnly.risk.level, 'blocked', 'whitespace-only names count as unnamed');
 });
+
+test('destructive and financial labels need confirmation before a click runs', () => {
+  // Takeover requirement: destructive, financial and account actions need explicit approval.
+  for (const label of ['Wipe data', 'Destroy file', 'Terminate account', 'Withdraw funds', 'Refund order']) {
+    const decision = gateAction({ action: 'click', ref: '@e1' }, { ref: '@e1', role: 'button', name: label, sensitive: false }, 'assist');
+    assert.equal(decision.allowed, false, `${label}: not executed without confirmation`);
+    assert.equal(decision.confirmationRequired, true, `${label}: asks the operator first`);
+    assert.equal(decision.risk.level, 'high', `${label}: high impact`);
+  }
+});

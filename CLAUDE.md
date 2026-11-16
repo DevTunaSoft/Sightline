@@ -227,6 +227,7 @@ These protect users. Weakening any of them needs an explicit operator decision a
 | S-23 | No anti-bot evasion: no disguising automation, no identity rotation, no fingerprint spoofing, no CAPTCHA or bot-check bypass. | Operator instruction in this session; this dossier | VERIFIED as an operator rule |
 | S-25 | Target removal and a URL change are not proof of a consequential effect. A destructive navigation is not verified by its URL alone. | `extension/page-observer-core.js` (`hasTargetStructuralEffect`, removal returns false); `extension/page-agent.js` (`urlOnlyProofRefused`); `tests/page-agent.test.js`; ADR-006 | VERIFIED in fake-browser tests |
 | S-26 | A click on a control with no accessible name is blocked, because the agent cannot tell what it does. | `extension/safety-gate.js` (`classifyActionRisk`, unnamed-click branch); `tests/safety-gate.test.js` (gate level); `tests/page-agent.test.js` (page-agent level: `ACTION_BLOCKED`, no approval, no click) | VERIFIED in fake-browser tests |
+| S-27 | Destructive and financial labels (`wipe`, `destroy`, `terminate`, `withdraw`, `refund`, added to the existing set) are high impact and need confirmation before a click runs. | `extension/safety-gate.js` (`HIGH_IMPACT_PATTERN`); `tests/safety-gate.test.js`; ADR-010 | VERIFIED in fake-browser tests |
 | S-24 | No outbound model or search call without a decision. | `docs/DECISIONS.md` (decision required); no outbound call exists in `extension/` | VERIFIED that no outbound model call exists. Check the decisions log before adding one. |
 
 ## 7. Architecture
