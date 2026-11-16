@@ -6,7 +6,7 @@ The complete [Sightline V3 master engineering handoff](docs/handoff/SIGHTLINE_MA
 
 > **See. Understand. Act.**
 
-Sightline is a local-first visual browser agent for Chrome and Edge. It combines bounded semantic page understanding, local AI through Ollama, controlled browser actions, visual fallback, recovery, and explicit safety gates.
+Sightline is a local-first visual agent. Its product direction is a Windows app with a Chrome and Edge companion (ADR-001). The browser extension is the part that runs today; the Windows app is under development. The browser side combines bounded semantic page understanding, local AI through Ollama, controlled browser actions, visual fallback, recovery, and explicit safety gates.
 
 ## Current release
 

@@ -85,3 +85,15 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - Jobs: `validate` success; `package-extension` success; `windows-foundation` success (restore, build, Core tests, safety-layer tests, resource baselines, repeated-session trend, evidence upload).
 - Meaning: hosted CI only. The Windows job builds and runs the Windows Core and safety tests on a hosted runner. It does not drive a real desktop (C-07), so interactive UIA acceptance stays BLOCKED.
 - Dossier update: X-01 (debugger outcome check) is marked fixed in code (`1296283`). Its live Chrome check remains BLOCKED under X-02. §7.2 and §12 step 6 are updated to match.
+
+### 2026-11-16 UTC — Item 10 audit, debugger toggle, README direction
+- Branch: `claude/serene-mayer-ckp8ee`. Base commit before this checkpoint: `2a46c27`.
+- Changes:
+  1. Target removal is no longer effect evidence for consequential actions (`hasTargetStructuralEffect`). Two page-agent fakes that used removal as their success signal now use a real state change. A removal-only refusal test was added.
+  2. A confirmed navigation to a destructive endpoint is no longer verified by URL change alone (`urlOnlyProofRefused`). Found by a failing test first (`tests/page-agent.test.js`, "destructive endpoint"). The fix exports `consequentialNavigation` from `safety-gate.js`.
+  3. Panel toggle "Debugger clicks (experimental)", off by default, read per run and not persisted (`extension/panel.html`, `extension/agent-panel.js`). Static tests in `tests/agent-panel-debugger-toggle.test.js`.
+  4. README product line now follows ADR-001 (Windows-first, browser companion). ADRs 006–008 added to `docs/DECISIONS.md`. Dossier S-25 and X-13 added.
+- Tests: `npm run check` PASS, 319 of 319 (was 313 before this checkpoint; the change counts are 4 new static toggle tests, 1 new removal test, 1 new destructive-endpoint test, and 2 page-agent fakes updated).
+- Audit of destructive paths (takeover item 10): click via page agent → generic check (now strict); click via debugger → same check; navigate to destructive endpoint → refused URL-only proof; pressKey Delete/Backspace/Enter → high, no ref, so `hasTargetStructuralEffect` returns false and it cannot verify; Yahoo Trash/delete → skill returns `verified: null`, always `NO_VERIFIED_EFFECT`. Residual gap: unnamed controls (X-13).
+- Not verified: any of this in installed Chrome (X-02, BLOCKED). The toggle has not been clicked in a browser.
+- Next unblocked: CI on the new commit (run to be recorded); then X-13 (decide how to classify unnamed controls, with a test).

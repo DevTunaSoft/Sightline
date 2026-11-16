@@ -224,6 +224,7 @@ These protect users. Weakening any of them needs an explicit operator decision a
 | S-21 | Research queries pass through redaction for secrets, emails, paths, URLs, IP addresses, and card-like numbers. | `extension/research-core.js` (`REDACTIONS`); `tests/research-core.test.js` | VERIFIED |
 | S-22 | Web content is data, not instructions. | Design rule in `docs/HANDOFF.md` | VERIFIED as a documented rule. Enforcement for a future search backend is not built. |
 | S-23 | No anti-bot evasion: no disguising automation, no identity rotation, no fingerprint spoofing, no CAPTCHA or bot-check bypass. | Operator instruction in this session; this dossier | VERIFIED as an operator rule |
+| S-25 | Target removal and a URL change are not proof of a consequential effect. A destructive navigation is not verified by its URL alone. | `extension/page-observer-core.js` (`hasTargetStructuralEffect`, removal returns false); `extension/page-agent.js` (`urlOnlyProofRefused`); `tests/page-agent.test.js`; ADR-006 | VERIFIED in fake-browser tests |
 | S-24 | No outbound model or search call without a decision. | `docs/DECISIONS.md` (decision required); no outbound call exists in `extension/` | VERIFIED that no outbound model call exists. Check the decisions log before adding one. |
 
 ## 7. Architecture
@@ -310,6 +311,7 @@ Verification note: the debugger path re-observes the tab after input is dispatch
 | X-09 | PR #8 must be rebased or replaced before merge (G-08, G-09). | OPEN, needs operator decision |
 | X-10 | The research feature has no search backend. | OPEN, needs operator decision (section 11) |
 | X-11 | The collector, IP extraction, and `.xlsx` writer work in tests. The end-to-end browser flow that uses them is not built. | OPEN |
+| X-13 | Controls with no accessible name are not classified as destructive. The gate sees only the name and role, so an unlabelled icon button can run without confirmation. Element observation requires names, so this is narrow but unverified on live pages. | OPEN |
 | X-12 | The planning model is a local model. Capability on messy real pages is untested. | OPEN, needs a benchmark (section 12, step 6) |
 
 ## 10. Installed-browser acceptance (Windows, manual)

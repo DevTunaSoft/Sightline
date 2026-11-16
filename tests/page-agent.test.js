@@ -27,7 +27,7 @@ test('controller rejects stale snapshot before action', async () => {
 test('controller returns confirmation requirement and executes only after explicit confirmation', async () => {
   let after=false;
   const controller=createPageAgentController({
-    observe:async()=>({snapshotId:after?'s2':'s1',elements:after?[]:[{ref:'@e1',name:'Delete all',role:'button'}]}),
+    observe:async()=>({snapshotId:after?'s2':'s1',elements:[{ref:'@e1',name:'Delete all',role:'button',state:{expanded:after}}]}),
     adapterFactory:()=>({hasRef:()=>true,click:async()=>{after=true;return {ok:true};}}),
     gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high'}}),
     sleep:async()=>{},
@@ -59,10 +59,10 @@ test('confirmed high-impact action must produce a semantic state change', async 
   assert.ok(observes>=5);
 });
 
-test('confirmed high-impact action returns verified changed receipt when page changes', async () => {
+test('confirmed high-impact action returns verified changed receipt when the target state changes', async () => {
   let after=false;
   const controller=createPageAgentController({
-    observe:async()=>({snapshotId:after?'after':'before',url:'https://example.com',elements:after?[]:[{ref:'@e1',name:'Delete item',role:'button'}]}),
+    observe:async()=>({snapshotId:after?'after':'before',url:'https://example.com',elements:[{ref:'@e1',name:'Delete item',role:'button',state:{expanded:after}}]}),
     adapterFactory:()=>({hasRef:()=>true,click:async()=>{after=true;return {ok:true};}}),
     gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high',reason:'destructive'}}),
     sleep:async()=>{},
@@ -76,6 +76,21 @@ test('confirmed high-impact action returns verified changed receipt when page ch
   assert.equal(result.receipt.afterSnapshotId,'after');
 });
 
+
+test('confirmed high-impact action whose only change is target removal is not verified', async () => {
+  let after=false;
+  const controller=createPageAgentController({
+    observe:async()=>({snapshotId:after?'after':'before',url:'https://example.com',elements:after?[]:[{ref:'@e1',name:'Delete item',role:'button',state:{}}]}),
+    adapterFactory:()=>({hasRef:()=>true,click:async()=>{after=true;return {ok:true};}}),
+    gate:()=>({allowed:false,confirmationRequired:true,risk:{level:'high',reason:'destructive'}}),
+    sleep:async()=>{},
+  });
+  await controller.handle({type:'SIGHTLINE_OBSERVE'});
+  const blocked=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'before',action:{action:'click',ref:'@e1'},taskGoal:'delete item'});
+  const result=await controller.handle({type:'SIGHTLINE_EXECUTE',snapshotId:'before',action:{action:'click',ref:'@e1'},taskGoal:'delete item',confirmed:true,confirmationKey:blocked.confirmationKey});
+  assert.equal(result.ok,false, 'a disappearing target is not evidence of a destructive effect');
+  assert.equal(result.code,'NO_VERIFIED_EFFECT');
+});
 
 test('page change while planner is thinking is rejected before adapter execution', async () => {
   let observations=0, clicks=0;
@@ -419,4 +434,20 @@ test('consumeOnly on an action that needs no confirmation runs nothing', async (
   const refused = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', action: { action: 'click', ref: '@e1' }, confirmed: true, consumeOnly: true, confirmationKey: 'confirm-00000000000000000000000000000000' });
   assert.equal(refused.code, 'INVALID_CONSUME');
   assert.equal(clicks, 0, 'a consume request must never run a normal action');
+});
+
+test('a confirmed navigation to a destructive endpoint is not verified by the URL change alone', async () => {
+  let url = 'https://example.com/list';
+  const deleteUrl = 'https://example.com/delete?id=7';
+  const controller = createPageAgentController({
+    observe: async () => ({ snapshotId: url === deleteUrl ? 'after' : 'before', url, elements: [] }),
+    adapterFactory: () => ({ hasRef: () => true, navigate: async action => { url = action.url; return { ok: true, url: action.url }; } }),
+    sleep: async () => {},
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  const blocked = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 'before', action: { action: 'navigate', url: deleteUrl }, taskGoal: 'remove item 7' });
+  assert.equal(blocked.code, 'CONFIRMATION_REQUIRED', 'a destructive endpoint needs confirmation');
+  const result = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 'before', action: { action: 'navigate', url: deleteUrl }, taskGoal: 'remove item 7', confirmed: true, confirmationKey: blocked.confirmationKey });
+  assert.equal(result.ok, false, 'landing on the endpoint URL does not show the delete happened');
+  assert.equal(result.code, 'NO_VERIFIED_EFFECT');
 });

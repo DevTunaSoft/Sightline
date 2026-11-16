@@ -66,6 +66,38 @@ Use this register for consequential design decisions. Decisions are not implemen
 
 **Related:** SLP-011, SLP-012, SLP-013.
 
+## ADR-006 — A destructive effect needs independent proof; removal and URL change are not proof
+
+**Status:** Accepted (engineering default). This tightens verification and weakens no safety rule, so it did not need operator approval.
+
+**Context:** The generic structural check accepted a clicked target disappearing as proof of effect. It also accepted a confirmed navigation to a destructive endpoint (for example a GET `/delete?id=` link) as verified because the URL changed to the requested address. The Yahoo skill already states that a disappearing row is never a success oracle (takeover item 10).
+
+**Decision:** For a consequential action, only an observable control-state change on the target counts (`checked`, `expanded`, `selectedIndex`, `valueLength`). Target removal does not count. A navigation to a destructive endpoint (`consequentialNavigation`) is not verified by the URL change alone. No evidence gives `NO_VERIFIED_EFFECT`, which stops the task for manual reconciliation. Nothing is retried.
+
+**Options rejected:** keeping removal as proof (a dialog closing or a re-render would certify a deletion); treating every navigation as unverified (over-refuses ordinary cross-origin navigation).
+
+**Consequences:** Destructive clicks on sites without a skill now stop with `NO_VERIFIED_EFFECT` unless the page shows a control-state change. This is more conservative. Yahoo Trash behaviour is unchanged.
+
+**Requirement IDs:** S-01, S-10, S-15; takeover item 10. **Tests:** `tests/page-observer-core.test.js`, `tests/page-agent.test.js` (removal-only and destructive-endpoint refusal cases).
+
+## ADR-007 — Debugger clicks stay off by default; a visible experimental toggle is added
+
+**Status:** Accepted. The default is unchanged (S-13).
+
+**Context:** The debugger path was reachable only from code. Dossier §12 step 4 asks for a panel setting that is off by default.
+
+**Decision:** The panel has an unchecked "Debugger clicks (experimental)" toggle. It is read on each run and not persisted, so an old "on" state cannot carry over. The label says Chrome may show a debugging notice and that this has not been verified (S-17).
+
+**Requirement IDs:** S-13, S-17. **Tests:** `tests/agent-panel-debugger-toggle.test.js` (static source checks only; browser behaviour is BLOCKED under X-02).
+
+## ADR-008 — PR #8 should be replaced by the rebased branch (recommendation; no GitHub action taken)
+
+**Status:** Proposed. Recommended, not executed. Closing or changing PR #8 is a GitHub action and needs your go-ahead.
+
+**Context:** PR #8 branches from an older `develop` and would remove approval and journal wiring from `WindowsAutomationSession` (G-08, G-09). `feature/windows-process-inspection-v0-rebased` (`c0f12d4`) is based on current `develop` and adds the process-inspection code without deleting develop's Windows code. Its JS suite passes (272/272 at `c0f12d4`). The .NET build has not been run here (W-07), and the rebased branch has no CI run.
+
+**Recommendation:** Replace PR #8 with the rebased branch after a CI run on that branch confirms it builds. Until then, do not merge PR #8.
+
 ## Proposed future decisions — do not presume accepted
 
 - Browser↔Windows IPC transport, authentication, message and permission protocol.

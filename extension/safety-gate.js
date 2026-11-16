@@ -10,7 +10,8 @@ function crossOriginLinkActivation(action, target, currentUrl) {
   catch { return true; }
 }
 
-function consequentialNavigation(action) {
+// Exported so the page agent can refuse URL-only proof for destructive endpoints.
+export function consequentialNavigation(action) {
   if (action?.action !== 'navigate') return false;
   try {
     const url = new URL(action.url);

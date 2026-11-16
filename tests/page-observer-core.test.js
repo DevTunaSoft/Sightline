@@ -76,11 +76,12 @@ test('structural effect ignores clocks, unrelated controls and hash changes', ()
   ]};
   assert.equal(hasTargetStructuralEffect(before,after,{action:'click',ref:'@e1'}),false);
 });
-test('target removal and concrete control-state changes count as structural evidence', () => {
+test('concrete control-state changes count as structural evidence; target removal does not', () => {
   const before={url:'https://example.com/',elements:[
     {ref:'@e1',role:'button',name:'Delete item',state:{}},
   ]};
-  assert.equal(hasTargetStructuralEffect(before,{...before,elements:[]},{action:'click',ref:'@e1'}),true);
+  // Removal alone is refused: a destructive click can remove its target without its effect.
+  assert.equal(hasTargetStructuralEffect(before,{...before,elements:[]},{action:'click',ref:'@e1'}),false);
   const checkbox={url:'https://example.com/',elements:[
     {ref:'@e2',role:'checkbox',name:'Select',state:{checked:false}},
   ]};

@@ -311,7 +311,11 @@ export function hasTargetStructuralEffect(before, after, action) {
     element?.name === original.name && (element?.frame?.path || '') === (original.frame?.path || '');
   if (before.elements.filter(matches).length !== 1) return false;
   const current = after.elements.filter(matches);
-  if (current.length === 0) return action.action === 'click';
+  // Removal of the target is not evidence. Pagination, re-rendering, a dialog closing or a
+  // navigation can remove it without the intended effect. This matches the Yahoo rule that a
+  // disappearing row is never a success oracle. A consequential action with no independent
+  // evidence stops for manual reconciliation (takeover item 10).
+  if (current.length === 0) return false;
   if (current.length !== 1) return false;
   // Only observable control state counts. A clock, alert, or unrelated control
   // must not turn a failed consequential action into a verified one.

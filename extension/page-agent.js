@@ -4,7 +4,7 @@ import { RefRegistry } from './ref-registry.js';
 import { createDomActionAdapter } from './dom-action-adapter.js';
 import { executeValidatedAction } from './action-executor-core.js';
 import { validateAction } from './action-protocol.js';
-import { gateAction } from './safety-gate.js';
+import { gateAction, consequentialNavigation } from './safety-gate.js';
 
 // A confirmation token is an unpredictable, single-use capability, not a
 // hash of public page metadata. No secrets or action values are persisted.
@@ -179,12 +179,16 @@ export function createPageAgentController(options = {}) {
       }
       let snapshot = await refresh();
       const consequential = decision.risk?.level === 'high' || decision.risk?.level === 'critical';
-      let changed = hasTargetStructuralEffect(liveSnapshot, snapshot, action);
+      // A URL change proves only that the page moved. For a destructive endpoint it is not
+      // evidence that the destructive effect happened, so only a state change counts there.
+      const urlOnlyProofRefused = action.action === 'navigate' && consequentialNavigation(action);
+      const effectOf = current => !urlOnlyProofRefused && hasTargetStructuralEffect(liveSnapshot, current, action);
+      let changed = effectOf(snapshot);
       if (consequential && !changed) {
         for (let attempt = 0; attempt < 3 && !changed; attempt += 1) {
           await sleep(100);
           snapshot = await refresh();
-          changed = hasTargetStructuralEffect(liveSnapshot, snapshot, action);
+          changed = effectOf(snapshot);
         }
       }
       // Generic visible text / snapshot hash movement is not effect proof.

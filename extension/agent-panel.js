@@ -7,7 +7,7 @@ import { saveTaskCheckpoint, loadTaskCheckpoint, clearTaskCheckpoint } from './t
 
 const byId = id => document.getElementById(id);
 const ui = {
-  tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'), aiTest: byId('localAiSelfTestBtn'),
+  tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'), debuggerClicks: byId('debuggerClicks'), aiTest: byId('localAiSelfTestBtn'),
   observe: byId('observePageBtn'), selfTest: byId('browserSelfTestBtn'), yahooReadiness: byId('yahooReadinessBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
   progress: byId('agentProgress'), report: byId('exportAgentReportBtn'), card: byId('confirmCard'), text: byId('confirmText'),
   confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
@@ -26,6 +26,7 @@ function sync() {
   ui.report.disabled = state.running || !state.lastReport;
   ui.mode.disabled = state.running;
   ui.goal.disabled = state.running;
+  ui.debuggerClicks.disabled = state.running;
   ui.tag.textContent = state.running ? 'RUNNING' : state.resume ? 'RESUME READY' : 'READY';
 }
 
@@ -294,6 +295,8 @@ async function runTask() {
       goal,
       model: ui.model.value,
       mode: ui.mode.value,
+      // Read live from the control each run; never persisted, so it is off unless chosen now.
+      useDebuggerClicks: ui.debuggerClicks.checked === true,
       chromeApi: chrome,
       fetchImpl: fetch,
       signal: state.controller.signal,
