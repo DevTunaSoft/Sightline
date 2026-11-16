@@ -104,6 +104,14 @@ If state changes while the confirmation is open, the old confirmation is invalid
 
 **Confirmation safety (experimental):** Each approval applies to one specific action and can be used only once. It expires automatically after five minutes, without a background timer. If an old confirmation is rejected, begin a fresh review; do not assume the earlier action failed. This source change has not yet been verified inside installed Chrome or Edge.
 
+**Unlabelled controls (experimental):** Sightline refuses to click a button or link that has no accessible name, because it cannot tell what the click would do. The refusal happens before any confirmation is offered. This source change has not yet been verified in installed Chrome or Edge.
+
+**Destructive and financial words (experimental):** Labels containing words such as delete, remove, wipe, destroy, terminate, withdraw, refund, revoke, reset or discard stop for confirmation. Some harmless links with these words, such as a "Refund policy" link, also stop for confirmation. That is deliberate.
+
+**"No verified effect":** If a confirmed click leaves nothing Sightline can confirm on its target (for example, the element simply disappears, or the page only changes its address), Sightline reports **NO_VERIFIED_EFFECT** and stops. The action may still have happened. Check the website yourself before doing anything else. Sightline never retries that action automatically.
+
+**Debugger clicks (experimental, off by default):** The agent panel has a "Debugger clicks" switch. It is off unless you turn it on, and it is not remembered between sessions. When it is on, approved clicks are sent through Chrome's debugger interface. Chrome may show a debugging notice; this has not been verified. A click is sent only if the element is found in the same place at three checks just before input. Otherwise nothing is sent.
+
 ## Yahoo Mail
 
 Use **Yahoo readiness** before a real Yahoo task. It is read-only.

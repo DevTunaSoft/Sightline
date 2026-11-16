@@ -115,3 +115,20 @@ Browser semantic observation, typed actions, live revalidation, stale recovery, 
 - installer/update lifecycle
 
 Automated CI success is not production acceptance.
+
+## Browser safety changes (2026-11-16)
+
+| Capability | Status | Notes |
+|---|---|---|
+| Target removal and destructive-URL changes are not effect proof (S-25, ADR-006) | Implemented / fake-browser tests **PASS**; installed Chrome/Edge **UNVERIFIED** | A consequential click whose target disappears, and a navigation to a destructive endpoint, no longer count as verified. The result is `NO_VERIFIED_EFFECT`. Tests: `tests/page-agent.test.js`, `tests/page-observer-core.test.js`. |
+| Debugger clicks: outcome check after dispatch (X-01) | Implemented / fake-browser tests **PASS**; Chrome **BLOCKED** (X-02) | The tab is re-observed after input. No structural effect gives `NO_VERIFIED_EFFECT`; a failed re-observe gives `UNKNOWN_EFFECT`. Neither is retried. |
+| Debugger clicks: third locate before input (takeover item 3) | Implemented / fake-browser tests **PASS**; Chrome **BLOCKED** (X-02) | The target must agree at three locates. A moved target is refused with `STALE_TARGET` after the approval is spent. Coordinate rule in `docs/DECISIONS.md`. |
+| Debugger clicks: experimental panel switch, off by default (S-13, ADR-007) | Implemented / static source tests **PASS**; panel behavior **UNVERIFIED** in a browser | Read at the start of each run, not saved, disabled while a task runs. The label does not claim a Chrome banner (S-17 is unverified). |
+| Debugger path: `insertText` removed (takeover item 4) | Implemented / tests updated **PASS** | No production caller existed. |
+| Clicks on unnamed controls are blocked (S-26, ADR-009, X-13) | Implemented / gate and page-agent tests **PASS**; live pages **UNVERIFIED** | Refused with `ACTION_BLOCKED` before any confirmation or click. |
+| Destructive and financial labels (S-27, ADR-010) | Implemented / gate tests **PASS**; live pages **UNVERIFIED** | Adds `wipe`, `destroy`, `terminate`, `withdraw` and `refund` to the high-impact labels. |
+| Windows process inspection (PR #8 code, on the working branch) | Implemented in source; Windows job **PASS** in 5 runs with the test isolated (X-15); desktop **UNVERIFIED**; PR #8 **not merged** | Read-only inspection of a known process ID. Merging or replacing PR #8 is an operator decision (ADR-008). |
+| Windows `HasExited` read (X-14) | Implemented; build step **PASS** in CI run `43875178272` and later | The value was hard-coded to false. It now reads the process. |
+| Process-inspection test isolation (X-15) | Windows job **PASS** in 5 isolated runs; parallel runs failed at handle delta 4 | Cause **UNVERIFIED**. The measured delta is being logged (see the 2026-11-16 ledger). |
+
+Hosted CI results are not desktop acceptance. Installed Chrome/Edge and Windows desktop checks remain **BLOCKED** in this environment.

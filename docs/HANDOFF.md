@@ -4,6 +4,23 @@ The [V3 Master Engineering Handoff](handoff/SIGHTLINE_MASTER_HANDOFF_V3_2026-11-
 
 # Sightline Engineering Handoff
 
+### 2026-11-16 — Debugger path, destructive-label, and CI isolation checkpoint
+
+- **Branch and head:** `claude/serene-mayer-ckp8ee`. The head moves with each push, so read it with `git ls-remote origin refs/heads/claude/serene-mayer-ckp8ee`. The branch is develop with the process-inspection code merged in (`00c45ed`). Full commit list and CI run IDs: `docs/DEVELOPMENT_LEDGER.md`, entries dated 2026-11-16.
+- **Takeover items done:** 1 (debugger approval spent before input), 2 (post-dispatch effect check), 3 (third locate before input, coordinate rule in DECISIONS), 4 (`insertText` removed), 7 (CI runs on the working branch), 13 (divergence figures corrected). Item 10 is partly done: destructive-path audit with S-25, S-26 and S-27.
+- **Behavior changes:** target removal and destructive-URL changes no longer count as proof; clicks on unnamed controls are blocked; `wipe`, `destroy`, `terminate`, `withdraw` and `refund` need confirmation; an experimental debugger-click switch is off by default. Recorded in `docs/FEATURE_STATUS.md` and `docs/USER_MANUAL.md`.
+- **CI:** the Windows job passed in 5 runs with the process-inspection test in a non-parallel collection. Parallel-collection runs failed at handle delta 4 (X-15). The cause is unverified until the delta is logged.
+- **Not verified:** installed Chrome or Edge, a Windows desktop, Ollama, live Yahoo. Each of these is BLOCKED here.
+- **Operator decisions open:** PR #8 (ADR-008), planning model (section 11 of the dossier), research search provider, product-identity wording, debugger default.
+- **Next three unblocked:** (1) log the handle delta in CI so X-15 has a measured value; (2) keep docs in sync with each behavior change; (3) on a machine with Chrome or Edge, run `docs/BROWSER_ACCEPTANCE.md` and the debugger path, and record each check as PASS, FAIL or BLOCKED.
+- **Exact commands to resume:**
+
+```bash
+git fetch --depth=200 origin '+refs/heads/develop:refs/remotes/origin/develop' '+refs/heads/claude/serene-mayer-ckp8ee:refs/remotes/origin/claude/serene-mayer-ckp8ee'
+git ls-remote origin refs/heads/claude/serene-mayer-ckp8ee
+npm run check
+```
+
 ### 2026-11-11 — Linked-label-only secret protection, bounded and action-time rechecked
 
 **Remaining gap from prior checkpoint:** text-entry controls whose only credential hint was the text of an external `<label>` or `aria-labelledby` target could be missed by attribute-only checks. This was not a completed security feature despite independent metadata hardening. The current `develop` baseline, open issue #9, observer and adapter modules were reconciled before coding; no parallel branch, extra PR or external dependency.
