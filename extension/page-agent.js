@@ -120,6 +120,11 @@ export function createPageAgentController(options = {}) {
         : null;
       const gateContext = { currentUrl: currentSnapshot.url, taskGoal: String(message.taskGoal || '').slice(0, 2000) };
       const decision = gate(action, target || {}, message.mode || 'assist', gateContext);
+      // consumeOnly never runs the action and never issues a new approval. It is valid only
+      // for a confirmed, gate-required action; anything else is refused with no side effect.
+      if (message.consumeOnly === true && (decision.allowed || message.confirmed !== true)) {
+        return { ok: false, code: 'INVALID_CONSUME', risk: decision.risk, target };
+      }
       if (!decision.allowed) {
         if (!decision.confirmationRequired) {
           pendingConfirmation = null;
@@ -141,6 +146,11 @@ export function createPageAgentController(options = {}) {
           // Consume only an authentic token, immediately before the side effect.
           // An invalid guess does not revoke the legitimate user's pending review.
           pendingConfirmation = null;
+          // The debugger path sends the click itself. It calls here only to spend the
+          // approval, so the one-use rule holds on that path too. Nothing runs here.
+          if (message.consumeOnly === true) {
+            return { ok: true, code: 'CONFIRMATION_CONSUMED', risk: decision.risk, target };
+          }
         } else {
           pendingConfirmation = null;
           let confirmationKey = null;

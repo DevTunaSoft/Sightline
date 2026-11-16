@@ -367,3 +367,56 @@ test('locate refuses unknown refs and stale snapshots', async () => {
   assert.equal((await controller.handle({ type: 'SIGHTLINE_LOCATE', ref: '@e1', snapshotId: 'old' })).code, 'STALE_SNAPSHOT');
   assert.equal((await controller.handle({ type: 'SIGHTLINE_LOCATE', ref: '@e9', snapshotId: 'L2' })).code, 'LOCATE_FAILED');
 });
+
+test('consumeOnly spends a valid approval once and never runs the action', async () => {
+  let clicks = 0;
+  const controller = createPageAgentController({
+    observe: async () => ({ snapshotId: 's1', url: 'https://example.com', elements: [{ ref: '@e1', name: 'Delete all', role: 'button' }] }),
+    adapterFactory: () => ({ hasRef: () => true, click: async () => { clicks += 1; return { ok: true }; } }),
+    gate: () => ({ allowed: false, confirmationRequired: true, risk: { level: 'high' } }),
+    sleep: async () => {},
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  const blocked = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', action: { action: 'click', ref: '@e1' } });
+  assert.equal(blocked.code, 'CONFIRMATION_REQUIRED');
+
+  const spent = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', action: { action: 'click', ref: '@e1' }, confirmed: true, consumeOnly: true, confirmationKey: blocked.confirmationKey });
+  assert.equal(spent.ok, true);
+  assert.equal(spent.code, 'CONFIRMATION_CONSUMED');
+  assert.equal(clicks, 0, 'spending the approval must not click on the page');
+
+  const replay = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', action: { action: 'click', ref: '@e1' }, confirmed: true, consumeOnly: true, confirmationKey: blocked.confirmationKey });
+  assert.equal(replay.ok, false, 'a second spend of the same key is refused');
+  assert.equal(replay.code, 'CONFIRMATION_REQUIRED');
+  assert.equal(clicks, 0);
+});
+
+test('consumeOnly refuses an unconfirmed request and never issues a new approval', async () => {
+  let clicks = 0;
+  const controller = createPageAgentController({
+    observe: async () => ({ snapshotId: 's1', url: 'https://example.com', elements: [{ ref: '@e1', name: 'Delete all', role: 'button' }] }),
+    adapterFactory: () => ({ hasRef: () => true, click: async () => { clicks += 1; return { ok: true }; } }),
+    gate: () => ({ allowed: false, confirmationRequired: true, risk: { level: 'high' } }),
+    sleep: async () => {},
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  const refused = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', action: { action: 'click', ref: '@e1' }, consumeOnly: true });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.code, 'INVALID_CONSUME');
+  assert.equal(refused.confirmationKey, undefined, 'no approval is minted by a consume request');
+  assert.equal(clicks, 0);
+});
+
+test('consumeOnly on an action that needs no confirmation runs nothing', async () => {
+  let clicks = 0;
+  const controller = createPageAgentController({
+    observe: async () => ({ snapshotId: 's1', url: 'https://example.com', elements: [{ ref: '@e1', name: 'Next page', role: 'button' }] }),
+    adapterFactory: () => ({ hasRef: () => true, click: async () => { clicks += 1; return { ok: true }; } }),
+    gate: () => ({ allowed: true, confirmationRequired: false, risk: { level: 'normal' } }),
+    sleep: async () => {},
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  const refused = await controller.handle({ type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', action: { action: 'click', ref: '@e1' }, confirmed: true, consumeOnly: true, confirmationKey: 'confirm-00000000000000000000000000000000' });
+  assert.equal(refused.code, 'INVALID_CONSUME');
+  assert.equal(clicks, 0, 'a consume request must never run a normal action');
+});

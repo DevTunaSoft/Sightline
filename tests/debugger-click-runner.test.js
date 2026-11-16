@@ -7,11 +7,12 @@ const snapshot = {
   elements: [{ ref: '@e1', role: 'button', name: 'Next page', sensitive: false }],
 };
 
-function setup({ locates, debuggerFail = null }) {
+function setup({ locates, debuggerFail = null, consumeResult = { ok: true, code: 'CONFIRMATION_CONSUMED' } }) {
   const commands = [];
   const messages = [];
   let execCount = 0;
   let locateCount = 0;
+  const consumes = [];
   const chromeApi = {
     tabs: {
       query: async () => [{ id: 7, url: snapshot.url, active: true, windowId: 1 }],
@@ -24,6 +25,11 @@ function setup({ locates, debuggerFail = null }) {
           const rect = locates[Math.min(locateCount, locates.length - 1)];
           locateCount += 1;
           return { ok: true, snapshotId: 'd1', sensitive: false, inFrame: false, rect, viewport: { width: 1000, height: 800 } };
+        }
+        if (msg.type === 'SIGHTLINE_EXECUTE' && msg.consumeOnly === true) {
+          consumes.push(msg);
+          commands.push(['consume']);
+          return consumeResult;
         }
         if (msg.type === 'SIGHTLINE_EXECUTE') {
           execCount += 1;
@@ -40,7 +46,7 @@ function setup({ locates, debuggerFail = null }) {
     },
   };
   const fetchImpl = async () => new Response(JSON.stringify({ message: { content: '{"done":false,"action":{"action":"click","ref":"@e1"}}' } }), { status: 200 });
-  return { chromeApi, fetchImpl, commands, messages, execCount: () => execCount };
+  return { chromeApi, fetchImpl, commands, messages, consumes, execCount: () => execCount };
 }
 
 test('opt-in debugger click runs only after confirmation and two agreeing locates', async () => {
@@ -57,7 +63,9 @@ test('opt-in debugger click runs only after confirmation and two agreeing locate
     limits: { maxActions: 5, maxRepeatedAction: 5, maxRepeatedState: 5 },
   });
   assert.equal(result.ok, true);
-  assert.deepEqual(env.commands.map(c => c[0]), ['attach', 'Input.dispatchMouseEvent', 'Input.dispatchMouseEvent', 'detach']);
+  assert.deepEqual(env.commands.map(c => c[0]), ['consume', 'attach', 'Input.dispatchMouseEvent', 'Input.dispatchMouseEvent', 'detach']);
+  assert.equal(env.consumes.length, 1, 'the approval is spent exactly once');
+  assert.equal(env.consumes[0].confirmationKey, 'k', 'the approval is spent with the key the person confirmed');
   assert.equal(env.messages.filter(m => m === 'SIGHTLINE_LOCATE').length, 2);
   assert.equal(env.execCount(), 1, 'page-script confirmed execute is not used for debugger clicks');
 });
@@ -85,4 +93,24 @@ test('a failed attach reports a safe failure, not an unknown effect', async () =
   assert.equal(result.ok, false);
   assert.notEqual(result.code, 'UNKNOWN_EFFECT');
   assert.equal(env.commands.some(c => c[0] === 'Input.dispatchMouseEvent'), false);
+});
+
+test('a refused approval spend sends no debugger input at all', async () => {
+  const env = setup({
+    locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }],
+    consumeResult: { ok: false, code: 'CONFIRMATION_REQUIRED' },
+  });
+  let planCalls = 0;
+  const fetchImpl = async () => {
+    planCalls += 1;
+    const content = planCalls === 1 ? '{"done":false,"action":{"action":"click","ref":"@e1"}}' : '{"done":true,"result":"done"}';
+    return new Response(JSON.stringify({ message: { content } }), { status: 200 });
+  };
+  const result = await runBrowserTask({
+    goal: 'Click next', model: 'm', chromeApi: env.chromeApi, fetchImpl,
+    confirmAction: async () => true, useDebuggerClicks: true,
+    limits: { maxActions: 1, maxRepeatedAction: 5, maxRepeatedState: 5 },
+  });
+  assert.equal(result.ok, false);
+  assert.deepEqual(env.commands.map(c => c[0]), ['consume'], 'only the refused spend is sent; no attach, no input');
 });

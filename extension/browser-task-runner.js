@@ -177,7 +177,7 @@ export async function runBrowserTask({
 
   // Clicks an approved reference through the debugger path only after two
   // independent locates agree on the same point. Returns a receipt-shaped result.
-  async function debuggerClickApproved(action, snapshot) {
+  async function debuggerClickApproved(action, snapshot, confirmationKey) {
     const locate = () => chromeApi.tabs.sendMessage(taskTabId, { type: 'SIGHTLINE_LOCATE', ref: action.ref, snapshotId: snapshot.snapshotId });
     const firstRaw = await locate();
     const first = validateLocateResult(firstRaw, { expectedSnapshotId: snapshot.snapshotId, viewport: firstRaw?.viewport });
@@ -186,6 +186,16 @@ export async function runBrowserTask({
     const second = validateLocateResult(secondRaw, { expectedSnapshotId: snapshot.snapshotId, viewport: secondRaw?.viewport });
     if (!second.ok) return { ok: false, code: second.code, error: second.error };
     if (!isSamePoint(first.point, second.point)) return { ok: false, code: 'STALE_TARGET', error: 'The element moved before the click.' };
+    // Spend the one-use approval inside the page agent before any input is sent. The page
+    // agent refuses if the key, binding, snapshot, or age does not match, so a refused
+    // approval means no click at all.
+    const spent = await chromeApi.tabs.sendMessage(taskTabId, {
+      type: 'SIGHTLINE_EXECUTE', action, snapshotId: snapshot.snapshotId, mode, confirmed: true,
+      confirmationKey, consumeOnly: true, taskGoal: goal,
+    });
+    if (spent?.ok !== true || spent?.code !== 'CONFIRMATION_CONSUMED') {
+      return { ok: false, code: spent?.code || 'CONFIRMATION_REQUIRED', error: 'The approval could not be spent, so no click was sent.' };
+    }
     try {
       await debuggerInput.click(taskTabId, first.point.x, first.point.y);
     } catch (error) {
@@ -237,7 +247,7 @@ export async function runBrowserTask({
           try { approvedOrigins.add(new URL(result.target.state.hrefOrigin).origin); } catch {}
         }
         result = debuggerInput && action?.action === 'click' && typeof action.ref === 'string'
-          ? await timings.measure('execute', () => debuggerClickApproved(action, snapshot))
+          ? await timings.measure('execute', () => debuggerClickApproved(action, snapshot, result.confirmationKey))
           : await timings.measure('execute', () => executeOnTab(taskTabId, {
           action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
         }, chromeApi));
