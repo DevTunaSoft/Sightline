@@ -76,8 +76,25 @@ public sealed class ProcessInspectionTests
         current.Refresh();
         var afterThreads = current.Threads.Count;
 
+        RecordMeasurement(beforeHandles, afterHandles, beforeThreads, afterThreads);
+
         Assert.InRange((long)afterHandles - beforeHandles, -1, 1);
         Assert.InRange(afterThreads - beforeThreads, -1, 1);
+    }
+
+    // Writes the measured deltas only when GITHUB_WORKSPACE is set (CI). A workflow step prints
+    // the file, so the values appear in the job log (X-15). Locally this does nothing.
+    private static void RecordMeasurement(uint beforeHandles, uint afterHandles, int beforeThreads, int afterThreads)
+    {
+        var workspace = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
+        if (string.IsNullOrEmpty(workspace))
+            return;
+
+        var line = $"handles {beforeHandles} -> {afterHandles} (delta {(long)afterHandles - beforeHandles}); " +
+                   $"threads {beforeThreads} -> {afterThreads} (delta {afterThreads - beforeThreads}){Environment.NewLine}";
+        System.IO.File.AppendAllText(
+            System.IO.Path.Combine(workspace, "windows", "process-handle-delta.txt"),
+            line);
     }
 
     private static uint CurrentHandleCount()
