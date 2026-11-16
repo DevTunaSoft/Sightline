@@ -130,3 +130,17 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Working-branch status:** red at the same test. The unnamed-click gate (S-26) passed `validate` in CI.
 - **Dossier:** G-09 corrected; G-12 (PR #8 failing job) added; X-15 (the failing test) added; ADR-008 updated in `docs/DECISIONS.md`. No GitHub action on PR #8.
 - **Next:** (1) run the test non-parallel in CI to separate noise from a leak; (2) only then decide on PR #8, which is the operator's call.
+
+### 2026-11-16 UTC — CI for d8fb8a5 and 5b2d7bb: handle test passes when isolated
+- **Run `43876258655` (head `d8fb8a5`, docs-only commit): failure.** Same code as `b54c509`. `validate` and `package-extension` succeeded. `windows-foundation` failed at "Test Windows safety layer" with the same test, the same line (`ProcessInspectionTests.cs:69`) and the same actual value (4).
+- **Run `43879086125` (head `5b2d7bb`, test in a non-parallel collection): success.**
+  - `validate` success. `package-extension` success.
+  - `windows-foundation` success at every step.
+  - Build: 0 warnings, 0 errors, with warnings treated as errors. The serial-collection change compiles.
+  - Core tests: 65 of 65 passed.
+  - Windows tests: 34 of 34 passed, including `Repeated_current_process_inspection_does_not_accumulate_handles_or_threads`.
+  - The three resource-baseline steps ran. They were skipped in every earlier run after the safety step failed. They uploaded `windows-resource.json`, `windows-session-resource.json` and `windows-session-soak.json` in artifact `14230937661`.
+- **First green Windows job since `71fdfbb`** (run `43868738845`). Process inspection code is now on this branch and passes CI.
+- **Interpretation, UNVERIFIED:** the failure reproduced in all three parallel-collection runs (`42892688011`, `43875178272`, `43876258655`) and did not reproduce in the one isolated run. That fits measurement noise from parallel test classes. It does not exclude a leak: the measured delta is not logged, and one isolated pass is not a stability result. The bound is unchanged at -1 to 1.
+- **Dossier:** X-15 updated. ADR-008 next step updated in `docs/DECISIONS.md`.
+- **Next:** (1) repeat isolated runs and check that the test stays green; (2) log the measured handle delta so a leak can be ruled out; (3) decide on PR #8 (operator decision). This docs-only commit triggers another CI run, which counts as a second isolated sample.
