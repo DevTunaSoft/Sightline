@@ -8,6 +8,7 @@ import { skillPlannerContext, verifySkillActionEffect, checkSkillDestructiveScop
 import { DiagnosticLedger } from './diagnostics-core.js';
 import { createCdpInput, CdpInputError } from './cdp-input.js';
 import { validateLocateResult, isSamePoint } from './click-point-core.js';
+import { hasTargetStructuralEffect } from './page-observer-core.js';
 import { TimingBook } from './performance-core.js';
 
 export function verifyBrowserReceipt(receipt) {
@@ -206,7 +207,24 @@ export async function runBrowserTask({
       // Anything else may have reached the page; never report it as safe to retry.
       return { ok: false, code: 'UNKNOWN_EFFECT', error: 'Debugger click could not be confirmed.' };
     }
-    return { ok: true, receipt: { ok: true, changed: null, method: 'debugger-click' } };
+    // The click is already sent, so verify it independently. The page's own success
+    // is not proof: re-observe and require the same structural effect the page-script
+    // path requires. A failed re-observe means the effect is unknown, never a retry.
+    let after;
+    try {
+      const observed = await chromeApi.tabs.sendMessage(taskTabId, { type: 'SIGHTLINE_OBSERVE' });
+      after = observed?.ok === true ? observed.snapshot : null;
+    } catch {
+      after = null;
+    }
+    if (!after) {
+      return { ok: false, code: 'UNKNOWN_EFFECT', error: 'The click was sent but the page could not be re-observed.' };
+    }
+    const changed = hasTargetStructuralEffect(snapshot, after, action);
+    if (!changed) {
+      return { ok: false, code: 'NO_VERIFIED_EFFECT', error: 'The debugger click was sent, but no effect on the target was verified.', receipt: { ok: false, changed: false, method: 'debugger-click' } };
+    }
+    return { ok: true, receipt: { ok: true, changed: true, method: 'debugger-click' } };
   }
 
   const execute = async (action, { snapshot }) => {

@@ -4,11 +4,19 @@ import { runBrowserTask } from '../extension/browser-task-runner.js';
 
 const snapshot = {
   snapshotId: 'd1', url: 'https://ex.test/', visibleText: 'Next page',
-  elements: [{ ref: '@e1', role: 'button', name: 'Next page', sensitive: false }],
+  elements: [{ ref: '@e1', role: 'button', name: 'Next page', sensitive: false, state: { expanded: false } }],
+};
+// What the page looks like after a real effect on the target: the control's state changed.
+const changedAfterClick = {
+  snapshotId: 'd2', url: 'https://ex.test/', visibleText: 'Next page',
+  elements: [{ ref: '@e1', role: 'button', name: 'Next page', sensitive: false, state: { expanded: true } }],
 };
 
-function setup({ locates, debuggerFail = null, consumeResult = { ok: true, code: 'CONFIRMATION_CONSUMED' } }) {
+// afterClick: what SIGHTLINE_OBSERVE returns once a debugger click was dispatched.
+// Default is a real structural effect; pass `snapshot` for no effect, or 'throw' for a failed re-observe.
+function setup({ locates, debuggerFail = null, consumeResult = { ok: true, code: 'CONFIRMATION_CONSUMED' }, afterClick = changedAfterClick }) {
   const commands = [];
+  let clicked = false;
   const messages = [];
   let execCount = 0;
   let locateCount = 0;
@@ -20,7 +28,11 @@ function setup({ locates, debuggerFail = null, consumeResult = { ok: true, code:
       sendMessage: async (_id, msg) => {
         messages.push(msg.type);
         if (msg.type === 'SIGHTLINE_PING') return { ok: true };
-        if (msg.type === 'SIGHTLINE_OBSERVE') return { ok: true, snapshot };
+        if (msg.type === 'SIGHTLINE_OBSERVE') {
+          if (!clicked) return { ok: true, snapshot };
+          if (afterClick === 'throw') throw new Error('tab went away');
+          return { ok: true, snapshot: afterClick };
+        }
         if (msg.type === 'SIGHTLINE_LOCATE') {
           const rect = locates[Math.min(locateCount, locates.length - 1)];
           locateCount += 1;
@@ -41,7 +53,7 @@ function setup({ locates, debuggerFail = null, consumeResult = { ok: true, code:
     scripting: { executeScript: async () => {} },
     debugger: {
       attach: async () => { if (debuggerFail) throw new Error(debuggerFail); commands.push(['attach']); },
-      sendCommand: async (_t, method) => { commands.push([method]); return {}; },
+      sendCommand: async (_t, method) => { commands.push([method]); if (method === 'Input.dispatchMouseEvent') clicked = true; return {}; },
       detach: async () => { commands.push(['detach']); },
     },
   };
@@ -113,4 +125,47 @@ test('a refused approval spend sends no debugger input at all', async () => {
   });
   assert.equal(result.ok, false);
   assert.deepEqual(env.commands.map(c => c[0]), ['consume'], 'only the refused spend is sent; no attach, no input');
+});
+
+test('a debugger click with no verified target effect returns NO_VERIFIED_EFFECT, not success', async () => {
+  const env = setup({
+    locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }],
+    afterClick: snapshot,
+  });
+  let planCalls = 0;
+  const fetchImpl = async () => {
+    planCalls += 1;
+    const content = planCalls === 1 ? '{"done":false,"action":{"action":"click","ref":"@e1"}}' : '{"done":true,"result":"done"}';
+    return new Response(JSON.stringify({ message: { content } }), { status: 200 });
+  };
+  const result = await runBrowserTask({
+    goal: 'Click next', model: 'm', chromeApi: env.chromeApi, fetchImpl,
+    confirmAction: async () => true, useDebuggerClicks: true,
+    limits: { maxActions: 1, maxRepeatedAction: 5, maxRepeatedState: 5 },
+  });
+  assert.equal(result.ok, false, 'an unverified click must not finish as success');
+  assert.equal(env.commands.filter(c => c[0] === 'Input.dispatchMouseEvent').length, 2, 'the click was sent once (two mouse events), not retried');
+  assert.equal(env.execCount(), 1, 'only the initial confirmation request; no page-script execute after the debugger click');
+  assert.equal(env.consumes.length, 1, 'the approval was spent once');
+  assert.ok(result.timeline?.some(item => item.receipt?.code === 'NO_VERIFIED_EFFECT'), 'the timeline records NO_VERIFIED_EFFECT');
+});
+
+test('a debugger click whose page cannot be re-observed reports UNKNOWN_EFFECT and is never retried', async () => {
+  const env = setup({
+    locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }],
+    afterClick: 'throw',
+  });
+  let planCalls = 0;
+  const fetchImpl = async () => {
+    planCalls += 1;
+    return new Response(JSON.stringify({ message: { content: '{"done":false,"action":{"action":"click","ref":"@e1"}}' } }), { status: 200 });
+  };
+  const result = await runBrowserTask({
+    goal: 'Click next', model: 'm', chromeApi: env.chromeApi, fetchImpl,
+    confirmAction: async () => true, useDebuggerClicks: true,
+    limits: { maxActions: 2, maxRepeatedAction: 5, maxRepeatedState: 5 },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(env.consumes.length, 1, 'a second confirmation is never spent on the same unknown effect');
+  assert.ok(result.timeline?.some(item => item.receipt?.code === 'UNKNOWN_EFFECT' || result.code === 'UNKNOWN_EFFECT'), 'the unknown effect is reported');
 });
