@@ -100,3 +100,17 @@ test('expanded destructive labels require confirmation', () => {
     assert.equal(classifyActionRisk({action:'click',ref:'@e1'},{name,role:'button'}).level,'high',name);
   }
 });
+
+test('a click on a control with no accessible name is blocked, not treated as normal', () => {
+  // The observer describes every visible interactive element, named or not. An icon-only
+  // button may be a delete, so the agent cannot tell what it does and must not click it.
+  const unnamed = { ref: '@e1', role: 'button', name: '', sensitive: false };
+  for (const mode of ['assist', 'autonomous']) {
+    const decision = gateAction({ action: 'click', ref: '@e1' }, unnamed, mode);
+    assert.equal(decision.allowed, false, `unnamed click refused in ${mode} mode`);
+    assert.equal(decision.risk.level, 'blocked');
+    assert.equal(decision.confirmationRequired, false, 'blocked actions get no confirmation prompt (S-03)');
+  }
+  const whitespaceOnly = gateAction({ action: 'click', ref: '@e2' }, { ref: '@e2', role: 'button', name: '   ', sensitive: false }, 'assist');
+  assert.equal(whitespaceOnly.risk.level, 'blocked', 'whitespace-only names count as unnamed');
+});

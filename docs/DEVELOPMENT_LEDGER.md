@@ -107,3 +107,11 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
   - `package-extension` (ubuntu-latest): success.
 - Meaning: hosted CI only. It does not drive a real desktop (C-07), and it does not test the extension in Chrome or Edge (X-02). The debugger toggle and the destructive-navigation change are covered by fake-browser tests only.
 - Earlier runs on this branch, for reference: `4a66f1d` run 583 success; `2a46c27` run 584 success.
+
+### 2026-11-16 UTC — Process-inspection CI, HasExited fix, unnamed-click block
+- Branch: `claude/serene-mayer-ckp8ee`. Commits in this checkpoint: `00c45ed` (merge of `feature/windows-process-inspection-v0-rebased` `c0f12d4`, a three-way merge against base `5f19279`; the working branch had not touched those files), `f8b00b2` (HasExited fix), and the unnamed-click commit that follows this entry.
+- Purpose: dossier §12 step 10 and ADR-008 require a CI run on the rebased process-inspection code before PR #8 is replaced. This branch now carries that code, so the Windows job builds and tests it. This is a CI run on a branch that also has the working-branch fixes, not on `feature/windows-process-inspection-v0-rebased` itself. No PR was opened and no other branch was pushed.
+- Finding (unverified until CI): `WindowsProcessInspector` hard-coded `HasExited: false`. Fixed to `process.HasExited` (`f8b00b2`). The existing test only checks the live test process, so it could not catch this. Not compiled locally (no .NET SDK, W-07).
+- Finding (verified by probe): the gate allowed a click on an unnamed button in assist and autonomous mode, with no confirmation and no effect check. My earlier claim that observation requires names was wrong; `describeElement` does not filter unnamed elements. Test first (`tests/safety-gate.test.js`), then fix: unnamed clicks are blocked (`ACTION_BLOCKED`, S-26, ADR-009). Npm check: 320 of 320.
+- Dossier: X-13 corrected and marked fixed in code; X-14 added for the HasExited finding.
+- Not verified: live-page behaviour of the unnamed-click block (X-02). The .NET build of `f8b00b2` is pending CI.

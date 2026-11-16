@@ -98,6 +98,20 @@ Use this register for consequential design decisions. Decisions are not implemen
 
 **Recommendation:** Replace PR #8 with the rebased branch after a CI run on that branch confirms it builds. Until then, do not merge PR #8.
 
+## ADR-009 — A click on an unnamed control is blocked
+
+**Status:** Accepted (engineering default). This strengthens the gate and weakens no rule.
+
+**Context:** The observer describes every visible interactive element, named or not. `classifyActionRisk` classified a click on an empty-named button as normal, so an icon-only delete button could be clicked with no confirmation and no effect check. An earlier note in the dossier wrongly said observation requires names.
+
+**Decision:** A click whose target has no accessible name (empty or whitespace only) is blocked with `ACTION_BLOCKED`. No confirmation prompt is offered, per S-03. Other action types are unchanged.
+
+**Options rejected:** asking for confirmation on unnamed clicks (the effect check would still have no name to verify, so it would always stop with `NO_VERIFIED_EFFECT`); allowing them as normal (the current gap).
+
+**Consequences:** The planner can no longer click unlabelled controls. Such a control is reachable only if it gains a name in the page. This is the fail-closed direction in the design principles.
+
+**Requirement IDs:** S-03, S-26, X-13. **Tests:** `tests/safety-gate.test.js` (unnamed in both modes; whitespace-only name).
+
 ## Proposed future decisions — do not presume accepted
 
 - Browser↔Windows IPC transport, authentication, message and permission protocol.

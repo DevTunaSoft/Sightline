@@ -40,6 +40,11 @@ export function classifyActionRisk(action, target = {}, context = {}) {
   if (target?.sensitive && ['read','type','clear','verify','select','check','uncheck','click'].includes(action.action)) {
     return { level: 'blocked', reason: 'Sensitive fields cannot be read or manipulated by autonomous browser control.' };
   }
+  // An unnamed control cannot be classified: an icon-only button may delete something.
+  // Fail closed. The observer does describe such controls, so this is the only gate.
+  if (action.action === 'click' && !String(target?.name || '').trim()) {
+    return { level: 'blocked', reason: 'The control has no accessible name, so the agent cannot tell what clicking it does.' };
+  }
   if (action.action === 'pressKey') {
     if (target?.sensitive) return { level: 'blocked', reason: 'Keyboard events cannot target sensitive fields.' };
     if (['Delete', 'Backspace', 'Enter'].includes(action.key)) return { level: 'high', reason: 'Key may trigger a destructive or consequential page handler.' };
