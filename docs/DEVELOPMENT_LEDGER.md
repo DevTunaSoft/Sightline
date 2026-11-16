@@ -173,3 +173,10 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Reading:** in the isolated run, neither the handle count nor the thread count changed across the 500 inspections. A leak of one handle per 500 inspections would have shown as 1. The value 4 from the parallel-collection runs was not reproduced in isolation. This is one run. It does not establish stability; repeat isolated runs are needed.
 - **Superseded run:** `43916476580` (`c9b5681`, docs-only) was cancelled by the next push. It is not a result.
 - **X-15:** the logged measurement is recorded. The cause of the parallel-collection failures is most likely the other test classes, which is UNVERIFIED as a stable result.
+
+### 2026-11-16 UTC — Side-panel layout and encoding fix (61cbf24)
+- **Run `43938095117` (run 601, head `61cbf24`): success.** Workflow conclusion success covers `validate`, `windows-foundation` and `package-extension`.
+- **Correction:** the commit message says "323 of 323 pass". The actual count at `61cbf24` is 325 (322 before, plus three new tests in `tests/panel-layout.test.js`). The message is wrong. The commit is not amended, because that would require a force-push.
+- **Measured in headless Chromium at 371 px and 400 px (not installed Chrome, X-02):** every top-row task control is fully inside the panel and hit-testable, and the page has no horizontal overflow. Before the fix, Cancel was off the panel and not clickable.
+- **Garbled text:** `panel.html` is correct in the repo (no `â` characters). A screenshot from a user's Chrome still showed the old text, so Chrome was loading an older copy of the extension. This is an operational issue, not a repo issue. The user must load the copy under `Desktop\Sightline\extension`.
+- **Still open:** confirmation in installed Chrome, and the first copy of the clone under `C:\WINDOWS\system32\Sightline` should not be used.
