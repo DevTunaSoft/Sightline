@@ -115,3 +115,18 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - Finding (verified by probe): the gate allowed a click on an unnamed button in assist and autonomous mode, with no confirmation and no effect check. My earlier claim that observation requires names was wrong; `describeElement` does not filter unnamed elements. Test first (`tests/safety-gate.test.js`), then fix: unnamed clicks are blocked (`ACTION_BLOCKED`, S-26, ADR-009). Npm check: 320 of 320.
 - Dossier: X-13 corrected and marked fixed in code; X-14 added for the HasExited finding.
 - Not verified: live-page behaviour of the unnamed-click block (X-02). The .NET build of `f8b00b2` is pending CI.
+
+### 2026-11-16 UTC — CI results for f8b00b2 and b54c509; PR #8 blocker corrected
+- **Run `43875040443` (head `f8b00b2`): cancelled.** `validate` and `package-extension` succeeded. `windows-foundation` was cancelled during "Build Windows foundation" because the newer push `b54c509` superseded it (concurrency cancel-in-progress, C-04). Core and safety steps were skipped. So `f8b00b2` has no Windows result of its own.
+- **Run `43875178272` (head `b54c509`): failure.**
+  - `validate` success (includes `npm run check`).
+  - `package-extension` success.
+  - `windows-foundation` failure at "Test Windows safety layer" (step 7). The build succeeded with 0 warnings and 0 errors, so the `HasExited` change in `f8b00b2` compiles. This is the first build verification of that change. Core tests: 65 passed, 0 failed. Windows tests: 33 passed, 1 failed (of 34).
+  - Failing test: `ProcessInspectionTests.Repeated_current_process_inspection_does_not_accumulate_handles_or_threads`, `ProcessInspectionTests.cs:69`, `Assert.InRange((long)afterHandles - beforeHandles, -1, 1)`, actual 4.
+  - The resource-baseline steps were skipped.
+- **Same step fails on PR #8.** Run `42892688011` (2026-11-10, head `520a425`) failed `windows-foundation` at the same step, with the same test, the same line and the same actual value (4). Core 19 passed; Windows tests 16 passed, 1 failed (of 17).
+- **Interpretation, UNVERIFIED:** the assertion counts process-wide handles over 500 inspections. The three test classes in `Sightline.Windows.Tests` run in parallel by default, and the repo sets no override, so concurrent tests may change the count. This is a probable cause, not a confirmed leak. The test to settle it: run `ProcessInspectionTests` in a non-parallel collection in CI and read the delta.
+- **Correction to earlier notes:** G-09 described a reverse diff, not the merge result. A simulated three-way merge of PR #8 head `520a425` into `origin/develop` is clean: 164 insertions, nothing deleted, wiring preserved (`git merge-tree`, tree `98dd7f3`). PR #8's real blocker is its failing Windows job.
+- **Working-branch status:** red at the same test. The unnamed-click gate (S-26) passed `validate` in CI.
+- **Dossier:** G-09 corrected; G-12 (PR #8 failing job) added; X-15 (the failing test) added; ADR-008 updated in `docs/DECISIONS.md`. No GitHub action on PR #8.
+- **Next:** (1) run the test non-parallel in CI to separate noise from a leak; (2) only then decide on PR #8, which is the operator's call.

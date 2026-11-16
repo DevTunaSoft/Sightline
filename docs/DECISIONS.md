@@ -90,27 +90,19 @@ Use this register for consequential design decisions. Decisions are not implemen
 
 **Requirement IDs:** S-13, S-17. **Tests:** `tests/agent-panel-debugger-toggle.test.js` (static source checks only; browser behaviour is BLOCKED under X-02).
 
-## ADR-008 — PR #8 should be replaced by the rebased branch (recommendation; no GitHub action taken)
+## ADR-008 — PR #8: do not merge or replace until its Windows job is green (updated 2026-11-16)
 
-**Status:** Proposed. Recommended, not executed. Closing or changing PR #8 is a GitHub action and needs your go-ahead.
+**Status:** Proposed. No GitHub action taken. Merging, replacing or closing PR #8 is an operator decision (dossier section 11).
 
-**Context:** PR #8 branches from an older `develop` and would remove approval and journal wiring from `WindowsAutomationSession` (G-08, G-09). `feature/windows-process-inspection-v0-rebased` (`c0f12d4`) is based on current `develop` and adds the process-inspection code without deleting develop's Windows code. Its JS suite passes (272/272 at `c0f12d4`). The .NET build has not been run here (W-07), and the rebased branch has no CI run.
+**Context:** PR #8 (head `520a425`, base `develop` at the older commit `34261c4`) adds 164 lines across 4 files. Its last CI run (`42892688011`, 2026-11-10) failed its `windows-foundation` job at "Test Windows safety layer". The failing test is `ProcessInspectionTests.Repeated_current_process_inspection_does_not_accumulate_handles_or_threads` (`ProcessInspectionTests.cs:69`, process-wide handle delta of 4, allowed -1 to 1). The earlier reason for this ADR, that merging PR #8 removes approval and journal wiring (G-09), came from a reverse diff. A simulated three-way merge of `520a425` into current `origin/develop` (`git merge-tree`) is clean: 164 insertions, nothing deleted, wiring preserved.
 
-**Recommendation:** Replace PR #8 with the rebased branch after a CI run on that branch confirms it builds. Until then, do not merge PR #8.
+**Decision:** Do not merge PR #8 until its own Windows job is green. The rebased port (`c0f12d4`) is not a safe replacement yet either. The same test fails on this branch, where the same process-inspection code is merged (run `43875178272`, head `b54c509`).
 
-## ADR-009 — A click on an unnamed control is blocked
+**Options:** (a) Confirm the failure is measurement noise, then fix the test's measurement and get green CI on the candidate. (b) If the failure is a real handle leak, fix `WindowsProcessInspector`. (c) Close PR #8 and keep only the port. Choosing among these is the operator's call.
 
-**Status:** Accepted (engineering default). This strengthens the gate and weakens no rule.
+**Next step, not yet done:** Run `ProcessInspectionTests` in a non-parallel collection in CI and read the handle delta. A delta of 0 or 1 in isolation points to noise from parallel test classes. A delta of 4 that persists points to a leak.
 
-**Context:** The observer describes every visible interactive element, named or not. `classifyActionRisk` classified a click on an empty-named button as normal, so an icon-only delete button could be clicked with no confirmation and no effect check. An earlier note in the dossier wrongly said observation requires names.
-
-**Decision:** A click whose target has no accessible name (empty or whitespace only) is blocked with `ACTION_BLOCKED`. No confirmation prompt is offered, per S-03. Other action types are unchanged.
-
-**Options rejected:** asking for confirmation on unnamed clicks (the effect check would still have no name to verify, so it would always stop with `NO_VERIFIED_EFFECT`); allowing them as normal (the current gap).
-
-**Consequences:** The planner can no longer click unlabelled controls. Such a control is reachable only if it gains a name in the page. This is the fail-closed direction in the design principles.
-
-**Requirement IDs:** S-03, S-26, X-13. **Tests:** `tests/safety-gate.test.js` (unnamed in both modes; whitespace-only name).
+**Requirement IDs:** G-07, G-08, G-09 (corrected), G-12, X-09, X-15.
 
 ## Proposed future decisions — do not presume accepted
 
