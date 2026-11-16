@@ -4,6 +4,14 @@
 
 Prepared 2026-11-16 from the state of `develop` at commit `5725533`.
 
+> **Status update, 2026-11-16 (later the same day).** Since this book was written, on `claude/serene-mayer-ckp8ee`:
+> - Takeover Chapter 43 items 1–4, 7 and 13 are done. Item 10 is partly done (S-25, S-26, S-27).
+> - PR #8's merge result is clean (G-09 corrected). Its last CI failure is recorded (G-12). Its decision is still open (ADR-008).
+> - X-13 (clicks on unnamed controls) is fixed in code. The process-inspection handle test runs in an isolated collection and has passed in five CI runs (X-15). The logged isolated deltas are 0 handles and 0 threads.
+> - Items 5, 6, 9 and 11, and the Chrome, desktop and Ollama checks, remain BLOCKED in this environment.
+>
+> The sections below describe the state at `5725533` and are not updated. The current record is `CLAUDE.md` section 9 and `docs/DEVELOPMENT_LEDGER.md`.
+
 ---
 
 ## How to read this book

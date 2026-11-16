@@ -84,7 +84,7 @@ Do not quote a hash from memory. Read it with `git ls-remote`.
 
 | ID | Claim | Evidence | Status |
 |---|---|---|---|
-| G-03 | `develop` is at `fb8c9ec`. | `git ls-remote origin refs/heads/develop` | VERIFIED at verification time. Moves. |
+| G-03 | `develop` was `fb8c9ec` at verification time. On 2026-11-16 it was `0f33739`. | `git ls-remote origin refs/heads/develop` | VERIFIED 2026-11-16 (moves) |
 | G-04 | `main` has 17 commits that `develop` lacks, and `develop` has 564 that `main` lacks. The merge base is `6102381`. The earlier figure of 20 was `main`'s total commit count (`git rev-list --count origin/main`), not its divergence. | After `git fetch --unshallow`: `git rev-list --count origin/develop..origin/main` = 17; `git rev-list --count origin/main..origin/develop` = 564; `git merge-base origin/main origin/develop` = `6102381` (checked 2026-11-16). A shallow clone undercounts. | VERIFIED 2026-11-16 (local count; an earlier GitHub compare showed 561 ahead and 17 behind) |
 | G-05 | `a836297` added a 312-line temporary file named `develop` at the repo root. `edc55d2` removed it. | `git show --stat a836297` and `git show --stat edc55d2` | VERIFIED |
 | G-06 | The nine documentation files from `main` were ported in `fa3859d`: `.github/pull_request_template.md`, `CONTRIBUTING.md`, `SECURITY.md`, `docs/DECISIONS.md`, `docs/DEVELOPMENT_LEDGER.md`, `docs/PROJECT_BRIEF_AND_TAKEOVER.md`, `docs/RELEASE_READINESS.md`, `docs/REQUIREMENTS_AND_ACCEPTANCE.md`, `docs/SOURCE_MAP.md`. | `git show --name-only fa3859d` | VERIFIED |
@@ -140,7 +140,7 @@ Claude-Session: <session URL, if the operator gives one>
 | ID | Claim | Evidence | Status |
 |---|---|---|---|
 | T-01 | `npm run check` exits 0 with 307 tests passing and 0 failing. | Re-run during verification: `# tests 307`, `# pass 307`, `# fail 0`, exit 0 | VERIFIED at `fb8c9ec` |
-| T-02 | The repo has 37 Node test files under `tests/`. | `ls tests/*.test.js \| wc -l` | VERIFIED |
+| T-02 | The repo has 38 Node test files under `tests/` (2026-11-16; 37 at `fb8c9ec`). | `ls tests/*.test.js \| wc -l` | VERIFIED 2026-11-16 |
 | T-03 | Every extension module is named in the `check` script. | Script comparison in this session: unchecked list was empty | VERIFIED |
 | T-04 | Node 22 is used in the sandbox and in CI. | `node -v` = v22.23.4; `.github/workflows/ci.yml` sets Node 22 | VERIFIED |
 | T-05 | There are no npm dependencies. | `package.json` has empty `dependencies` and `devDependencies` | VERIFIED |
@@ -153,7 +153,7 @@ Claude-Session: <session URL, if the operator gives one>
 
 | ID | Claim | Evidence | Status |
 |---|---|---|---|
-| C-01 | Triggers: pushes to `main` and `develop`, and pull requests into them. | `ci.yml` lines 3–7 | VERIFIED |
+| C-01 | Triggers: pushes to `main`, `develop` and `claude/serene-mayer-ckp8ee`, and pull requests into `main` and `develop`. The working-branch trigger was added in `4a66f1d`. | `ci.yml` lines 3–6 | VERIFIED 2026-11-16 |
 | C-02 | Jobs: `validate` (ubuntu-latest, Node 22), `windows-foundation` (windows-latest, .NET 8.0.x), `package-extension` (ubuntu-latest). | `ci.yml` | VERIFIED |
 | C-03 | `windows-foundation` builds, runs Core and safety tests, captures resource baselines and a repeated-session trend, and uploads `sightline-windows-test-results-<sha>`. | `ci.yml` lines 30–61 | VERIFIED |
 | C-04 | Runs cancel in progress for the same ref. | `ci.yml` concurrency block | VERIFIED |
@@ -361,7 +361,7 @@ Record each check as PASS, FAIL, or BLOCKED. Do not mark the whole procedure PAS
 1. Confirm the baseline: fetch (G-02), `npm run check` (T-01), latest CI (C-05).
 2. Run the installed-browser acceptance (section 10) and record each check.
 3. Test whether Chrome shows the debugging banner, and record the result, which resolves S-17.
-4. Add a panel setting for debugger clicks, off by default, with a label that matches what step 3 shows. Test it. Do not change the default.
+4. ~~Add a panel setting for debugger clicks, off by default.~~ Done in `71fdfbb`: an unchecked toggle, read per run, not saved. §11 lists this as an operator decision. It was added under the operator's "figure it out" instruction and is recorded in ADR-007.
 5. Run the debugger click path on the local fixture in Chrome. Record the result.
 6. ~~Add an outcome check after debugger clicks (X-01).~~ Done in `1296283`; live Chrome confirmation remains under step 5.
 7. Decide the planning-model question with the operator (section 11). Benchmark the general task loop on 20–30 saved real pages.
@@ -394,7 +394,7 @@ Record each check as PASS, FAIL, or BLOCKED. Do not mark the whole procedure PAS
 - **No .NET in the sandbox** (W-07). Do not claim a local C# build.
 - **Interactive checks need a desktop.** Chrome and WPF/UI Automation results cannot come from this sandbox.
 - **Live pages differ from fixtures** (X-05).
-- **Stale numbers.** A recommendation text the operator pasted in an earlier session cited eight JavaScript failures and 17 main-only commits. Those figures are out of date and are not in `docs/HANDOFF.md`. Current: 313 tests passing (T-01), 17 main-only commits (G-04).
+- **Stale numbers.** A recommendation text the operator pasted in an earlier session cited eight JavaScript failures and 17 main-only commits. Those figures are out of date and are not in `docs/HANDOFF.md`. Current (2026-11-16, `63a3720`): 322 tests passing (T-01 is the `fb8c9ec` figure), 17 main-only commits (G-04).
 
 ## Appendix A. Re-verification commands
 
@@ -458,3 +458,4 @@ command -v dotnet || echo "no dotnet"
 
 - Dossier rewritten on 2026-11-12 after a verification pass against `fb8c9ec`. Corrections from the earlier draft: Windows UI framework (P-05, P-06), safety levels for "Empty Trash" and "Delete permanently" (S-02), the main-only commits (G-05), PR #8 branch size (G-08), the approval window (five minutes), the vision endpoint location (P-03), and the stale-number attribution (section 14).
 - The debugging-banner claim was downgraded from fact to UNVERIFIED (S-17) after the Chrome debugger reference was found silent on it.
+- 2026-11-16: Appendix A re-run where this container allows it (A-1, A-7, A-8, A-9, A-10, A-11). A-4, A-5 and A-6 use `gh`, which is not available here; the GitHub tools were used instead. Corrected G-03, C-01, T-02, §12 step 4 and §14. The per-change history is in `docs/DEVELOPMENT_LEDGER.md`, entries dated 2026-11-16.
