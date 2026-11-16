@@ -305,7 +305,7 @@ Verification note: the debugger path re-observes the tab after input is dispatch
 |---|---|---|
 | X-01 | Debugger clicks had no outcome check after dispatch. Fixed in `1296283`: the runner re-observes and requires a structural effect, else `NO_VERIFIED_EFFECT`/`UNKNOWN_EFFECT`. Fake-browser tests only; real Chrome is X-02. | FIXED in code; live check BLOCKED (X-02) |
 | X-02 | Debugger clicks have not run in Chrome. Tests use fake browser objects. | BLOCKED on a Chrome run |
-| X-03 | Installed-browser acceptance (section 10). The browser self-test was run by the operator in installed Chrome on 2026-11-16 and the panel reported `SELF_TEST_PASS`. 11 of the 12 check lines are seen as PASS in a pasted copy; the first line, 'Observe fixture', is confirmed only through the overall result until the exported JSON is received. Chrome version not yet reported. The debugger path (X-02) and the debugging banner (S-17) are not part of this run. | PARTIAL: self-test PASS in installed Chrome (operator); export and Chrome version pending |
+| X-03 | Installed-browser acceptance (section 10). The browser self-test was run by the operator in installed Chrome on 2026-11-16. The exported report has outcome `SELF_TEST_PASS` with all 19 success-path checks `ok: true`. Chrome version not yet reported. The debugger path (X-02) and the debugging banner (S-17) are not part of this run. | PASS for the browser self-test in installed Chrome (operator export); Chrome version pending |
 | X-04 | Live Ollama acceptance has not been run. | BLOCKED (needs Ollama) |
 | X-05 | Live Yahoo Mail page layout has not been captured. Fixtures match the parser format, not a live page. | UNVERIFIED |
 | X-06 | Windows desktop acceptance has not been run on a real desktop. | BLOCKED |
@@ -328,24 +328,31 @@ This checks the real extension in a real browser. It does not use a model.
 3. Choose **Load unpacked**. Select the repository's `extension` folder.
 4. Run `tools\start-browser-acceptance.cmd`. It serves `tests/fixtures/` at `http://127.0.0.1:8765/`.
 5. Open that address in the same browser.
-6. The self-test runs these checks. The names are from `extension/browser-self-test.js`:
-   - Observe fixture
+6. The self-test runs these checks on success. The names are from `extension/browser-self-test.js`. The failure path emits `Observe fixture` instead, when the page cannot be observed:
    - Dedicated localhost fixture
    - Semantic controls discovered
    - Sensitive fields redacted
    - Opaque frame reported
    - Same-origin frame reported
-   - Top-page search box found, type action succeeded
-   - Search button found, top-page click succeeded
+   - Top-page search box found
+   - Type action succeeded
+   - Search button found
+   - Top-page click succeeded
    - Top-page state change verified
-   - Same-origin iframe controls found, frame metadata present, iframe type succeeded, iframe click succeeded, iframe state change visible
-   - Destructive fixture control found, destructive action requires confirmation
-   - Cross-origin fixture link found, cross-origin link requires confirmation
+   - Same-origin iframe controls found
+   - Iframe control carries frame metadata
+   - Iframe type succeeded
+   - Iframe click succeeded
+   - Iframe state change visible
+   - Destructive fixture control found
+   - Destructive action requires confirmation
+   - Cross-origin fixture link found
+   - Cross-origin link requires confirmation
 7. The self-test returns `SELF_TEST_WRONG_PAGE` and takes no action unless the active page is the fixture on `localhost` or `127.0.0.1`.
 
 Record each check as PASS, FAIL, or BLOCKED. Do not mark the whole procedure PASS from a partial run. The debugger click path is not in this self-test. Test it as a separate step on the same fixture.
 
-Result, 2026-11-16 (operator, installed Chrome, version not yet reported): the panel shows `Self-test complete — SELF_TEST_PASS`. 11 of the 12 check lines are seen as PASS in a pasted copy (dedicated fixture, semantic controls, sensitive fields redacted, both frame checks, search and type, top-page click and state change, iframe checks, destructive control requires confirmation, cross-origin link requires confirmation). 'Observe fixture' is not in the copy and is pending the exported JSON.
+Result, 2026-11-16 (operator, installed Chrome, version not yet reported): the exported report (`generatedAt` 2026-11-16T19:40:40Z) has outcome `SELF_TEST_PASS` with all 19 success-path checks `ok: true`. The debugger click path is not in this self-test (X-02).
 
 ## 11. Open decisions (ask the operator first)
 

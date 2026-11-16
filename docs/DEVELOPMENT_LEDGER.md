@@ -192,3 +192,9 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Checks seen as PASS:** dedicated localhost fixture; semantic controls discovered (12 controls); sensitive fields redacted; opaque frame reported; same-origin frame reported; top-page search box found and type succeeded; search button found and top-page click succeeded; top-page state change verified; same-origin iframe controls found, frame metadata present, iframe type and click succeeded, iframe state change visible; destructive control found and requires confirmation (`CONFIRMATION_REQUIRED`); cross-origin link found and requires confirmation (`CONFIRMATION_REQUIRED`).
 - **Dossier updates:** X-03 moved to PARTIAL. S-01 and S-11 gained installed-Chrome evidence from this run. The debugger path (X-02) and the Chrome debugging banner (S-17) are still open. They are not part of this self-test.
 - **Previous blocker:** the first run failed with Chrome's host-permission error. Fixed by ADR-011 (`ed2fac6`).
+
+### 2026-11-16 UTC — Installed-Chrome browser self-test: exported report confirms SELF_TEST_PASS
+- **Exported report** (`generatedAt` 2026-11-16T19:40:40Z): outcome `SELF_TEST_PASS`. All 19 success-path checks are `ok: true`: dedicated localhost fixture; semantic controls (12); sensitive fields redacted; opaque and same-origin frame reports; top-page search, type, click and state change; same-origin iframe controls, frame metadata, type, click and state change; destructive control found and `CONFIRMATION_REQUIRED`; cross-origin link found and `CONFIRMATION_REQUIRED`.
+- **Correction to section 10:** the dossier listed "Observe fixture" as a success-path check. The source emits it only when observing the page fails. The section now lists the 19 success-path names.
+- **Chrome version:** not yet reported. Requested from `chrome://version`.
+- **Still open:** the debugger-click path in installed Chrome (X-02) and the Chrome debugging-banner question (S-17).
