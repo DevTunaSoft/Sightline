@@ -26,7 +26,7 @@ public sealed class WindowsProcessInspector : IDesktopProcessInspector
                     ProcessId: process.Id,
                     Name: process.ProcessName,
                     MainWindowHandle: process.MainWindowHandle.ToInt64(),
-                    HasExited: false));
+                    HasExited: process.HasExited));
         }
         catch (ArgumentException)
         {
