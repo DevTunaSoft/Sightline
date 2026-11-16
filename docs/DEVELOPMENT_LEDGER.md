@@ -159,3 +159,9 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **X-15 status:** three isolated passes (`43879086125`, `43898207891`, `43898827553`) and three parallel-collection failures, all with the same test and actual value 4.
 - **Inference (UNVERIFIED):** a real leak of about 4 handles per 500 inspections would also appear in the isolated runs. None did. The parallel-collection noise explanation fits. A leak of one handle per 500 would still be inside the bound, so the test cannot rule it out. Logging the measured delta would close that gap.
 - This docs-only commit triggers one more run, which is another isolated sample.
+
+### 2026-11-16 UTC — CI for 0e4e0db and 17bf690
+- **Run `43899645491` (head `0e4e0db`, docs-only): success.** Fourth isolated pass for the process-inspection test.
+- **Run `43913750921` (head `17bf690`, classifier change S-27 and ADR-010): success.** Every job passed, including the Windows safety-layer step. Fifth isolated pass.
+- **X-15 status:** five isolated passes and three parallel-collection failures, all with the same test and actual value 4. The cause is still UNVERIFIED because the measured delta is not logged.
+- **Stopping point:** the remaining dossier §12 items need Chrome, a Windows desktop, Ollama or your decision. PR #8 is still yours to decide.
