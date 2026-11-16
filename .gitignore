@@ -1,0 +1,8 @@
+.artifacts/
+.vs/
+**/bin/
+**/obj/
+**/TestResults/
+node_modules/
+windows/windows-resource.json
+*.user

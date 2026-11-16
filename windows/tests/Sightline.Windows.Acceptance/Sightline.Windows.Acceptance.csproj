@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sightline.Core\Sightline.Core.csproj" />
+    <ProjectReference Include="..\..\src\Sightline.Windows\Sightline.Windows.csproj" />
+  </ItemGroup>
+</Project>

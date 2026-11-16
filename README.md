@@ -1,101 +1,177 @@
+## Engineering takeover documentation
+
+The complete [Sightline V3 master engineering handoff](docs/handoff/SIGHTLINE_MASTER_HANDOFF_V3_2026-11-11.md) captures the product vision, user-request rationale, design decisions, architecture, implementation history, acceptance requirements, and next-engineer instructions. The chronological [development ledger](docs/HANDOFF.md) remains the source of truth for verified recent work. The V3 dossier is a point-in-time reference; reconcile its claims with the current code and tests before implementing changes.
+
 # Sightline
 
-**See. Understand. Act.**
+> **See. Understand. Act.**
 
-> **Developer and AI takeover:** Start with [Project Brief and Developer Takeover](docs/PROJECT_BRIEF_AND_TAKEOVER.md). It records the full Windows + browser vision, safety/resource rules, current branch topology, evidence requirements, and exact continuation steps.
->
-> **Branch awareness (2026-11-10):** `main` contains the earlier browser documentation baseline; the expanded browser implementation is on `develop`, and the standalone Windows foundation is in [open PR #6](https://github.com/DevTunaSoft/Sightline/pull/6) (`feature/windows-foundation-v0`, targeting `develop`). Do **not** treat open-PR functionality as merged or production-ready.
+Sightline is a local-first visual browser agent for Chrome and Edge. It combines bounded semantic page understanding, local AI through Ollama, controlled browser actions, visual fallback, recovery, and explicit safety gates.
 
-**Local-first Windows visual AI assistant with a Chrome/Edge browser companion.**
+## Current release
 
-**Development continuity:** [Source map](docs/SOURCE_MAP.md) · [Development ledger](docs/DEVELOPMENT_LEDGER.md) · [Release readiness](docs/RELEASE_READINESS.md). Pull requests also include an evidence and anti-duplication checklist.
+**0.2.0-alpha — active development**
 
-**Contributing and governance:** [Contributor guide](CONTRIBUTING.md) · [Security and privacy policy](SECURITY.md) · [Architecture decisions](docs/DECISIONS.md). These define safe change procedures, reporting, and the rationale behind the architecture.
+The current `develop` branch includes the browser-agent alpha foundation. The repository check suite is passing. Real installed-browser, live Ollama, and real Yahoo-account acceptance remain separate gates and are not being claimed prematurely.
 
-**Requirements and verification:** [Traceability & Acceptance Matrix](docs/REQUIREMENTS_AND_ACCEPTANCE.md) maps individual requirements to owners, evidence, limitations, and release gates. Future contributors should use it alongside the [takeover guide](docs/PROJECT_BRIEF_AND_TAKEOVER.md).
+## What Sightline can do now
 
-Sightline is being built as a privacy-first browser agent that combines visual understanding with controlled browser automation.
+- Observe normal HTTP(S) webpages from a Manifest V3 side panel
+- Build a bounded semantic snapshot of visible controls and page text
+- Read same-origin iframe controls while treating cross-origin frames as opaque
+- Propose and execute typed actions: read, click, type, clear, select, check/uncheck, scroll, navigate, keypress, wait, verify
+- Re-observe the live DOM immediately before actions
+- Detect stale references/page changes and re-plan safely
+- Pin a task to its starting tab and approved origins
+- Pause/resume from a sanitized session checkpoint
+- Cancel and erase the checkpoint
+- Use Ollama locally for JSON planning
+- Request bounded vision fallback only when semantic data is insufficient
+- Stop planner/vision loops with hard budgets
+- Require confirmation for destructive and cross-origin actions
+- Require explicit intent for irreversible deletion
+- Apply Yahoo Mail-specific search/destructive-action guardrails
+- Export sanitized agent diagnostics/performance evidence
+- Run deterministic installed-browser, local-AI, and Yahoo-readiness acceptance checks
 
-## Project goals
+## Privacy and safety
 
-- Understand the current browser tab from screenshots and page context
-- Analyze shared screens and local video
-- Answer questions about what is visible
-- Use local multimodal AI through Ollama
-- Add semantic browser actions such as click, type, scroll, select, navigate, wait, and verify
-- Support multi-step tasks such as searching a webmail inbox
-- Keep credentials and visual data local by default
-- Require confirmation for destructive/high-impact actions by default
-- Resist prompt injection from webpage content
-- Recover from stale elements, navigation, timeouts, and interrupted tasks
+Sightline treats webpage content, screenshots, DOM text, and model output as **untrusted data**.
 
-## Current status
+The AI cannot execute arbitrary JavaScript or shell commands. It proposes a typed action, and trusted deterministic code validates and executes it.
 
-### Implemented in the local v0.1 prototype
+Important controls include:
+- no broad `<all_urls>` permission
+- Ollama loopback-only integration
+- password/OTP/payment/token-like field redaction
+- no textbox values used as semantic labels
+- no typed text or full navigation URLs in resume checkpoints
+- no typed payloads or screenshots in exported agent diagnostics
+- live semantic revalidation before every action
+- confirmation binding to task + snapshot + target + action
+- task-tab and origin locks
+- explicit user handoff for login/MFA/CAPTCHA/security challenges
 
-- Manifest V3 Chrome/Edge side-panel architecture
-- Current-tab screenshot analysis
-- Screen-share and local-video visual sources
-- Local Ollama vision integration
-- Vision-model capability discovery
-- Periodic scene observations
-- Conversational questions about the visible content
-- Markdown and JSON note export
-- Frame resizing and scene-change detection
-- Bounded observation/context memory
-- Local-only endpoint restrictions
-- Input validation and cloud-model blocking
-- Prompt-injection-oriented visual system prompt
-- Automated unit/fuzz tests
+See [Security Model](docs/SECURITY.md).
 
-### Next engineering milestone
+## Resource strategy
 
-The next milestone adds the **browser action layer**:
+Sightline follows:
 
-1. Typed action protocol — no arbitrary AI-generated JavaScript
-2. Semantic DOM/accessibility state extraction
-3. Click/type/scroll/select/navigate/read/wait/verify actions
-4. Action verification after every step
-5. Planner → act → observe → verify → recover loop
-6. Loop/stall detection and bounded execution
-7. Sensitive-field redaction
-8. Confirmation gates for destructive actions
-9. Yahoo Mail as the first real-world workflow adapter
-10. Expanded fuzz, fault-injection, and regression testing
+> **Deterministic software before AI. DOM before vision.**
 
-## Safety model
+Hard budgets include:
+- 300 semantic controls
+- 48 KB semantic snapshot
+- 8 KB visible page text
+- 40 action-history checkpoint tail
+- 200 diagnostic-event tail
+- 40 default actions per browser task
+- 120-second default task window
+- 90-second planner request timeout
+- one malformed-planner repair retry
+- maximum two vision fallbacks per task
+- maximum one vision fallback for the same semantic state
 
-Sightline will treat webpage content as untrusted data. Text displayed by a webpage cannot override the user's task or the agent's safety rules. Passwords, authentication tokens, and other sensitive fields should not be collected into AI context.
+See [Performance](docs/PERFORMANCE.md).
 
-Actions that can cause meaningful loss or external effects—such as deleting messages, sending mail, purchasing, or changing account settings—will receive additional verification and, by default, a user confirmation checkpoint.
+## Quick start
 
-## Local AI
+### 1. Load the extension
 
-The prototype targets Ollama on loopback only:
+In Chrome:
 
-`http://127.0.0.1:11434`
-
-A small local vision model such as `gemma3:4b` is the initial target. Model/runtime performance still requires real Windows acceptance testing.
-
-## Verification status
-
-The prototype's JavaScript validation and automated unit/fuzz suite previously passed locally during development. Real browser-extension lifecycle testing and live Ollama inference were **not** completed in the hosted development environment because browser-extension pages/loopback browser navigation were blocked and Ollama was unavailable there.
-
-Those limitations are intentionally documented rather than reported as successful acceptance tests.
-
-## Planned repository structure
-
-```
-extension/       Browser extension source
-tests/           Automated tests and fixtures
-docs/            Architecture, roadmap, QA, handoff, and user documentation
-.github/         CI workflows
-README.md
-package.json
+```text
+chrome://extensions
 ```
 
-## Project stage
+In Edge:
 
-**Active development — not production-ready.**
+```text
+edge://extensions
+```
 
-The immediate goal is a dependable browser agent that can both understand a webpage and safely carry out user-directed actions on it.
+Enable **Developer mode**, choose **Load unpacked**, and select the repository's `extension` folder.
+
+### 2. Run the deterministic browser self-test
+
+From the repository root on Windows:
+
+```text
+tools\start-browser-acceptance.cmd
+```
+
+Open Sightline on the local fixture and click **Run browser self-test**.
+
+This does **not** require Ollama.
+
+### 3. Configure local AI
+
+Install/start Ollama, install a local vision model, and allow the exact Sightline extension origin. Example model:
+
+```text
+ollama pull gemma3:4b
+```
+
+After loading Sightline, copy its exact extension ID and configure Ollama with:
+
+```text
+OLLAMA_ORIGINS=chrome-extension://YOUR_ACTUAL_EXTENSION_ID
+```
+
+Restart Ollama after changing the variable.
+
+Then click:
+- **Load installed models**
+- choose a local vision model
+- **Test local AI**
+
+### 4. Check Yahoo safely
+
+Open your already-signed-in Yahoo Mail page and click **Yahoo readiness**.
+
+That check is read-only. It does not search, select, move, or delete mail.
+
+## Browser-agent modes
+
+**Observe** — analyze/explain without page mutation.
+
+**Assist** — perform ordinary browser actions; consequential actions stop for confirmation.
+
+**Autonomous** — execute bounded multi-step tasks; safety gates still apply.
+
+## Acceptance commands
+
+```text
+npm run check
+npm run benchmark:core
+npm run acceptance:serve
+npm run acceptance:ollama
+```
+
+For the installed-browser procedure see [Browser Acceptance](docs/BROWSER_ACCEPTANCE.md).
+
+## Documentation
+
+- [Feature Status](docs/FEATURE_STATUS.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security Model](docs/SECURITY.md)
+- [Performance](docs/PERFORMANCE.md)
+- [Browser Acceptance](docs/BROWSER_ACCEPTANCE.md)
+- [Beginner User Manual](docs/USER_MANUAL.md)
+- [Engineering Handoff](docs/HANDOFF.md)
+- [Changelog](docs/CHANGELOG.md)
+
+## Development branches
+
+- `main` — verified integration baseline
+- `develop` — active integrated engineering
+
+CI validates source/tests and publishes the `extension/` directory as a GitHub Actions artifact.
+
+## Production status
+
+Sightline is **not production-ready yet**.
+
+Remaining release gates include real Chrome and Edge acceptance, live local-model acceptance, real Yahoo non-destructive/destructive acceptance using controlled test data, long-session resource soak, permission/security review, and release packaging verification.

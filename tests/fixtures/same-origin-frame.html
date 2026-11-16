@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Sightline same-origin frame fixture</title></head>
+<body>
+  <label for="frame-search">Frame search</label>
+  <input id="frame-search" type="text" placeholder="Search inside frame">
+  <button id="frame-button" type="button">Frame action</button>
+  <div id="frame-status">Frame ready</div>
+  <script>
+    document.getElementById('frame-button').addEventListener('click', () => {
+      document.getElementById('frame-status').textContent =
+        'Frame action completed: ' + (document.getElementById('frame-search').value || '(empty)');
+    });
+  </script>
+</body>
+</html>

@@ -1,520 +1,131 @@
 # Sightline Engineering Roadmap
 
-> **Mission:** A local-first visual browser agent that can see, understand, act, verify, recover, and complete useful browser workflows without becoming bloated, opaque, or resource-hungry.
-
-## Engineering principles
-
-1. **Deterministic code before AI.** DOM/accessibility APIs perform ordinary browser work; vision/LLM inference is used only when it adds value.
-2. **Semantic targeting before coordinates.** Prefer roles, labels, text, state, and stable references.
-3. **AI proposes; trusted code executes.** No arbitrary model-generated JavaScript, shell, or browser eval.
-4. **Observe → Act → Verify.** Every meaningful action produces a fresh observation and an explicit success/failure result.
-5. **Local-first and privacy-first.** Credentials/tokens/password fields never enter model context.
-6. **Bound everything.** Context, logs, screenshots, retries, actions, task time, model calls, and memory all have ceilings.
-7. **Measure performance.** A feature that works but creates unacceptable CPU/RAM growth fails acceptance.
-8. **Evidence over claims.** Implemented, tested, real-browser verified, and production-ready are separate statuses.
-9. **Small modules, explicit contracts.** UI, observer, planner, executor, verifier, safety, skills, AI, and diagnostics stay separable.
-10. **No endless hardening loops.** See Anti-Loop Protocol below.
-
-## Product modes
-
-### Observe
-See/read/explain only. No browser mutation.
-
-### Assist
-Sightline may navigate and manipulate ordinary controls. High-impact actions require confirmation.
-
-### Autonomous
-Sightline completes bounded multi-step tasks independently. Safety policy can still stop destructive/high-impact operations.
-
----
-
-# Phase 0 — Repository + verified baseline
-
-**Status:** IN PROGRESS
-
-Deliverables:
-- official Sightline branding
-- canonical v0.1 source imported
-- source manifest preserved
-- README, roadmap, QA report, changelog, architecture, user manual, handoff
-- main/develop branch discipline
-- CI for syntax + automated tests
-
-Exit criteria:
-- canonical source present in GitHub
-- tests reproducibly runnable
-- docs distinguish verified/unverified behavior
-- no legacy product-name confusion
-
----
-
-# Phase 1 — Lightweight semantic page observer
-
-Build the compact representation Sightline uses before vision.
-
-Features:
-- visible interactive-element discovery
-- accessibility role/name
-- labels/placeholders/text
-- checkbox/radio/select state
-- enabled/disabled/read-only state
-- visibility/actionability
-- bounding boxes
-- frame/tab identity
-- stable ephemeral refs such as @e12
-- sensitive-field redaction
-- snapshot hashing/difference
-- bounded snapshot size
-- iframe-aware architecture
-- stale-ref invalidation
-
-Performance:
-- no continuous screenshots
-- observer runs on demand/event boundaries
-- aggressively discard superseded snapshots
-- cap elements/text sent to AI
-
-Exit criteria:
-- deterministic fixtures produce stable snapshots
-- sensitive fixtures are redacted
-- large-page fixture stays inside defined memory/time budget
-- stale refs are rejected
-
----
-
-# Phase 2 — Typed browser action engine
-
-Supported primitives:
-- read
-- click
-- type
-- clear
-- select
-- check/uncheck
-- scroll
-- navigate/back/forward
-- press-key
-- wait
-- verify
-- tab list/switch/open/close where permission allows
-
-Executor features:
-- strict schema validation
-- target re-resolution before action
-- actionability checks
-- timeout/cancellation
-- navigation detection
-- stale-element handling
-- structured result receipts
-- no arbitrary JS execution
-
-Exit criteria:
-- fixture pages support complete action matrix
-- malformed actions cannot execute
-- ambiguous/stale targets fail safely
-- post-action receipts describe what actually occurred
-
----
-
-# Phase 3 — Verification + autonomous task engine
-
-Loop:
-**Goal → Plan → Observe → Act → Verify → Continue / Re-plan / Recover / Complete**
-
-Features:
-- explicit task goal
-- compact plan
-- completion criteria
-- action budget
-- time budget
-- inference budget
-- cancellation
-- repeated-state detection
-- repeated-action detection
-- progress scoring
-- stall detector
-- bounded retry policy
-- re-plan after changed state
-- checkpoint/task state
-- interruption recovery
-- action/audit timeline
-
-Exit criteria:
-- multi-step fixture tasks complete
-- impossible task terminates cleanly
-- deliberately looping task is stopped
-- interruption resumes from checkpoint without replaying completed destructive actions
-
----
-
-# Phase 4 — Safety and prompt-injection defenses
-
-Features:
-- webpage text always treated as untrusted data
-- instruction/data boundary enforcement
-- password/token/auth/payment redaction
-- domain/navigation policy
-- sensitive-action classifier
-- confirmation gate
-- action target revalidation after confirmation
-- secret-field restrictions
-- download/upload restrictions
-- audit entries for consequential actions
-- human handoff for CAPTCHA/MFA/login challenges
-
-Default confirmation categories:
-- delete/bulk delete
-- send/post/publish
-- purchase/payment
-- account/security changes
-- permission grants
-- irreversible or difficult-to-reverse actions
-
-Exit criteria:
-- adversarial webpage fixtures cannot override task policy
-- destructive action cannot cross gate without required approval
-- target is revalidated after approval
-
----
-
-# Phase 5 — Local AI routing + resource governor
-
-Features:
-- Ollama local vision/text support
-- capability discovery
-- model health checks
-- model timeout/cancellation
-- deterministic operations bypass AI
-- DOM-first / vision-fallback routing
-- image downscaling/cropping
-- compact context builder
-- bounded conversation/task memory
-- model-call telemetry
-- inference failure fallback
-- future adapter interface for additional local/OpenAI-compatible runtimes
-
-Initial performance targets (to be benchmarked and adjusted using evidence):
-- extension idle CPU: effectively near-zero
-- no periodic inference while idle
-- extension normal-working RAM target: <150 MB excluding model runtime
-- no unbounded memory growth in long sessions
-- only one foreground inference by default
-- screenshots released after use unless explicitly retained for a task
-- bounded logs and snapshots
-
-Exit criteria:
-- resource benchmark recorded
-- long-session test shows no sustained growth attributable to retained task artifacts
-- ordinary semantic actions work without vision calls
-
----
-
-# Phase 6 — Yahoo Mail: first production workflow skill
-
-Features:
-- recognize Yahoo Mail state
-- use existing signed-in browser session
-- search inbox
-- inspect/filter results
-- select messages
-- paginate/handle result sets
-- preview bulk operation
-- move messages to Trash after confirmation
-- verify result
-- recover from UI changes where generic semantics suffice
-- never capture/store Yahoo password
-
-Acceptance scenario:
-“Find Amazon emails older than six months, show me the count and sample, then move them to Trash after I approve.”
-
-Exit criteria:
-- non-destructive search/read scenario passes first
-- destructive fixture passes confirmation/verification
-- real-account acceptance is documented separately and never inferred from fixture success
-
----
-
-# Phase 7 — Skills framework
-
-Features:
-- reusable site/workflow skills
-- versioned skill schema
-- declarative selectors/semantic hints where possible
-- preconditions
-- actions
-- verification rules
-- recovery hints
-- permission/domain scope
-- skill diagnostics
-- generic engine fallback
-
-Candidate skills after Yahoo:
-- Gmail
-- Outlook Web
-- common search engines
-- GitHub
-- web forms
-- file-download workflows
-
-Exit criteria:
-- at least two materially different sites work without contaminating core with site-specific hacks
-
----
-
-# Phase 8 — Multi-tab and cross-site tasks
-
-Features:
-- tab inventory
-- task-owned tabs
-- tab locks
-- safe switching
-- cross-site plan constraints
-- per-domain permissions
-- navigation history for recovery
-- task context isolation
-
-Exit criteria:
-- cross-tab fixture completes without acting on wrong tab/domain
-
----
-
-# Phase 9 — Memory, history, and reusable workflows
-
-Features:
-- local task history
-- resumable checkpoints
-- user-approved reusable workflows
-- compact structured memory instead of giant transcripts
-- retention controls
-- clear/delete task data
-- bounded storage
-- searchable diagnostics
-
-No hidden unlimited memory.
-
----
-
-# Phase 10 — Diagnostics + observability
-
-Features:
-- structured local logs
-- action receipts
-- model-call timing
-- observer timing
-- memory/CPU sampling
-- task timeline
-- failure classification
-- sanitized diagnostic export
-- no passwords/tokens in logs
-- self-test page
-
-Goal: when Sightline fails, we can determine **where and why** instead of guessing.
-
----
-
-# Phase 11 — Reliability/fuzz/fault-injection program
-
-Continuously expand—not repeat—the suite:
-- malformed model responses
-- invalid actions
-- huge DOMs
-- rapidly mutating DOMs
-- stale refs
-- duplicate labels
-- hidden/disabled controls
-- iframes
-- SPA navigation
-- navigation races
-- slow pages
-- network interruption
-- Ollama unavailable/crash/timeout
-- extension reload
-- task interruption
-- corrupted checkpoint
-- repeated-state loops
-- prompt injection
-- Unicode/RTL/long text
-- memory soak
-- long-running sessions
-
-Every discovered defect requires:
-1. root-cause classification
-2. permanent correction
-3. focused regression test
-4. affected-suite rerun
-5. full-suite run at release gates
-
----
-
-# Phase 12 — Windows companion
-
-After browser automation is dependable:
-- Windows desktop companion
-- screen understanding outside browser
-- application/window targeting
-- controlled keyboard/mouse actions
-- local IPC with browser extension
-- strict permission boundary
-- packaged installer
-- crash recovery
-
-Browser pages continue using semantic browser automation rather than coordinate clicking whenever possible.
-
----
-
-# Phase 13 — Production UX
-
-Features:
-- polished Sightline side panel
-- task composer
-- Observe / Assist / Autonomous selector
-- visible plan
-- live progress
-- action history
-- pause/cancel
-- confirmations
-- model/runtime settings
-- permission manager
-- diagnostics
-- onboarding
-- beginner-friendly manual
-- accessibility
-- branding/icons/About
-
----
-
-# Phase 14 — Release candidate / 1.0
-
-Required gates:
-- automated suite green
-- browser fixture acceptance green
-- real Chrome acceptance
-- real Edge acceptance
-- live local-model acceptance
-- Yahoo real-world acceptance
-- destructive-action gate acceptance
-- interruption/recovery acceptance
-- performance/soak acceptance
-- permissions/security review
-- documentation audit
-- clean install/update/uninstall verification
-
-No 1.0 claim before these gates have evidence.
-
----
-
-# Anti-Loop Protocol
-
-This is mandatory for Sightline development.
-
-## One issue = one measurable outcome
-
-Every engineering issue must contain:
-- problem/deliverable
-- acceptance criteria
-- test/evidence required
-- dependencies
-- out-of-scope items
-
-## Maximum retry rule
-
-Do not repeat the same failed implementation/test cycle indefinitely.
-
-After **2 failed correction attempts with the same root-cause class**:
-1. stop repeating the approach
-2. record the blocker
-3. reduce to the smallest reproduction
-4. change strategy/design or isolate the blocked portion
-5. continue independent roadmap work when safe
-
-## No test-loop theater
-
-A test rerun with no source/config/environment change is not progress unless it is specifically checking nondeterminism.
-
-Each development cycle must produce at least one of:
-- source change
-- new test covering a new path
-- documented root cause
-- measured benchmark
-- verified acceptance evidence
-- explicit external/environment blocker
-- architecture decision that removes a blocker
-
-## Phase exit discipline
-
-Once phase acceptance criteria pass, move forward. Hardening continues through regression testing but does not keep the project trapped in the completed phase.
-
-## Blocker classes
-
-Every blocker must be labeled:
-- CODE
-- TEST
-- ENVIRONMENT
-- EXTERNAL SERVICE
-- PERMISSION
-- HARDWARE
-- DESIGN DECISION
-
-Environment/external blockers must not be falsely reported as product defects or passes.
-
-## Progress ledger
-
-Maintain:
-- current phase
-- last verified commit
-- tests executed
-- pass/fail counts
-- new defects
-- fixed defects
-- blockers
-- performance measurements
-- next three concrete tasks
-
-## Branch discipline
-
-- `main`: verified integration baseline
-- `develop`: active integrated development
-- focused feature/fix branches when changes are risky or substantial
-- no long-lived abandoned experimental branches
-- merge only with evidence appropriate to the phase
-
----
-
-# Documentation contract
-
-Keep these current:
-- README
-- ROADMAP
-- ARCHITECTURE
-- FEATURE_STATUS
-- USER_MANUAL
-- QA_REPORT
-- CHANGELOG
-- HANDOFF
-- PERFORMANCE
-- SECURITY
-
-Documentation must use explicit states:
-- Planned
-- In progress
-- Implemented
-- Automated-test verified
-- Real-browser verified
-- Production accepted
-
----
-
-# Immediate execution order
-
-1. Import and preserve canonical v0.1 source.
-2. Complete Sightline branding cleanup.
-3. Add CI and baseline documentation.
-4. Implement semantic page observer.
-5. Implement typed action schema/executor.
-6. Add post-action verification.
-7. Implement bounded autonomous loop and stall detector.
-8. Add safety/confirmation gate.
-9. Benchmark resource usage.
-10. Build Yahoo Mail skill.
-11. Expand adversarial/fuzz/fault-injection tests.
-12. Perform real Chrome/Edge/Ollama acceptance.
+Last updated: 2026-11-11
+
+## Product direction
+
+Sightline is a **lightweight standalone Windows application** with the existing Chrome/Edge extension retained as its browser companion.
+
+Core rule: **structured information before pixels; deterministic software before AI.**
+
+## Phase 0 — Baseline and reconciliation
+Status: **AUTOMATED BASELINE PASS; REAL BROWSER ACCEPTANCE REMAINS**
+
+Browser alpha preserved, CI repaired, Windows duplication audit completed.
+
+## Phase 1 — Windows Foundation v0
+Status: **AUTOMATED FOUNDATION PASS; REAL DESKTOP ACCEPTANCE REMAINS**
+
+Implemented: .NET split, bounded/fail-closed UIA observation, element leases, cancellation/budgets, WPF fixture/runner, Windows CI, resource telemetry.
+
+## Phase 2 — Diagnostics and automated acceptance
+Status: **SUBSTANTIALLY IMPLEMENTED**
+
+Implemented: structured bounded diagnostics, rotating/redacted file sink, stress tests, acceptance harness, resource/soak evidence.
+
+Remaining: crash/recovery bundle, broader fault injection, real interactive evidence.
+
+## Phase 3 — Safe Windows actions
+Status: **PARTIAL**
+
+Implemented: Invoke, SetValue/readback, live re-resolution, stale rejection, focus verification, user-activity lease, typed failures, and a bounded single-use approval primitive (SHA-256 digest only; no cached typed values, polling or background worker).
+
+Next: verify the new approval unit tests and disposable WPF acceptance runner on Windows; implement the **trusted production confirmation GUI** and secure reconciliation UI, plus moving-target/geometry protection and additional semantic patterns only as needed.
+
+## Phase 4 — Reliability and recovery
+Status: **PARTIAL**
+
+Implemented: process/window/snapshot identity binding and bounded UIA circuit breaker. A single pending, write-through Windows mutation journal now fails closed when an action is not confirmed or a previous record remains; the file contains metadata only and the implementation has no resident worker.
+
+Next: verify the .NET journal and WPF acceptance on Windows; add trusted persistent per-user journal provisioning, independent effect reconciliation and production single-use approvals. Complete broader checkpoints, crash-loop protection, transactional file operations, and Windows task resume/cancel/pause.
+
+## Phase 5 — Deterministic Windows capabilities
+Status: **STARTED**
+
+Implemented: bounded top-level window discovery using Win32 EnumWindows with hard result/title limits and no polling.
+
+Next: explicit application launch/attach, bounded process metadata, filesystem, clipboard, File Explorer, Notepad.
+
+## Phase 6 — Browser integration
+
+Bounded IPC from `Sightline.exe` to the existing extension; preserve DOM-first browser execution.
+
+## Phase 7 — Vision/OCR
+
+Only after semantic automation is reliable: ROI-first capture, privacy masking, Windows OCR, optional local vision, DPI/window-bound capture leases.
+
+## Phase 8 — Lightweight local intelligence
+
+Optional tiny quantized GGUF runtime for bounded interpretation/routing; larger Ollama/local endpoint only for difficult reasoning/vision. Require lazy loading, bounded context/KV cache, streaming, cancellation, unload policy, and graceful OOM behavior.
+
+## Phase 9 — Learned deterministic workflows
+
+AI discovers -> Sightline verifies -> learns -> compiles -> deterministic reuse.
+
+## Phase 10 — Hardening
+
+Fuzzing, fault injection, races, mixed DPI/monitors, sleep/wake/lock, elevation, active-UIA soak, security/privacy, upgrade/migration.
+
+## Phase 11 — Production lifecycle
+
+Lightweight GUI/activity monitor, self-test, installer/uninstaller, safe update/rollback, safe mode, diagnostic export, release acceptance.
+
+## 2026-11-11 — Browser low-memory and uncertain-effect checkpoint
+
+**Implemented on `develop` (full suite not yet verified):** DOM waits now release abort listeners and timers on completion or cancellation; element references cannot exceed the observer's existing 300-element ceiling even if configured with an enormous cap; the task-loop stall guard retains a fixed-size numeric fingerprint instead of a string copy of typed text/URLs. No new dependency or background polling was added. Browser action-handler exceptions and cancellation after a possible mutation are marked `UNKNOWN_EFFECT` and blocked from automatic recovery/replay.
+
+**Acceptance still required:** run `npm run check` on the exact branch commit; Chrome/Edge stress tests for long sessions, repeated waits, tab switching, cancellation and crash recovery; measure retained heap, event listeners and idle CPU against the previous revision, with regressions treated as defects. Isolated tests prove bounded structures and listener cleanup, **not a measured production RAM reduction**.
+
+**Next unblocked priorities:** Windows durable write-ahead action records and explicit single-use approval UX, real desktop UIA identity/acceptance, then browser end-to-end validation and lightweight optional local AI provisioning. Preserve structured-first and lazy loading policies.
+
+## 2026-11-11 — Low-memory observer and Windows safety checkpoint
+
+Implemented on `develop`: bounded lazy DOM/text walks avoid retaining large selector-result arrays; hard overrides cannot exceed 300 actionable elements, 12,000 inspected DOM nodes, or 6,000 text nodes. Observations reaching scan limits are marked partial, preventing unsafe high-impact actions. Existing ref registry and snapshot caps remain intact. **23/23 targeted observer tests passed** in an isolated V8 harness; actual Chrome/Edge memory/CPU measurements are **NOT RUN**.
+
+Windows Invoke now reports `UnknownEffect` until independently verified, even if a UIA provider accepted it. The one-time approval component also revokes permission after malformed/throwing observations and declines to approve credential-named or unidentifiable controls. Targeted XUnit regressions were written but **NOT RUN**, since .NET is unavailable in this environment.
+
+Next: full Node and .NET build/test pipelines at the exact commit, real-browser heap/CPU long-session measurements, controlled WPF confirmation/recovery acceptance, then production trusted approval UX.
+
+## 2026-11-11 — Bounded frame discovery and complete-coverage safeguards
+
+The browser observer now discovers embedded frames with the same lazy DOM-walk primitive used for interactive controls; no full `querySelectorAll('iframe,frame')` list is created. Frame discovery visits at most 6,000 DOM nodes, inspects at most 20 frames, and retains at most 21 document contexts including the top page. Existing interactive-node, text-node and snapshot limits remain enforced. Visible-text overflow and partial frame discovery now correctly flag incomplete observations and prevent consequential actions from proceeding on missing context.
+
+**Executed:** 35/35 targeted observer-core/visibility/integrated snapshot tests PASS in isolated V8. **NOT RUN:** full Node `npm run check`, installed Chrome/Edge behavior, heap/CPU profiling, and Windows .NET tests. Lower peak collection allocation is the design goal, not a verified RAM benchmark. Next: full CI acceptance and controlled real-browser scan-latency/memory comparisons, then production Windows consent and recovery UX.
+
+## 2026-11-11 — Strict per-observation text processing budgets
+
+The observer previously normalized an entire text node with regular expressions before applying its short output cap. Oversized webpages could therefore create large temporary strings even though the stored snapshot was small.
+
+The shared normalizer now limits examined input to **32,768 UTF-16 units per value**, and the text collector enforces a **65,536-unit aggregate scan budget per page observation**, with an **8,000-character maximum retained text**. Work stops when the shared budget is exhausted; the snapshot is marked partial to prevent acting on unobserved content. No additional dependencies, services, polling or unbounded caches.
+
+**Executed:** 45/45 current GitHub observer test cases PASS in an isolated V8 harness, including Unicode equivalence, deterministic fuzz tests, huge inputs, aggregate budget exhaustion and fake-DOM snapshot regressions. **NOT RUN:** full `npm run check`, installed Chrome/Edge memory/CPU profiling and Windows .NET acceptance. Lower transient allocation is expected from the algorithm but **not yet measured**.
+
+**Next gate:** Run full CI and Chrome/Edge controlled long-page stress tests, compare peak retained heap, scan latency, and idle CPU against the previous commit; resolve any real-device incompatibility before declaring production acceptance.
+
+## 2026-11-11 — Bounded browser actions follow-up
+
+The browser DOM adapter now applies the same strict text budgets used by observation: read/verify operations stop after 6,000 text nodes or 65,536 UTF-16 source units; an incomplete read cannot prove an action succeeded. Dropdown selection examines no more than 2,048 live options without copying the full option list. Both are fail-closed and add no resident memory, background tasks or dependencies.
+
+**Executed:** 45/45 observer and 20/20 DOM adapter targeted checks PASS in isolated JavaScript execution (**65/65 total**). Source readback and corrections to a misplaced temporary GitHub test-file write also verified. **NOT RUN:** complete Node test suite, installed Chrome/Edge acceptance, long-session heap/CPU measurements, and current Windows .NET tests.
+
+**Next release gate:** run the full suite on the exact `develop` commit; benchmark Chrome/Edge large DOMs and dropdowns for allocation, scan latency and stability; then complete Windows trusted consent and reconciliation acceptance. Review any remaining unbounded accessible-name/label construction.
+
+## 2026-11-11 — Bounded accessible names
+
+Sightline now limits accessible-name inspection to 16 `aria-labelledby` IDs or 16 indexed live labels, with a 2,048-character ID budget and 4,096-character source-text budget. This avoids unbounded label-list expansions and combined-string allocations on large pages. Incomplete control names mark the observation truncated, so higher-risk actions cannot depend on partial target identity. The implementation reuses the existing page-text collector and a single observation-wide status flag instead of copying each semantic descriptor.
+
+**Evidence:** 50/50 targeted observer tests passed against the exact `develop` source in isolated V8, including tests with oversized labels and normal small labels. Real Chrome/Edge heap, CPU and scan-latency measurements, full Node `npm run check`, and .NET Windows acceptance remain **NOT RUN / UNVERIFIED**. Do not infer a measured RAM percentage.
+
+## 2026-11-11 — Credential-metadata consistency and bounded inspection
+
+A shared field detector now independently inspects type, autocomplete tokens, name, ID and editable-field accessibility hints at both observation and action time. Section-prefixed password/OTP/card autocomplete tokens are recognized. Strings beyond the metadata inspection ceiling fail closed rather than allowing a sensitive suffix to bypass checks. No extra model call, cache, polling loop, timer, dependency or background worker was added.
+
+**PASS:** 86/86 current observer and DOM adapter regression checks under isolated V8 shims, including redaction, action blocking, linked external labels, changed labels, benign button compatibility and overlong metadata. Native and `aria-labelledby` associations now have bounded action-time checks without per-label metadata allocations. **NOT RUN:** full Node suite, real Chrome/Edge and Windows acceptance, measured RAM/CPU. Next: real-browser dynamic-label/long-session tests, CPU and heap benchmarks, and end-to-end browser and Windows acceptance.
+
+## Resource policy
+
+Memory growth is a defect. Run #251 reduced measured 1,000-cycle idle-session allocation from ~11.24 MB to ~0.84 MB by making bounded element/diagnostic storage lazy. Keep measured regression guards and do not infer production RAM ceilings from hosted runners.
+
+## Existing browser acceptance gates
+
+Installed Chrome, installed Edge, extension-origin Ollama, and real Yahoo controlled acceptance remain required.

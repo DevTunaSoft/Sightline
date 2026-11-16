@@ -1,0 +1,19 @@
+<Window x:Class="Sightline.Windows.TestTarget.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sightline Windows Test Target" Height="360" Width="520">
+  <StackPanel Margin="20">
+    <TextBlock Text="Sightline deterministic UI Automation fixture" Margin="0,0,0,12"/>
+    <TextBox x:Name="InputBox" AutomationProperties.AutomationId="InputBox" Margin="0,0,0,8"/>
+    <Button x:Name="ApplyButton" AutomationProperties.AutomationId="ApplyButton"
+            Content="Apply" Click="ApplyButton_Click" Margin="0,0,0,8"/>
+    <CheckBox x:Name="ReadyCheck" AutomationProperties.AutomationId="ReadyCheck"
+              Content="Ready" Margin="0,0,0,8"/>
+    <ComboBox x:Name="ModeCombo" AutomationProperties.AutomationId="ModeCombo" SelectedIndex="0">
+      <ComboBoxItem Content="Alpha"/>
+      <ComboBoxItem Content="Beta"/>
+    </ComboBox>
+    <TextBlock x:Name="ResultText" AutomationProperties.AutomationId="ResultText"
+               Text="Idle" Margin="0,12,0,0"/>
+  </StackPanel>
+</Window>

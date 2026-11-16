@@ -1,0 +1,125 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { yahooMailSkill } from '../extension/skills/yahoo-mail.js';
+import { skillPlannerContext } from '../extension/skill-registry.js';
+
+test('Yahoo snapshot analyzer deterministically identifies core mail controls and count', () => {
+  const snapshot = {
+    url: 'https://mail.yahoo.com/d/search/name=amazon',
+    visibleText: 'Search results: Showing 1-327 of 327',
+    elements: [
+      { ref: '@e1', role: 'textbox', name: 'Search mail', sensitive: false },
+      { ref: '@e2', role: 'checkbox', name: 'Select all messages', sensitive: false },
+      { ref: '@e3', role: 'button', name: 'Move selected messages to Trash', sensitive: false },
+      { ref: '@e4', role: 'link', name: 'Amazon.com Your order has shipped yesterday', sensitive: false },
+      { ref: '@e5', role: 'link', name: 'Amazon receipt for order 12345', sensitive: false },
+    ],
+  };
+  const analysis = yahooMailSkill.analyzeSnapshot(snapshot);
+  assert.equal(analysis.searchRef, '@e1');
+  assert.equal(analysis.selectAllRef, '@e2');
+  assert.deepEqual(analysis.trashRefs, ['@e3']);
+  assert.equal(analysis.visibleCount, 327);
+  assert.equal(analysis.messageSamples.length, 2);
+  assert.equal(analysis.messageSamples[0].ref, '@e4');
+});
+
+test('Yahoo planner context includes bounded deterministic page hints', () => {
+  const snapshot = {
+    url: 'https://mail.yahoo.com/d/folders/1',
+    visibleText: 'Showing 1-42 of 42 messages',
+    elements: [{ ref: '@e1', role: 'textbox', name: 'Search mail', sensitive: false }],
+  };
+  const context = skillPlannerContext(snapshot.url, snapshot);
+  assert.equal(context.pageHints.searchRef, '@e1');
+  assert.equal(context.pageHints.visibleCount, 42);
+  assert.ok(context.pageHints.messageSamples.length <= 5);
+});
+
+test('Yahoo analyzer never samples sensitive fields or navigation chrome', () => {
+  const analysis = yahooMailSkill.analyzeSnapshot({
+    url: 'https://mail.yahoo.com/',
+    visibleText: 'Inbox',
+    elements: [
+      { ref: '@e1', role: 'textbox', name: 'Password', sensitive: true },
+      { ref: '@e2', role: 'link', name: 'Inbox 99', sensitive: false },
+      { ref: '@e3', role: 'link', name: 'Real subject from sender', sensitive: false },
+    ],
+  });
+  assert.deepEqual(analysis.messageSamples, [{ ref: '@e3', role: 'link', name: 'Real subject from sender' }]);
+});
+
+
+test('Yahoo Trash verification accepts count decrease and success signal', () => {
+  const before={url:'https://mail.yahoo.com/d/search',visibleText:'Showing 1-12 of 12',elements:[
+    {ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},
+    {ref:'@e2',role:'link',name:'Amazon order shipped yesterday',sensitive:false},
+  ]};
+  const after={url:before.url,visibleText:'Showing 1-10 of 10. Selected messages moved to Trash.',elements:[]};
+  const result=yahooMailSkill.verifyActionEffect({action:{action:'click',ref:'@e1'},target:before.elements[0],before,after});
+  assert.equal(result.applicable,true);
+  // Free-text success lines are untrusted and cannot certify deletion; only the count is evidence here.
+  assert.equal(result.verified,null);
+  assert.ok(result.evidence.some(item=>/count decreased/.test(item)));
+});
+
+test('Yahoo Trash verification remains inconclusive when only unrelated state changed', () => {
+  const before={url:'https://mail.yahoo.com/d/search',visibleText:'Showing 1-12 of 12',elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
+  const after={url:before.url,visibleText:'Showing 1-12 of 12',elements:[{ref:'@e9',role:'button',name:'Move selected messages to Trash',sensitive:false}]};
+  const result=yahooMailSkill.verifyActionEffect({action:{action:'click',ref:'@e1'},target:before.elements[0],before,after});
+  assert.equal(result.applicable,true);
+  assert.equal(result.verified,null);
+});
+
+
+test('Yahoo analyzer exposes visible advanced-search controls without inventing syntax', () => {
+  const snapshot={
+    url:'https://mail.yahoo.com/d/search',
+    visibleText:'Advanced search',
+    elements:[
+      {ref:'@e1',role:'button',name:'Advanced Search',sensitive:false},
+      {ref:'@e2',role:'textbox',name:'From',sensitive:false},
+      {ref:'@e3',role:'textbox',name:'Subject',sensitive:false},
+      {ref:'@e4',role:'button',name:'Date range',sensitive:false},
+      {ref:'@e5',role:'textbox',name:'Search mail',sensitive:false},
+    ],
+  };
+  const analysis=yahooMailSkill.analyzeSnapshot(snapshot);
+  assert.equal(analysis.searchRef,'@e5');
+  assert.equal(analysis.advancedSearchRef,'@e1');
+  assert.equal(analysis.fromFieldRef,'@e2');
+  assert.equal(analysis.subjectFieldRef,'@e3');
+  assert.deepEqual(analysis.dateControlRefs,['@e4']);
+  assert.match(yahooMailSkill.guidance.join(' '),/Do not invent Yahoo search operator syntax/);
+});
+
+
+test('Yahoo destructive scope blocks unfiltered inbox Trash unless whole Inbox is explicit', () => {
+  const snapshot={
+    url:'https://mail.yahoo.com/d/folders/1',
+    visibleText:'Inbox 500 messages',
+    elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false}],
+  };
+  const action={action:'click',ref:'@e1'};
+  const target=snapshot.elements[0];
+  const scoped=yahooMailSkill.checkDestructiveScope({goal:'Delete old Amazon emails',snapshot,action,target});
+  assert.equal(scoped.allowed,false);
+  assert.equal(scoped.code,'DESTRUCTIVE_SCOPE_UNVERIFIED');
+
+  const explicit=yahooMailSkill.checkDestructiveScope({goal:'Delete all messages in my inbox',snapshot,action,target});
+  assert.equal(explicit.allowed,true);
+  assert.equal(explicit.scope,'explicit-whole-inbox');
+});
+
+test('Yahoo destructive scope accepts visible search-result state', () => {
+  const snapshot={
+    url:'https://mail.yahoo.com/d/search/name=amazon',
+    visibleText:'Search results: Showing 1-12 of 12',
+    elements:[{ref:'@e1',role:'button',name:'Move selected messages to Trash',sensitive:false},{ref:'@e0',role:'textbox',name:'Search mail',sensitive:false}],
+  };
+  const result=yahooMailSkill.checkDestructiveScope({
+    goal:'Delete old Amazon emails',snapshot,action:{action:'click',ref:'@e1'},target:snapshot.elements[0]
+  });
+  assert.equal(result.allowed,true);
+  assert.equal(result.scope,'search-results');
+});
