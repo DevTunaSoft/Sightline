@@ -78,7 +78,7 @@ test('opt-in debugger click runs only after confirmation and two agreeing locate
   assert.deepEqual(env.commands.map(c => c[0]), ['consume', 'attach', 'Input.dispatchMouseEvent', 'Input.dispatchMouseEvent', 'detach']);
   assert.equal(env.consumes.length, 1, 'the approval is spent exactly once');
   assert.equal(env.consumes[0].confirmationKey, 'k', 'the approval is spent with the key the person confirmed');
-  assert.equal(env.messages.filter(m => m === 'SIGHTLINE_LOCATE').length, 2);
+  assert.equal(env.messages.filter(m => m === 'SIGHTLINE_LOCATE').length, 3, 'two agreeing locates, then one more immediately before input');
   assert.equal(env.execCount(), 1, 'page-script confirmed execute is not used for debugger clicks');
 });
 
@@ -168,4 +168,22 @@ test('a debugger click whose page cannot be re-observed reports UNKNOWN_EFFECT a
   assert.equal(result.ok, false);
   assert.equal(env.consumes.length, 1, 'a second confirmation is never spent on the same unknown effect');
   assert.ok(result.timeline?.some(item => item.receipt?.code === 'UNKNOWN_EFFECT' || result.code === 'UNKNOWN_EFFECT'), 'the unknown effect is reported');
+});
+
+test('a target that moves while the approval is spent is refused before input', async () => {
+  // Two locates agree; the third, taken right before input, has moved.
+  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }, { x: 300, y: 200, width: 40, height: 20 }] });
+  let planCalls = 0;
+  const fetchImpl = async () => {
+    planCalls += 1;
+    return new Response(JSON.stringify({ message: { content: '{"done":false,"action":{"action":"click","ref":"@e1"}}' } }), { status: 200 });
+  };
+  const result = await runBrowserTask({
+    goal: 'Click next', model: 'm', chromeApi: env.chromeApi, fetchImpl,
+    confirmAction: async () => true, useDebuggerClicks: true,
+    limits: { maxActions: 1, maxRepeatedAction: 5, maxRepeatedState: 5 },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(env.consumes.length, 1, 'the approval is spent before the final check');
+  assert.equal(env.commands.some(c => c[0] === 'attach' || c[0] === 'Input.dispatchMouseEvent'), false, 'no attach or input after the target moved');
 });

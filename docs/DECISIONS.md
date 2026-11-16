@@ -75,3 +75,10 @@ Use this register for consequential design decisions. Decisions are not implemen
 - Installer packaging, update migration and signing requirements.
 
 **Template for new ADR:** ID / Date / Status / Context / Decision / Options rejected / Rationale / Consequences / Revisit trigger / Requirement IDs / Relevant branch, PR and tests.
+
+## Debugger click coordinate rule (takeover item 3)
+
+- Debugger clicks use CSS pixels relative to the top-left of the page's visible viewport, the same space as `getBoundingClientRect()` in the page. Coordinates are rounded to whole pixels.
+- The target is located twice before the approval is spent, then located once more immediately before input. All three must agree within 2 px (`CLICK_POINT_LIMITS.tolerancePx`) and be fully on screen. Any disagreement refuses the click with `STALE_TARGET`, and the approval is treated as spent.
+- Browser zoom and device pixel ratio are not corrected for. The rule is correct only while the page's own viewport metrics and the click point come from the same page, which the locate result guarantees. Zoom changes between locate and click are caught by the final locate. Frames are refused (`FRAME_TARGET`). Iframe-aware coordinates are not implemented.
+- Verification of the effect is separate (the post-click re-observe, `NO_VERIFIED_EFFECT`/`UNKNOWN_EFFECT`).

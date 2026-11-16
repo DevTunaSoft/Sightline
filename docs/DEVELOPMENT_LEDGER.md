@@ -56,3 +56,21 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
   2. Run `dotnet build` and `dotnet test` for `windows/` on a machine with the .NET 8 SDK, starting from `c0f12d4` (process-inspection) and from `develop` `0f33739`. Record counts.
   3. Run `.\tools\test-windows.ps1 -Interactive` on an interactive Windows desktop and preserve redacted evidence.
 - Exact recovery commands: `git fetch origin develop feature/windows-foundation-v0 feature/windows-process-inspection-v0-rebased` then `git worktree add --detach <dir> origin/develop` and `cd <dir> && npm run check`.
+
+### 2026-11-16 UTC — Takeover items 1–4: debugger path safety
+- Repository / branch / commit: DevTunaSoft/Sightline, `claude/serene-mayer-ckp8ee`. Commits: `f7dad7b` (imports the one-use approval spend from `feature/debugger-confirmation-consume` `903913d`, merged from unrelated history with develop taken for conflicting docs), `1296283` (post-click outcome check), `Remove insertText` commit, and the final-locate commit on this branch.
+- Requirement IDs: S-13, S-14, S-15, S-17 (not tested), X-01 (takeover item 2), CLAUDE.md section 6.
+- Baseline: develop `0f33739`; takeover book Part X items 1–4.
+- Changes:
+  1. Debugger clicks spend the one-use confirmation in the page agent before input. Replay is refused (fix from `903913d`, verified by its tests).
+  2. After dispatching a click, the runner re-observes the tab and requires `hasTargetStructuralEffect`. No effect returns `NO_VERIFIED_EFFECT` with no retry. A failed re-observe returns `UNKNOWN_EFFECT`.
+  3. A third locate runs immediately before input, after the approval is spent. Any move refuses with `STALE_TARGET` and sends no input. The coordinate rule is written in `docs/DECISIONS.md`.
+  4. `insertText` removed from `extension/cdp-input.js`, with its tests (no production caller).
+- Commands and environment: `npm run check` on each change; Node in this container; no .NET, no browser.
+- Tests: `npm run check` PASS, 313 of 313 at the final state (307 on develop before this work; +6 new/changed debugger and effect tests). Interactive Chrome/Edge run: NOT RUN (no browser here).
+- Security/privacy checks: no new network calls; no secrets logged.
+- Resource measurements: none.
+- Root cause and regression evidence: the debugger path reported `ok:true` with `changed:null` after input and did not verify the page (X-01). Regression tests: no-effect case, failed re-observe case, moved-target case, and the existing replay test.
+- Known gaps: the page-script click path's effect check is not changed. S-17 (Chrome's debugger banner) is still UNVERIFIED. Items 5–13 are not started.
+- Next three unblocked tasks: (1) run `docs/BROWSER_ACCEPTANCE.md` in installed Chrome and record PASS/FAIL per check (needs a Windows desktop); (2) test whether Chrome shows the debugging banner (S-17); (3) reconcile PR #8 and record the choice in `docs/DECISIONS.md` (needs the operator's choice; the rebased branch is the candidate).
+- Exact recovery: `git fetch --depth=200 origin '+refs/heads/develop:refs/remotes/origin/develop'` then `npm run check`.

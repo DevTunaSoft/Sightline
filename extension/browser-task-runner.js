@@ -197,6 +197,13 @@ export async function runBrowserTask({
     if (spent?.ok !== true || spent?.code !== 'CONFIRMATION_CONSUMED') {
       return { ok: false, code: spent?.code || 'CONFIRMATION_REQUIRED', error: 'The approval could not be spent, so no click was sent.' };
     }
+    // Spending the approval is an await, so the element can move after the two locates.
+    // Locate once more immediately before input and require the same point. A moved target
+    // fails closed: the approval is already spent, so the person must confirm again.
+    const finalRaw = await locate();
+    const final = validateLocateResult(finalRaw, { expectedSnapshotId: snapshot.snapshotId, viewport: finalRaw?.viewport });
+    if (!final.ok) return { ok: false, code: final.code, error: final.error };
+    if (!isSamePoint(first.point, final.point)) return { ok: false, code: 'STALE_TARGET', error: 'The element moved before the click; the approval was spent and nothing was clicked.' };
     try {
       await debuggerInput.click(taskTabId, first.point.x, first.point.y);
     } catch (error) {
