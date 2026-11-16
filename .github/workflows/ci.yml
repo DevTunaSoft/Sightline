@@ -2,7 +2,7 @@ name: Sightline CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'claude/serene-mayer-ckp8ee']
   pull_request:
     branches: [main, develop]
 
