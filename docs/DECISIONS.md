@@ -100,7 +100,7 @@ Use this register for consequential design decisions. Decisions are not implemen
 
 **Options:** (a) Confirm the failure is measurement noise, then fix the test's measurement and get green CI on the candidate. (b) If the failure is a real handle leak, fix `WindowsProcessInspector`. (c) Close PR #8 and keep only the port. Choosing among these is the operator's call.
 
-**Next step:** Done in `5b2d7bb`. With the test in a non-parallel collection, CI passed in two runs (`43879086125` and `43898207891`), including the safety layer and the resource steps. Still open: (1) log the measured handle delta so a leak can be ruled out; (2) more isolated runs; (3) the isolation change exists only on `claude/serene-mayer-ckp8ee`. PR #8's head `520a425` and `feature/windows-process-inspection-v0-rebased` still have the parallel test, so either would need that change before its CI could pass. Pushing to those branches is not done and is the operator's call.
+**Next step:** Done in `5b2d7bb`. With the test in a non-parallel collection, CI passed in three runs (`43879086125`, `43898207891` and `43898827553`), including the safety layer and the resource steps. Still open: (1) log the measured handle delta, so a small leak can be ruled out; (3) the isolation change exists only on `claude/serene-mayer-ckp8ee`. PR #8's head `520a425` and `feature/windows-process-inspection-v0-rebased` still have the parallel test, so either would need that change before its CI could pass. Pushing to those branches is not done and is the operator's call.
 
 **Requirement IDs:** G-07, G-08, G-09 (corrected), G-12, X-09, X-15.
 

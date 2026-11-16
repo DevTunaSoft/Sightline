@@ -153,3 +153,9 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
   - `windows-foundation` success at every step: build, Core tests, the safety layer step (the process-inspection test in its serial collection), and the three resource-baseline steps.
 - **X-15 status:** two isolated passes (`43879086125`, `43898207891`) and three parallel-collection failures, all with the same test and actual value 4. Still UNVERIFIED as noise. No measured delta is logged, and two passes do not establish stability.
 - **Next:** log the measured handle delta so a leak can be ruled out, then more isolated runs. This docs-only commit triggers one more run, which counts as a third isolated sample.
+
+### 2026-11-16 UTC — CI for 4d04e45: third isolated pass
+- **Run `43898827553` (head `4d04e45`, docs-only commit): success.** `validate`, `package-extension` and `windows-foundation` all succeeded. The safety-layer step passed, and so did the three resource-baseline steps.
+- **X-15 status:** three isolated passes (`43879086125`, `43898207891`, `43898827553`) and three parallel-collection failures, all with the same test and actual value 4.
+- **Inference (UNVERIFIED):** a real leak of about 4 handles per 500 inspections would also appear in the isolated runs. None did. The parallel-collection noise explanation fits. A leak of one handle per 500 would still be inside the bound, so the test cannot rule it out. Logging the measured delta would close that gap.
+- This docs-only commit triggers one more run, which is another isolated sample.
