@@ -255,7 +255,7 @@ The project's limits are part of its design, and a new engineer needs them to re
 | Shared source-scan budget per observation | 65,536 UTF-16 units |
 | Scan budget per text value | 32,768 UTF-16 units |
 | Accessible-name output per label | 240 characters |
-| Linked label IDs examined | 16, from the first 2,048 attribute characters |
+| Linked label IDs | more than 16 IDs, or an `aria-labelledby` attribute over 2,048 characters, makes the field count as sensitive (fails closed; does not partly examine it) |
 | Indexed live labels examined | 16 |
 | Source text inspected per label aggregation | 4,096 characters |
 | Select options inspected | 2,048 |
@@ -265,7 +265,7 @@ The project's limits are part of its design, and a new engineer needs them to re
 
 **Confirmation:** a confirmation is valid for five minutes (`MAX_CONFIRMATION_AGE_MS = 5 * 60 * 1000` in `extension/page-agent.js:19`) (VERIFIED: CLAUDE.md section 2.2).
 
-**Debugger clicks:** the two locates must agree within 2 CSS pixels (`CLICK_POINT_LIMITS.tolerancePx`) (VERIFIED: `extension/click-point-core.js`).
+**Debugger clicks:** the two locates must agree within 2 pixels (`CLICK_POINT_LIMITS.tolerancePx`) (VERIFIED: `extension/click-point-core.js`).
 
 One caveat applies to every number here. These limits are safeguards against runaway resource use. They are not measured production memory targets. The project has not yet run a soak test that measures real heap, CPU, or handle growth (VERIFIED: V3 section 15.8).
 
@@ -323,7 +323,8 @@ A confirmation is the mechanism that makes a risky action safe. The rules, from 
 1. The page agent decides that an action needs confirmation, and issues a `confirmationKey` bound to the action, the target, the snapshot, and the task.
 2. The key is valid for five minutes.
 3. The key can be used once. The page agent checks that the presented key matches the stored binding. A second use must fail.
-4. A new snapshot clears the pending confirmation. So does a new request.
+4. The pending confirmation is cleared when any of these happen (VERIFIED: `extension/page-agent.js`, the lines that set `pendingConfirmation = null`, read in the recheck): the snapshot id changes; a scan fails; an unrelated action that needs no confirmation runs; or a new confirmation is issued. A wrong key does not clear the legitimate pending confirmation, so an attacker's guess cannot cancel the person's review.
+5. When a confirmed action runs on the normal path, the key is consumed immediately before the side effect (VERIFIED: `extension/page-agent.js`, "Consume only an authentic token").
 5. A cancelled confirmation returns `ABORTED`, which maps to `TASK_CANCELLED`, because nothing was sent (S-07).
 
 Step 3 is the rule that the debugger path does not currently enforce, as explained in Chapter 21.
@@ -336,9 +337,9 @@ Five modules are the least tested in real conditions and the most dangerous if m
 
 **`click-point-core.js`** decides whether a located element can be clicked. It refuses a failed locate, a stale snapshot, a sensitive target, a target inside a frame, a hidden element, a bad position, and an offscreen element. It never guesses a point (VERIFIED: `extension/click-point-core.js`, read this session).
 
-**`collect-core.js`** gathers data across pages. The dossier lists it as an opt-in module (VERIFIED: CLAUDE.md section 7.1). The detail that its provenance is limited to origin and path, with page and row caps, comes from notes made during the takeover and was not re-read from the source for this book (UNVERIFIED for this book; check `extension/collect-core.js` before relying on it).
+**`collect-core.js`** gathers data across pages. Read in the recheck: it allows at most 500 pages (`COLLECT_LIMITS.maxPages`) and stops collecting when rows reach the export row limit. It keeps only the origin and path of each source, not the query string or fragment, because those can carry tokens. It caps that text at 300 characters (VERIFIED: `extension/collect-core.js`).
 
-**`export-core.js`** is listed in the dossier as the IP extraction and `.xlsx` writer (VERIFIED: CLAUDE.md section 7.1). The detail that it uses a hand-written ZIP writer with the STORE method is from takeover notes and was not re-read for this book (UNVERIFIED for this book). The URL literal exception it relies on is the OOXML namespace (S-19, VERIFIED).
+**`export-core.js`** extracts IP addresses and writes a `.xlsx` workbook. Read in the recheck: its ZIP container uses the STORE method, meaning no compression, with a CRC-32 per entry. The workbook is a minimal set of OOXML parts (VERIFIED: `extension/export-core.js`). The only URL literals it contains are the OOXML namespaces, which the release audit allows (S-19, VERIFIED).
 
 **`research-core.js`** builds search queries after redacting secrets, email addresses, file paths, URLs, IP addresses, and card-like numbers (S-21). It has no search backend, so nothing leaves the machine (X-10).
 
@@ -355,7 +356,7 @@ The debugger path has a one-use confirmation gap. Here is the exact sequence, be
 1. The page agent returns `CONFIRMATION_REQUIRED` with a `confirmationKey`, and stores the key with its binding.
 2. The runner asks the person and receives a yes.
 3. The runner calls `debuggerClickApproved`. It does not send the key to the page agent. It does two locates, compares the points, and clicks.
-4. The page agent's stored confirmation is never consumed. It is cleared only when the snapshot changes or a new request arrives.
+4. The page agent's stored confirmation is never consumed on this path, because the page agent never receives the `confirmed` call. It stays pending until one of the clearing events in Chapter 19 happens. Those include a changed snapshot and an unrelated safe action, so the approval is not reliably one-use here.
 
 So on the debugger path, nothing enforces that a confirmation works once. A refusal test should do this: obtain a confirmation for one action, complete the debugger click, then present the same key to the page agent again and expect the second use to be refused. Whether the existing tests already cover this is UNVERIFIED. The most likely outcome is that they do not, because the tests named in CLAUDE.md, `tests/debugger-click-runner.test.js` and `tests/cdp-input.test.js`, test the click and the detach, not the key.
 
@@ -446,7 +447,15 @@ These three are opt-in extras, described in Chapter 20. Together they are meant 
 
 ## Chapter 30. The approval primitive
 
-The Windows approval is a one-shot object that binds to one action on one element. It has a short expiry, it keeps only a SHA-256 fingerprint of the state (not the state itself), and it is invalidated before any new input is processed, so that a malformed or throwing snapshot cannot leave an old approval armed. It refuses targets whose metadata looks like a credential or cannot be identified (VERIFIED: HANDOFF.md, 2026-11-11 "Windows approval hardening" entry; V3 section 8.5).
+The Windows approval is a one-shot object that binds to one action on one element. This is checked directly in `windows/src/Sightline.Core/OneShotDesktopActionApproval.cs` (VERIFIED in the recheck):
+
+- **Single use.** A match clears the stored fingerprint, so a second check fails (the `IsApproved` method clears on success).
+- **Expiry.** The default window is two minutes. The constructor rejects any window longer than five minutes or zero or less. A clock that moves backward, or that has passed the expiry, clears the approval.
+- **Replacement.** Arming a new approval first clears the old one, and the code says so: an exception must not leave an old approval usable.
+- **Fingerprint, not state.** The stored value is a SHA-256 hash, not the state itself. The fingerprint covers the snapshot id, process, window, capture time, the target's reference, name, automation id, control type and depth, the action kind, and the action's value. The comparison uses a fixed-time equality check.
+- **Refusals before arming.** It refuses a truncated snapshot, a snapshot with more than 10,000 elements, duplicate references, a disabled target, a target with no name and no automation id, and a target that `SensitiveControlPolicy` marks as sensitive. That policy matches password, passcode, PIN, one-time code, card number, CVV, and similar names (VERIFIED: `windows/src/Sightline.Core/SensitiveControlPolicy.cs`).
+
+What is not done is the production screen that lets a person give the approval (Chapter 33 and Part IX).
 
 What it does not have is a production screen. The person has no trusted way to see the exact action and give consent. Until that exists, the approval has no way to be given by a real user (V3 section 15.3; `windows/README.md`).
 
@@ -779,7 +788,7 @@ Every Windows report must say that hosted CI does not drive a real desktop (CLAU
 
 **Collector.** The opt-in module that gathers data across pages.
 
-**Confirmation.** A one-use token bound to one action, one target, one snapshot, and one task, valid for five minutes.
+**Confirmation.** A one-use token bound to one action, one target, one snapshot, and one task. In the browser it is valid for five minutes. In the Windows layer the default is two minutes, and the maximum is five.
 
 **Deterministic.** Produces the same output for the same input, with no model in the loop.
 
