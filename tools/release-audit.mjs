@@ -38,7 +38,8 @@ for(const required of allowedPermissions){
 }
 
 const hosts=manifest.host_permissions||[];
-const allowedHosts=new Set(['http://127.0.0.1:11434/*','http://localhost:11434/*']);
+// 127.0.0.1:8765 is the browser acceptance fixture (operator-approved 2026-11-16, ADR-011).
+const allowedHosts=new Set(['http://127.0.0.1:11434/*','http://localhost:11434/*','http://127.0.0.1:8765/*']);
 for(const host of hosts){
   if(!allowedHosts.has(host)) fail(`Unexpected host permission: ${host}`);
 }

@@ -120,6 +120,20 @@ Use this register for consequential design decisions. Decisions are not implemen
 
 **Requirement IDs:** S-01, S-27. **Tests:** `tests/safety-gate.test.js` (gate-level: not executed without confirmation, confirmation required, high risk).
 
+## ADR-011 — Host access for the browser acceptance fixture (operator-approved)
+
+**Status:** Accepted by the operator on 2026-11-16. Scope is `http://127.0.0.1:8765/*` only.
+
+**Context:** The browser self-test's first check, "Observe fixture", failed with "Cannot access contents of the page. Extension manifest must request permission to access the respective host." Chrome grants page access through `activeTab` only after a user gesture on that exact page, and the grant is lost on navigation. In the operator's Chrome, the `activeTab` route did not hold, so the self-test stopped at its first check.
+
+**Decision:** Add `http://127.0.0.1:8765/*` to `host_permissions` in `extension/manifest.json`, add it to the audit allowlist in `tools/release-audit.mjs`, and pin the exact host list in `tests/manifest-permissions.test.js`. The permission list (S-18) does not change.
+
+**Options rejected:** `<all_urls>` or any wildcard host (never allowed by the audit or the tests); also granting `localhost:8765`, which was not requested; keeping `activeTab` only, which did not work in the operator's Chrome.
+
+**Consequences:** While the fixture server is running, the extension can read that one test page at any time, not only after a click. No other site gains access. If the fixture port changes (`SIGHTLINE_ACCEPTANCE_PORT`), the manifest, the audit and this record must change together under a new decision.
+
+**Requirement IDs:** S-18, S-23, dossier section 11 (extension permissions). **Tests:** `tests/manifest-permissions.test.js`; `tools/release-audit.mjs`. **Not yet verified:** the self-test in the operator's installed Chrome after this change (X-03).
+
 ## Proposed future decisions — do not presume accepted
 
 - Browser↔Windows IPC transport, authentication, message and permission protocol.

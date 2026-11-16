@@ -180,3 +180,9 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Measured in headless Chromium at 371 px and 400 px (not installed Chrome, X-02):** every top-row task control is fully inside the panel and hit-testable, and the page has no horizontal overflow. Before the fix, Cancel was off the panel and not clickable.
 - **Garbled text:** `panel.html` is correct in the repo (no `â` characters). A screenshot from a user's Chrome still showed the old text, so Chrome was loading an older copy of the extension. This is an operational issue, not a repo issue. The user must load the copy under `Desktop\Sightline\extension`.
 - **Still open:** confirmation in installed Chrome, and the first copy of the clone under `C:\WINDOWS\system32\Sightline` should not be used.
+
+### 2026-11-16 UTC — Browser-agent buttons wired; fixture host permission (ADR-011)
+- **Button wiring fixed** (`d1b6233`, CI run `43940669533`, run 603, success). `agent-panel.js` threw at load because it required `localAiSelfTestBtn`, which `panel.html` does not have. The same code is on `develop`. Reproduced in headless Chromium: the page error was logged and the click changed nothing. After the fix, the self-test click runs and reports.
+- **Host access approved by the operator (ADR-011, 2026-11-16):** `http://127.0.0.1:8765/*` added to `host_permissions` and to the release-audit allowlist. Pinned in `tests/manifest-permissions.test.js`. The permission list is unchanged. Release audit PASS; `npm run check` 331 of 331.
+- **Why:** the self-test's "Observe fixture" check failed with Chrome's host-permission error in the operator's Chrome. The `activeTab` route did not hold there.
+- **Not yet verified:** the self-test in the operator's installed Chrome after this change (X-03).
