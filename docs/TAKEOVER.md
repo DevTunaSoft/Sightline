@@ -19,7 +19,7 @@ Read Parts I and II in order. They tell you what the project is and why it is sh
 - **NOT RUN.** Could have been run and was not.
 - **STALE.** Was true at an earlier commit and may no longer be true.
 
-**Authority.** This book explains the project. The repo's `CLAUDE.md` is the engineering dossier and sets the working rules. If this book and `CLAUDE.md` disagree, `CLAUDE.md` wins and this book needs fixing. Section XIII lists the errors this book has already corrected in earlier documents.
+**Authority.** This book explains the project. The repo's `CLAUDE.md` is the engineering dossier and sets the working rules. If this book and `CLAUDE.md` disagree, `CLAUDE.md` wins and this book needs fixing. Chapter 41 lists the documentation errors found in the project's files, and Chapter 39 and Part IX list the open safety problems.
 
 **Where the sources are.** Part XII lists the full set of project documents and says what each one is for.
 
@@ -182,7 +182,14 @@ The browser half is a set of JavaScript modules in `extension/`. The dossier lis
 
 ## Chapter 13. Permissions, the manifest, and the release audit
 
-The extension asks for five permissions and no more: `sidePanel`, `activeTab`, `debugger`, `scripting`, and `storage` (VERIFIED: CLAUDE.md S-18, `tools/release-audit.mjs:32`).
+The extension asks for five permissions and no more: `sidePanel`, `activeTab`, `debugger`, `scripting`, and `storage` (VERIFIED: CLAUDE.md S-18, `tools/release-audit.mjs:32`, and `extension/manifest.json`, re-read in the recheck).
+
+The manifest also declares two things the earlier version of this book omitted (VERIFIED: `extension/manifest.json`, re-read in the recheck):
+
+- **Host permissions for the local model only.** `http://127.0.0.1:11434/*` and `http://localhost:11434/*`. These let the extension reach Ollama on loopback. They are not broad host access.
+- **Web-accessible resources matched to every site.** The rule lists `page-agent.js`, `page-observer.js`, `page-observer-core.js`, `ref-registry.js`, `dom-action-adapter.js`, `action-protocol.js`, `action-executor-core.js`, and `safety-gate.js`, and it matches `http://*/*` and `https://*/*`. Those are the page-side scripts, so every website can request them. That lets a site detect that the extension is installed and read those files. The security document does not mention this rule, and I have not tested its impact. See Chapter 39 and Part X.
+
+The manifest's content security policy for extension pages is `script-src 'self'; object-src 'self'`. That blocks inline scripts and remote scripts in the extension's own pages (VERIFIED: `extension/manifest.json`). The security document still lists a CSP review as required (VERIFIED: SECURITY.md, "Still required").
 
 Two of these deserve explanation. `debugger` lets the extension attach to a tab through Chrome's debugging interface. It is in the allowlist because the opt-in debugger click path needs it. It is not on by default. `activeTab` gives access only to the tab the user is looking at. The project deliberately does not request broad host access. The security document lists "no broad `<all_urls>` host permission" as an implemented control (VERIFIED: SECURITY.md).
 
@@ -495,7 +502,7 @@ Two cautions from the ledger itself apply here. Several entries record that a co
 
 ## Chapter 36. The earlier structure: a second layer of work (commit history, 2026-11-11 and before)
 
-The commit history on `develop` shows the feature commits that the browser and Windows halves are built from. The most recent six feature commits before the takeover, newest first, are these (VERIFIED: `git log --oneline -6` on `5725533`):
+The commit history on `develop` shows the feature commits that the browser and Windows halves are built from. The most recent six commits as of the dossier, newest first, are these (VERIFIED: `git log --oneline -6` on `5725533`; the branch has since gained `ca81bce`, the commit that added this book):
 
 - `5725533` docs: add CLAUDE.md engineering dossier for handoff (this takeover)
 - `fb8c9ec` feat(task): opt-in debugger clicks for confirmed actions
@@ -520,7 +527,7 @@ This is the work done during this takeover. Every item was done in the sandbox a
 
 **Takeover documents.** Produced a takeover summary, then a longer summary with the dossier appended, then a guide for a reader with no background. Each was checked against the repo before being sent. The guide corrected an error in the earlier summary: the branch divergence figure. The earlier figure, 20 commits, came from a shallow clone. GitHub's compare API reports `develop` as 561 commits ahead of `main` and 17 behind.
 
-**Claude Code setup guidance.** Gave setup instructions for Claude Code, first for the command line and then for the Windows desktop app. Several claims in that guidance are UNVERIFIED against the live app (Part XI, Chapter 42).
+**Claude Code setup guidance.** Gave setup instructions for Claude Code, first for the command line and then for the Windows desktop app. Several claims in that guidance are UNVERIFIED against the live app (Part IX, Chapter 42).
 
 **Computer control attempts.** Tried three times to reach the operator's PC through computer-control tools. The tool never listed the Claude app as an app it could see. The attempts were not successful and did not change anything on the PC.
 
@@ -552,6 +559,8 @@ Each problem has an identifier from `CLAUDE.md` section 9 or this book. Severity
 **Effect verification in general (V3 15.1).** *High.* A target that disappears might have been filtered, paginated, or changed by something unrelated. Generic structural change is not proof of a server-side change. Each destructive operation needs a trusted result check, or it should stop for manual reconciliation. This is not yet built beyond the Yahoo Mail skill.
 
 **Real-browser safety (V3 15.2).** *High.* The sensitive-label changes have isolated tests but no installed-browser test. Native labels, linked labels, dynamic labels, shadow DOM, iframes, malformed metadata, and identity changes all need testing in both Chrome and Edge.
+
+**Web-accessible resources matched to every site (found in the recheck).** *Medium, impact unverified.* The manifest lets any `http` or `https` page request the page-side scripts (Chapter 13). That exposes the extension's files and lets a site detect that it is installed. The fix is probably to narrow the match, or to remove the resources that do not need to be reachable from pages. Decide which resources need it before changing anything, and record the decision in `docs/DECISIONS.md`. Do not change the list without a test that checks the resources the page agent actually needs.
 
 **Windows consent screen (V3 15.3).** *High.* The primitive exists. The screen does not.
 
