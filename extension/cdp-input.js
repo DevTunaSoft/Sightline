@@ -39,14 +39,5 @@ export function createCdpInput(chromeApi = chrome, { isApprovedTab = () => false
         return { ok: true };
       });
     },
-    // Types text into the focused element. Caller must have confirmed the target is not sensitive.
-    insertText(tabId, text) {
-      const value = String(text ?? '');
-      if (value.length > 2000) return Promise.reject(new CdpInputError('TEXT_TOO_LONG', 'Text is longer than 2000 characters.'));
-      return withTab(tabId, async target => {
-        await chromeApi.debugger.sendCommand(target, 'Input.insertText', { text: value });
-        return { ok: true, characters: value.length };
-      });
-    },
   };
 }
