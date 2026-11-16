@@ -27,7 +27,7 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Interactive acceptance runner | Implemented / compile verified | `tools/test-windows.ps1 -Interactive`. |
 | Bounded top-level window discovery | Implemented / automated-test verified | Win32 EnumWindows, capped results/title length, optional visibility/untitled filters, no polling. |
 | Windows sensitive-control metadata/SetValue gate | Implemented / tests added, **NOT RUN** on latest code | Password/credential metadata redaction and deny-by-default actions; live UIA unverified. |
-| Windows mutation approval boundary | Implemented / tests added, **NOT RUN** on latest code | No approval provider means no Invoke/SetValue. No end-user confirmation UI or single-use approval implementation yet. |
+| Windows mutation approval boundary | Implemented / tests added, **NOT RUN** on latest code | No approval provider means no Invoke/SetValue. The single-use approval primitive exists (row below); no end-user confirmation UI yet. |
 | Windows UIA target identity hardening | Implemented / tests added, **NOT RUN** | Matches all observed type/AutomationId/Name fields and refuses empty identity; runtime ID, hierarchy and geometry checks remain missing. |
 | Windows focus sensitive-field protection | Implemented / tests added, **NOT RUN** | Refuses sensitive leases and rechecks the live password flag before focus; real Windows not verified. |
 | Depth-boundary leaf truncation | Implemented / tests added, **NOT RUN** | Inspects existence of deeper child only; leaf at exact depth no longer incorrectly marked partial. |

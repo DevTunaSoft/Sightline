@@ -85,7 +85,7 @@ Do not quote a hash from memory. Read it with `git ls-remote`.
 | ID | Claim | Evidence | Status |
 |---|---|---|---|
 | G-03 | `develop` is at `fb8c9ec`. | `git ls-remote origin refs/heads/develop` | VERIFIED at verification time. Moves. |
-| G-04 | `main` has 20 commits that `develop` lacks. | `git log --oneline origin/develop..origin/main \| wc -l` = 20 | VERIFIED |
+| G-04 | `main` has 17 commits that `develop` lacks, and `develop` has 564 that `main` lacks. The merge base is `6102381`. The earlier figure of 20 was `main`'s total commit count (`git rev-list --count origin/main`), not its divergence. | After `git fetch --unshallow`: `git rev-list --count origin/develop..origin/main` = 17; `git rev-list --count origin/main..origin/develop` = 564; `git merge-base origin/main origin/develop` = `6102381` (checked 2026-11-16). A shallow clone undercounts. | VERIFIED 2026-11-16 (local count; an earlier GitHub compare showed 561 ahead and 17 behind) |
 | G-05 | `a836297` added a 312-line temporary file named `develop` at the repo root. `edc55d2` removed it. | `git show --stat a836297` and `git show --stat edc55d2` | VERIFIED |
 | G-06 | The nine documentation files from `main` were ported in `fa3859d`: `.github/pull_request_template.md`, `CONTRIBUTING.md`, `SECURITY.md`, `docs/DECISIONS.md`, `docs/DEVELOPMENT_LEDGER.md`, `docs/PROJECT_BRIEF_AND_TAKEOVER.md`, `docs/RELEASE_READINESS.md`, `docs/REQUIREMENTS_AND_ACCEPTANCE.md`, `docs/SOURCE_MAP.md`. | `git show --name-only fa3859d` | VERIFIED |
 | G-07 | PR #8 (Windows process inspection) is open, base `develop`, head `feature/windows-process-inspection-v0`. | `gh api repos/DevTunaSoft/Sightline/pulls/8` | VERIFIED at verification time |
@@ -387,7 +387,7 @@ Record each check as PASS, FAIL, or BLOCKED. Do not mark the whole procedure PAS
 - **No .NET in the sandbox** (W-07). Do not claim a local C# build.
 - **Interactive checks need a desktop.** Chrome and WPF/UI Automation results cannot come from this sandbox.
 - **Live pages differ from fixtures** (X-05).
-- **Stale numbers.** A recommendation text the operator pasted in an earlier session cited eight JavaScript failures and 17 main-only commits. Those figures are out of date and are not in `docs/HANDOFF.md`. Current: 307 tests passing (T-01), 20 main-only commits (G-04).
+- **Stale numbers.** A recommendation text the operator pasted in an earlier session cited eight JavaScript failures and 17 main-only commits. Those figures are out of date and are not in `docs/HANDOFF.md`. Current: 313 tests passing (T-01), 17 main-only commits (G-04).
 
 ## Appendix A. Re-verification commands
 
@@ -403,7 +403,7 @@ npm run check > /tmp/check.log 2>&1; echo "exit=$?"; grep -E "^# (tests|pass|fai
 for h in fb8c9ec 29a35ad e643f00 28a4e2c fa3859d a836297 edc55d2; do git log -1 --format='%h %s' $h; done
 
 # A-3 Main-only count (G-04)
-git fetch --depth=300 origin '+refs/heads/main:refs/remotes/origin/main'
+git fetch --unshallow origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/develop:refs/remotes/origin/develop'   # a shallow clone undercounts
 git log --oneline origin/develop..origin/main | wc -l
 
 # A-4 PR #8 and its branch point (G-07, G-08)

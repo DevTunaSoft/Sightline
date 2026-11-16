@@ -74,3 +74,8 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - Known gaps: the page-script click path's effect check is not changed. S-17 (Chrome's debugger banner) is still UNVERIFIED. Items 5–13 are not started.
 - Next three unblocked tasks: (1) run `docs/BROWSER_ACCEPTANCE.md` in installed Chrome and record PASS/FAIL per check (needs a Windows desktop); (2) test whether Chrome shows the debugging banner (S-17); (3) reconcile PR #8 and record the choice in `docs/DECISIONS.md` (needs the operator's choice; the rebased branch is the candidate).
 - Exact recovery: `git fetch --depth=200 origin '+refs/heads/develop:refs/remotes/origin/develop'` then `npm run check`.
+
+### 2026-11-16 UTC — Correction: history and divergence figures
+- The earlier merge of `feature/debugger-confirmation-consume` used `--allow-unrelated-histories` on the premise that develop and this branch share no history. That was wrong. The check ran on a shallow clone. After `git fetch --unshallow`, `git merge-base origin/main origin/develop` is `6102381`, and the merge in `f7dad7b` joins existing history. The tree result is unchanged, and no history was rewritten.
+- Divergence, corrected (local count after unshallow, 2026-11-16): main has 17 commits that develop lacks; develop has 564 that main lacks. The earlier figure of 20 was main's total commit count. CLAUDE.md G-04, HANDOFF.md and the A-3 check are corrected in the same commit.
+- Still open: the product-identity note (Part XI item 5) is an operator decision and is not changed here. PR #8 and the rebased branch are not changed.
