@@ -79,3 +79,9 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - The earlier merge of `feature/debugger-confirmation-consume` used `--allow-unrelated-histories` on the premise that develop and this branch share no history. That was wrong. The check ran on a shallow clone. After `git fetch --unshallow`, `git merge-base origin/main origin/develop` is `6102381`, and the merge in `f7dad7b` joins existing history. The tree result is unchanged, and no history was rewritten.
 - Divergence, corrected (local count after unshallow, 2026-11-16): main has 17 commits that develop lacks; develop has 564 that main lacks. The earlier figure of 20 was main's total commit count. CLAUDE.md G-04, HANDOFF.md and the A-3 check are corrected in the same commit.
 - Still open: the product-identity note (Part XI item 5) is an operator decision and is not changed here. PR #8 and the rebased branch are not changed.
+
+### 2026-11-16 UTC — CI result for the working branch
+- Commit: `4a66f1d` on `claude/serene-mayer-ckp8ee`. CI run `43867299267` (run 583), event push, conclusion **success**. Checked through the GitHub Actions tool.
+- Jobs: `validate` success; `package-extension` success; `windows-foundation` success (restore, build, Core tests, safety-layer tests, resource baselines, repeated-session trend, evidence upload).
+- Meaning: hosted CI only. The Windows job builds and runs the Windows Core and safety tests on a hosted runner. It does not drive a real desktop (C-07), so interactive UIA acceptance stays BLOCKED.
+- Dossier update: X-01 (debugger outcome check) is marked fixed in code (`1296283`). Its live Chrome check remains BLOCKED under X-02. §7.2 and §12 step 6 are updated to match.

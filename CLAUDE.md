@@ -261,7 +261,7 @@ Remaining modules not in the groups above: none. Count check: 32.
 6. After execution, the runner runs the skill's independent effect check, if one applies.
 7. The checkpoint and timeline update. The loop stops on done, a limit, cancellation, or an unrecoverable error.
 
-Verification note: the debugger path's receipt reports `ok: true` once input is dispatched. It does not check the page afterward. Same as page-script clicks today. See the open items in section 9.
+Verification note: the debugger path re-observes the tab after input is dispatched and requires the same structural effect on the target as the page-script path (`hasTargetStructuralEffect`). No verified effect returns `NO_VERIFIED_EFFECT`; a failed re-observe returns `UNKNOWN_EFFECT`. Neither is retried. Verified in fake-browser tests only (`tests/debugger-click-runner.test.js`, commit `1296283`). Not verified in Chrome (X-02). See section 9.
 
 ### 7.3 Windows runtime
 
@@ -299,7 +299,7 @@ Verification note: the debugger path's receipt reports `ok: true` once input is 
 
 | ID | Gap | Status |
 |---|---|---|
-| X-01 | Debugger clicks have no outcome check after dispatch. A click that lands on the wrong element still reports success. | OPEN |
+| X-01 | Debugger clicks had no outcome check after dispatch. Fixed in `1296283`: the runner re-observes and requires a structural effect, else `NO_VERIFIED_EFFECT`/`UNKNOWN_EFFECT`. Fake-browser tests only; real Chrome is X-02. | FIXED in code; live check BLOCKED (X-02) |
 | X-02 | Debugger clicks have not run in Chrome. Tests use fake browser objects. | BLOCKED on a Chrome run |
 | X-03 | Installed-browser acceptance (section 10) has not been run. | BLOCKED (needs Chrome on Windows) |
 | X-04 | Live Ollama acceptance has not been run. | BLOCKED (needs Ollama) |
@@ -356,7 +356,7 @@ Record each check as PASS, FAIL, or BLOCKED. Do not mark the whole procedure PAS
 3. Test whether Chrome shows the debugging banner, and record the result, which resolves S-17.
 4. Add a panel setting for debugger clicks, off by default, with a label that matches what step 3 shows. Test it. Do not change the default.
 5. Run the debugger click path on the local fixture in Chrome. Record the result.
-6. Add an outcome check after debugger clicks (X-01).
+6. ~~Add an outcome check after debugger clicks (X-01).~~ Done in `1296283`; live Chrome confirmation remains under step 5.
 7. Decide the planning-model question with the operator (section 11). Benchmark the general task loop on 20–30 saved real pages.
 8. Build the browser task flow end to end: open a URL, search, follow results across pages, collect IP addresses, export a workbook (X-11).
 9. Widen site coverage beyond Yahoo Mail only after step 7 passes.
