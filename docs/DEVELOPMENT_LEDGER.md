@@ -165,3 +165,11 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Run `43913750921` (head `17bf690`, classifier change S-27 and ADR-010): success.** Every job passed, including the Windows safety-layer step. Fifth isolated pass.
 - **X-15 status:** five isolated passes and three parallel-collection failures, all with the same test and actual value 4. The cause is still UNVERIFIED because the measured delta is not logged.
 - **Stopping point:** the remaining dossier §12 items need Chrome, a Windows desktop, Ollama or your decision. PR #8 is still yours to decide.
+
+### 2026-11-16 UTC — First measured handle and thread deltas (be4c277)
+- **Run `43916582034` (head `be4c277`): success.** All jobs passed. The new step `Show process handle delta (X-15)` ran and succeeded.
+- **Logged values (job `133472290225`, `Show process handle delta` step):** `handles 368 -> 368 (delta 0); threads 19 -> 19 (delta 0)`.
+- **Same run:** Core tests 65 of 65 passed; Windows tests 34 of 34 passed; build 0 warnings, 0 errors.
+- **Reading:** in the isolated run, neither the handle count nor the thread count changed across the 500 inspections. A leak of one handle per 500 inspections would have shown as 1. The value 4 from the parallel-collection runs was not reproduced in isolation. This is one run. It does not establish stability; repeat isolated runs are needed.
+- **Superseded run:** `43916476580` (`c9b5681`, docs-only) was cancelled by the next push. It is not a result.
+- **X-15:** the logged measurement is recorded. The cause of the parallel-collection failures is most likely the other test classes, which is UNVERIFIED as a stable result.
