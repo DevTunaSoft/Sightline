@@ -144,3 +144,12 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Interpretation, UNVERIFIED:** the failure reproduced in all three parallel-collection runs (`42892688011`, `43875178272`, `43876258655`) and did not reproduce in the one isolated run. That fits measurement noise from parallel test classes. It does not exclude a leak: the measured delta is not logged, and one isolated pass is not a stability result. The bound is unchanged at -1 to 1.
 - **Dossier:** X-15 updated. ADR-008 next step updated in `docs/DECISIONS.md`.
 - **Next:** (1) repeat isolated runs and check that the test stays green; (2) log the measured handle delta so a leak can be ruled out; (3) decide on PR #8 (operator decision). This docs-only commit triggers another CI run, which counts as a second isolated sample.
+
+### 2026-11-16 UTC — CI for 78d1aef: second isolated pass; run 591 cancelled by a push
+- **Run `43897969843` (head `c0964d8`): cancelled.** My push of `78d1aef` cancelled it while it was in the Windows restore step. I had called that step stuck, but it was about 30 seconds into a normal restore, so the cancel was my mistake. This run is not a result.
+- **Run `43898207891` (head `78d1aef`, page-agent unnamed-click test): success.**
+  - `validate` (source checks and tests) success.
+  - `package-extension` success.
+  - `windows-foundation` success at every step: build, Core tests, the safety layer step (the process-inspection test in its serial collection), and the three resource-baseline steps.
+- **X-15 status:** two isolated passes (`43879086125`, `43898207891`) and three parallel-collection failures, all with the same test and actual value 4. Still UNVERIFIED as noise. No measured delta is logged, and two passes do not establish stability.
+- **Next:** log the measured handle delta so a leak can be ruled out, then more isolated runs. This docs-only commit triggers one more run, which counts as a third isolated sample.
