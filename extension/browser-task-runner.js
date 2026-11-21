@@ -8,6 +8,7 @@ import { skillPlannerContext, verifySkillActionEffect, checkSkillDestructiveScop
 import { DiagnosticLedger } from './diagnostics-core.js';
 import { createCdpInput, CdpInputError } from './cdp-input.js';
 import { validateLocateResult, isSamePoint } from './click-point-core.js';
+import { hasTargetStructuralEffect } from './page-observer-core.js';
 import { TimingBook } from './performance-core.js';
 
 export function verifyBrowserReceipt(receipt) {
@@ -196,7 +197,23 @@ export async function runBrowserTask({
       // Anything else may have reached the page; never report it as safe to retry.
       return { ok: false, code: 'UNKNOWN_EFFECT', error: 'Debugger click could not be confirmed.' };
     }
-    return { ok: true, receipt: { ok: true, changed: null, method: 'debugger-click' } };
+    // An input that was dispatched is not proof of an effect. Re-observe the
+    // approved tab and require the same structural evidence as page-script clicks.
+    let afterSnapshot = null;
+    for (let attempt = 0; attempt < 4 && !hasTargetStructuralEffect(snapshot, afterSnapshot, action); attempt += 1) {
+      if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 100));
+      try {
+        const observed = await chromeApi.tabs.sendMessage(taskTabId, { type: 'SIGHTLINE_OBSERVE' });
+        afterSnapshot = observed?.ok ? observed.snapshot : null;
+      } catch {
+        afterSnapshot = null;
+      }
+      if (hasTargetStructuralEffect(snapshot, afterSnapshot, action)) break;
+    }
+    if (!hasTargetStructuralEffect(snapshot, afterSnapshot, action)) {
+      return { ok: false, code: 'NO_VERIFIED_EFFECT', error: 'Debugger click did not produce a verified page change.', snapshot: afterSnapshot };
+    }
+    return { ok: true, snapshot: afterSnapshot, receipt: { ok: true, changed: true, method: 'debugger-click' } };
   }
 
   const execute = async (action, { snapshot }) => {
@@ -236,11 +253,20 @@ export async function runBrowserTask({
         } else if (action?.action === 'click' && result.target?.state?.hrefOrigin) {
           try { approvedOrigins.add(new URL(result.target.state.hrefOrigin).origin); } catch {}
         }
-        result = debuggerInput && action?.action === 'click' && typeof action.ref === 'string'
-          ? await timings.measure('execute', () => debuggerClickApproved(action, snapshot))
-          : await timings.measure('execute', () => executeOnTab(taskTabId, {
-          action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
-        }, chromeApi));
+        if (debuggerInput && action?.action === 'click' && typeof action.ref === 'string') {
+          const consumed = await timings.measure('execute', () => executeOnTab(taskTabId, {
+            action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal, consumeConfirmation: true,
+          }, chromeApi));
+          if (!consumed?.ok) {
+            result = consumed;
+          } else {
+            result = await timings.measure('execute', () => debuggerClickApproved(action, snapshot));
+          }
+        } else {
+          result = await timings.measure('execute', () => executeOnTab(taskTabId, {
+            action, snapshotId: snapshot.snapshotId, mode, confirmed: true, confirmationKey: result.confirmationKey, taskGoal: goal,
+          }, chromeApi));
+        }
       } else {
         result = { ok: false, code: 'USER_DECLINED_ACTION', error: 'User declined the requested consequential action.' };
       }

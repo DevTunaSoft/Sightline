@@ -141,6 +141,9 @@ export function createPageAgentController(options = {}) {
           // Consume only an authentic token, immediately before the side effect.
           // An invalid guess does not revoke the legitimate user's pending review.
           pendingConfirmation = null;
+          if (message.consumeConfirmation === true) {
+            return { ok: true, code: 'CONFIRMATION_CONSUMED' };
+          }
         } else {
           pendingConfirmation = null;
           let confirmationKey = null;

@@ -7,11 +7,12 @@ const snapshot = {
   elements: [{ ref: '@e1', role: 'button', name: 'Next page', sensitive: false }],
 };
 
-function setup({ locates, debuggerFail = null }) {
+function setup({ locates, debuggerFail = null, afterSnapshot = null }) {
   const commands = [];
   const messages = [];
   let execCount = 0;
   let locateCount = 0;
+  let observeCount = 0;
   const chromeApi = {
     tabs: {
       query: async () => [{ id: 7, url: snapshot.url, active: true, windowId: 1 }],
@@ -19,7 +20,11 @@ function setup({ locates, debuggerFail = null }) {
       sendMessage: async (_id, msg) => {
         messages.push(msg.type);
         if (msg.type === 'SIGHTLINE_PING') return { ok: true };
-        if (msg.type === 'SIGHTLINE_OBSERVE') return { ok: true, snapshot };
+        if (msg.type === 'SIGHTLINE_OBSERVE') {
+          observeCount += 1;
+          const current = observeCount === 1 ? snapshot : (afterSnapshot || snapshot);
+          return { ok: true, snapshot: current };
+        }
         if (msg.type === 'SIGHTLINE_LOCATE') {
           const rect = locates[Math.min(locateCount, locates.length - 1)];
           locateCount += 1;
@@ -27,6 +32,9 @@ function setup({ locates, debuggerFail = null }) {
         }
         if (msg.type === 'SIGHTLINE_EXECUTE') {
           execCount += 1;
+          if (msg.confirmed === true) {
+            return { ok: true, code: msg.consumeConfirmation ? 'CONFIRMATION_CONSUMED' : 'CONFIRMED', snapshot };
+          }
           return { ok: false, code: 'CONFIRMATION_REQUIRED', target: snapshot.elements[0], risk: { level: 'high' }, confirmationKey: 'k' };
         }
         throw new Error(`unexpected ${msg.type}`);
@@ -44,7 +52,8 @@ function setup({ locates, debuggerFail = null }) {
 }
 
 test('opt-in debugger click runs only after confirmation and two agreeing locates', async () => {
-  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }] });
+  const afterSnapshot = { ...snapshot, elements: [] };
+  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }], afterSnapshot });
   let planCalls = 0;
   const fetchImpl = async () => {
     planCalls += 1;
@@ -59,7 +68,7 @@ test('opt-in debugger click runs only after confirmation and two agreeing locate
   assert.equal(result.ok, true);
   assert.deepEqual(env.commands.map(c => c[0]), ['attach', 'Input.dispatchMouseEvent', 'Input.dispatchMouseEvent', 'detach']);
   assert.equal(env.messages.filter(m => m === 'SIGHTLINE_LOCATE').length, 2);
-  assert.equal(env.execCount(), 1, 'page-script confirmed execute is not used for debugger clicks');
+  assert.equal(env.execCount(), 2, 'only confirmation consume uses the page agent; the click itself does not');
 });
 
 test('a moved element is refused without any debugger input', async () => {
@@ -85,4 +94,16 @@ test('a failed attach reports a safe failure, not an unknown effect', async () =
   assert.equal(result.ok, false);
   assert.notEqual(result.code, 'UNKNOWN_EFFECT');
   assert.equal(env.commands.some(c => c[0] === 'Input.dispatchMouseEvent'), false);
+});
+
+test('a debugger click that produces no page change is not reported as success', async () => {
+  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }] });
+  const result = await runBrowserTask({
+    goal: 'Click next', model: 'm', chromeApi: env.chromeApi,
+    fetchImpl: async () => new Response(JSON.stringify({ message: { content: '{"done":false,"action":{"action":"click","ref":"@e1"}}' } }), { status: 200 }),
+    confirmAction: async () => true, useDebuggerClicks: true,
+    limits: { maxActions: 1, maxRepeatedAction: 5, maxRepeatedState: 5 },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'NO_VERIFIED_EFFECT');
 });

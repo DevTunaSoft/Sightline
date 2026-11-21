@@ -75,11 +75,11 @@ export async function observeActiveTab(chromeApi = chrome) {
   return observeTab(tab.id, chromeApi);
 }
 
-export async function executeOnTab(tabId, { action, snapshotId, mode = 'assist', confirmed = false, confirmationKey = null, taskGoal = '' }, chromeApi = chrome) {
+export async function executeOnTab(tabId, { action, snapshotId, mode = 'assist', confirmed = false, confirmationKey = null, taskGoal = '', consumeConfirmation = false }, chromeApi = chrome) {
   await ensurePageAgent(tabId, chromeApi);
   return chromeApi.tabs.sendMessage(tabId, {
     type: 'SIGHTLINE_EXECUTE', action, snapshotId, mode, confirmed: confirmed === true, confirmationKey,
-    taskGoal: String(taskGoal || '').slice(0, 2000),
+    taskGoal: String(taskGoal || '').slice(0, 2000), consumeConfirmation: consumeConfirmation === true,
   });
 }
 
