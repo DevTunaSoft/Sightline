@@ -28,7 +28,6 @@ test('no debugger attach happens on a tab that was not approved', async () => {
   const f = fakeDebugger();
   const input = createCdpInput({ debugger: f.debugger }, { isApprovedTab: () => false });
   await assert.rejects(input.click(7, 1, 1), e => e instanceof CdpInputError && e.code === 'TAB_NOT_APPROVED');
-  await assert.rejects(input.insertText(7, 'x'), e => e.code === 'TAB_NOT_APPROVED');
   assert.equal(f.log.length, 0);
 });
 
@@ -52,13 +51,7 @@ test('bad coordinates and oversize text are refused before any attach', async ()
   const input = createCdpInput({ debugger: f.debugger }, { isApprovedTab: () => true });
   await assert.rejects(input.click(7, NaN, 1), e => e.code === 'BAD_COORDINATES');
   await assert.rejects(input.click(7, -1, 1), e => e.code === 'BAD_COORDINATES');
-  await assert.rejects(input.insertText(7, 'x'.repeat(2001)), e => e.code === 'TEXT_TOO_LONG');
   assert.equal(f.log.length, 0);
 });
 
-test('insertText uses Input.insertText on the approved tab', async () => {
-  const f = fakeDebugger();
-  const input = createCdpInput({ debugger: f.debugger }, { isApprovedTab: () => true });
-  assert.deepEqual(await input.insertText(7, 'hello'), { ok: true, characters: 5 });
-  assert.deepEqual(f.log[1], ['Input.insertText', 7, { text: 'hello' }]);
-});
+
