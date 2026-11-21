@@ -10,7 +10,7 @@ const ui = {
   tag: byId('agentTag'), mode: byId('agentMode'), goal: byId('agentGoal'), aiTest: byId('localAiSelfTestBtn'),
   observe: byId('observePageBtn'), selfTest: byId('browserSelfTestBtn'), yahooReadiness: byId('yahooReadinessBtn'), run: byId('runTaskBtn'), stop: byId('stopTaskBtn'), taskCancel: byId('cancelTaskBtn'),
   progress: byId('agentProgress'), report: byId('exportAgentReportBtn'), card: byId('confirmCard'), text: byId('confirmText'),
-  confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'),
+  confirm: byId('confirmActionBtn'), cancel: byId('cancelActionBtn'), model: byId('modelSelect'), debuggerClicks: byId('agentDebuggerClicks'),
 };
 
 const state = { running: false, controller: null, pendingConfirmation: null, resume: null, checkpoint: null, taskId: null, stopIntent: null, lastReport: null };
@@ -26,6 +26,7 @@ function sync() {
   ui.report.disabled = state.running || !state.lastReport;
   ui.mode.disabled = state.running;
   ui.goal.disabled = state.running;
+  if (ui.debuggerClicks) ui.debuggerClicks.disabled = state.running;
   ui.tag.textContent = state.running ? 'RUNNING' : state.resume ? 'RESUME READY' : 'READY';
 }
 
@@ -301,6 +302,7 @@ async function runTask() {
       onProgress(event) { const [label, detail] = describeProgress(event); addProgress(label, detail); },
       confirmAction: requestConfirmation,
       resume: state.resume,
+      useDebuggerClicks: ui.debuggerClicks?.checked === true,
       onCheckpoint: async checkpointState => {
         try {
           state.checkpoint = await saveTaskCheckpoint({
