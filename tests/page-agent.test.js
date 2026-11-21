@@ -367,3 +367,22 @@ test('locate refuses unknown refs and stale snapshots', async () => {
   assert.equal((await controller.handle({ type: 'SIGHTLINE_LOCATE', ref: '@e1', snapshotId: 'old' })).code, 'STALE_SNAPSHOT');
   assert.equal((await controller.handle({ type: 'SIGHTLINE_LOCATE', ref: '@e9', snapshotId: 'L2' })).code, 'LOCATE_FAILED');
 });
+
+test('consumeConfirmation consumes the token without executing the action', async () => {
+  let clicks = 0, issued = 0;
+  const controller = createPageAgentController({
+    observe: async () => ({ snapshotId: 's1', url: 'https://example.com/', elements: [{ ref: '@e1', role: 'button', name: 'Delete item' }] }),
+    adapterFactory: () => ({ hasRef: () => true, click: async () => { clicks++; return { ok: true }; } }),
+    gate: () => ({ allowed: false, confirmationRequired: true, risk: { level: 'high' } }),
+    issueConfirmationToken: () => `confirm-${String(++issued).padStart(32, '0')}`,
+    sleep: async () => {},
+  });
+  await controller.handle({ type: 'SIGHTLINE_OBSERVE' });
+  const message = { type: 'SIGHTLINE_EXECUTE', snapshotId: 's1', action: { action: 'click', ref: '@e1' }, taskGoal: 'delete item' };
+  const prompt = await controller.handle(message);
+  const consumed = await controller.handle({ ...message, confirmed: true, confirmationKey: prompt.confirmationKey, consumeConfirmation: true });
+  assert.equal(consumed.code, 'CONFIRMATION_CONSUMED');
+  assert.equal(clicks, 0);
+  const replay = await controller.handle({ ...message, confirmed: true, confirmationKey: prompt.confirmationKey });
+  assert.equal(replay.code, 'CONFIRMATION_REQUIRED');
+});
