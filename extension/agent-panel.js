@@ -4,6 +4,7 @@ import { runBrowserAcceptanceSelfTest } from './browser-self-test.js';
 import { runLocalAIBrowserSelfTest } from './local-ai-self-test.js';
 import { runYahooReadinessCheck } from './yahoo-readiness.js';
 import { saveTaskCheckpoint, loadTaskCheckpoint, clearTaskCheckpoint } from './task-checkpoint.js';
+import { createIpCollector } from './collect-core.js';
 
 const byId = id => document.getElementById(id);
 const ui = {
@@ -291,6 +292,7 @@ async function runTask() {
     }
     clearProgress(state.resume ? 'Resuming browser task…' : 'Starting browser task…');
     sync();
+    const collector = createIpCollector();
     const result = await runBrowserTask({
       goal,
       model: ui.model.value,
@@ -301,6 +303,7 @@ async function runTask() {
       limits: { maxActions: 40, maxDurationMs: 120000, maxRepeatedState: 3, maxRepeatedAction: 3 },
       onProgress(event) { const [label, detail] = describeProgress(event); addProgress(label, detail); },
       confirmAction: requestConfirmation,
+      collector,
       resume: state.resume,
       useDebuggerClicks: ui.debuggerClicks?.checked === true,
       onCheckpoint: async checkpointState => {
@@ -318,6 +321,22 @@ async function runTask() {
       },
     });
     state.lastReport = buildSafeReport(result);
+    const collectedAddresses = result.collection?.addresses || [];
+    if (collectedAddresses.length) {
+      try {
+        const bytes = collector.toWorkbookBytes();
+        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `sightline-ip-addresses-${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        addProgress('Exported', `${collectedAddresses.length} IP address(es) to workbook`);
+      } catch (error) {
+        addProgress('Export failed', error.message);
+      }
+    }
     if (result.ok) {
       addProgress('Complete', result.result || `Finished in ${result.timeline.length} action(s)`);
       try { await clearTaskCheckpoint(chrome); } catch {}
