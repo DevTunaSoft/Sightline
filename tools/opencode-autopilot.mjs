@@ -43,6 +43,33 @@ export function parseOptions(args) {
   return opts;
 }
 
+export function isLegacyOpenCodeVersion(output) {
+  const match = String(output || '').trim().match(/^(?:opencode\\s+)?v?(\\d+)\\.(\\d+)\\.(\\d+)(?:\\s|$)/i);
+  return Boolean(match && Number(match[1]) < 2);
+}
+
+// A v1 CLI cannot read databases already migrated by OpenCode Desktop 2.x.
+// Check the binary selected by the SAME shell used to launch run cycles.
+function checkOpenCodeCliVersion() {
+  const windows = process.platform === 'win32';
+  const result = windows
+    ? spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      '& opencode --version; exit $LASTEXITCODE'],
+      { cwd: repoRoot, encoding: 'utf8', timeout: 15_000, windowsHide: true })
+    : spawnSync('opencode', ['--version'],
+      { cwd: repoRoot, encoding: 'utf8', timeout: 15_000 });
+  if (result.error || result.status !== 0) {
+    throw Error('OpenCode CLI unavailable. Check "opencode --version" and PATH before launching autopilot.');
+  }
+  const version = (result.stdout || '').trim();
+  if (isLegacyOpenCodeVersion(version)) {
+    throw Error(`OpenCode CLI ${version} is incompatible with the OpenCode 2.x session database. On Windows, install the official v2 CLI: npm uninstall -g opencode-ai; npm install -g @opencode/cli. Do not delete opencode.db. Verify "opencode --version" reports 2.x before retrying.`);
+  }
+  if (!/^\\s*(?:opencode\\s+)?v?2\\.\\d+\\.\\d+/i.test(version)) {
+    throw Error(`Unable to verify OpenCode CLI is v2: ${JSON.stringify(version.slice(0, 100))}. Confirm "opencode --version" manually.`);
+  }
+}
+
 export function nextPrompt({ cycle, stalled }) {
   // Keep prompt short because the authoritative state belongs in the repo.
   return `Sightline autonomous engineering cycle ${cycle}. Read AGENTS.md, docs/OPENCODE_AUTONOMOUS_TAKEOVER.md and CLAUDE.md. Audit actual repo, branches, PRs, CI and current ledger first. Keep user safety and low-memory invariants. Choose and implement the highest priority unblocked project task; PR #8 selective reconciliation and routine hardening are preauthorized. The operator is not required for routine choices. Work on the repository, run relevant tests, fix failures, commit verified progress and update docs/HANDOFF.md with real evidence. Never ask which task to do next. If an external gate blocks a task, document it and do another independent one. This cycle has ${stalled} prior no-change cycle(s); ${stalled ? 'change strategy and select a different independent task.' : 'make measurable progress.'} Do not claim work after this process exits.`;
@@ -213,6 +240,7 @@ async function main() {
     const root = execFileSync('git', ['rev-parse', '--show-toplevel'],
       { cwd: repoRoot, encoding: 'utf8', timeout: 10000 }).trim();
     if (path.resolve(root).toLowerCase() !== repoRoot.toLowerCase()) throw Error('Not the Sightline git worktree');
+    checkOpenCodeCliVersion();
     release = acquireLock(lockPath);
     if (fs.existsSync(stopPath)) {
       console.error(`Stop file exists at ${stopPath}. Remove it before starting a new run.`);
