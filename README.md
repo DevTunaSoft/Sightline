@@ -110,7 +110,7 @@ This does **not** require Ollama.
 Install/start Ollama, install a local vision model, and allow the exact Sightline extension origin. Example model:
 
 ```text
-ollama pull gemma3:4b
+ollama pull llava-phi3
 ```
 
 After loading Sightline, copy its exact extension ID and configure Ollama with:
