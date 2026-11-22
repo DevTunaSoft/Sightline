@@ -139,11 +139,11 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be hovered by the agent.' };
       element.scrollIntoView?.({ block: 'center', inline: 'center', behavior: 'auto' });
       const view = elementWindow(element, windowObject);
-      const MouseEventCtor = view?.MouseEvent || globalThis.MouseEvent;
-      if (!element?.dispatchEvent || !MouseEventCtor) return { ok: false, code: 'NOT_HOVERABLE', error: 'Target does not support hover.' };
-      element.dispatchEvent(new MouseEventCtor('mouseover', { bubbles: true, composed: true, view }));
-      element.dispatchEvent(new MouseEventCtor('mouseenter', { bubbles: false, composed: true, view }));
-      element.dispatchEvent(new MouseEventCtor('mousemove', { bubbles: true, composed: true, view }));
+      const EventCtor = view?.MouseEvent || globalThis.MouseEvent || view?.Event || globalThis.Event;
+      if (!element?.dispatchEvent || !EventCtor) return { ok: false, code: 'NOT_HOVERABLE', error: 'Target does not support hover.' };
+      element.dispatchEvent(new EventCtor('mouseover', { bubbles: true, composed: true }));
+      element.dispatchEvent(new EventCtor('mouseenter', { bubbles: false, composed: true }));
+      element.dispatchEvent(new EventCtor('mousemove', { bubbles: true, composed: true }));
       return { ok: true, ref: action.ref };
     },
     async type(action) {

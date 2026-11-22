@@ -39,6 +39,16 @@ test('adapter detects unavailable select option', async () => {
   assert.equal(result.ok,false); assert.equal(result.code,'OPTION_NOT_FOUND');
 });
 
+test('adapter hovers current registered element', async () => {
+  const el=fakeElement(); const result=await executeValidatedAction({action:'hover',ref:'@e1'},setup(el));
+  assert.equal(result.ok,true); assert.deepEqual(el.events,['mouseover','mouseenter','mousemove']); assert.equal(el.scrolled,true);
+});
+
+test('adapter double-clicks current registered element', async () => {
+  const el=fakeElement(); const result=await executeValidatedAction({action:'doubleClick',ref:'@e1'},setup(el));
+  assert.equal(result.ok,true); assert.equal(el.clicked,2);
+});
+
 
 test('iframe input dispatch uses target document event realm', async () => {
   class FrameEvent {
