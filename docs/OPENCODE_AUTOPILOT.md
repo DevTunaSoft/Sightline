@@ -17,6 +17,31 @@ If the selected model name differs in your installation, use the exact identifie
 
 The wrapper starts one `opencode run` at a time in the Sightline checkout, prompts it to read committed `AGENTS.md`, `CLAUDE.md`, and handoff documents, and selects another unblocked task after a successful cycle. No model-output shell commands are interpreted by the wrapper. The agent itself is bound by repository safety policies. Existing PR #8 reconciliation and ordinary hardening do not require another owner decision.
 
+## OpenCode database error: incompatible old CLI
+
+If a previous launch printed `Database is not empty and has no session table`, **do not delete or reset the OpenCode database**. This is a known OpenCode 1.x CLI vs Desktop 2.x schema mismatch. The runner now checks the resolved CLI version before opening a coding session, and **fails closed with a migration instruction** if it sees a legacy v1 executable.
+
+Stop the current runner with Ctrl+C. In PowerShell:
+
+```powershell
+opencode --version
+where.exe opencode
+npm list -g --depth=0
+```
+
+If the resolved command is `opencode-ai` 1.x installed globally through npm, replace that **CLI package only** (your user data and desktop application remain untouched):
+
+```powershell
+npm uninstall -g opencode-ai
+npm install -g @opencode/cli
+opencode --version
+opencode run --help
+```
+
+Ensure `opencode --version` prints 2.x and the first executable found on `PATH` resolves to the intended CLI. Only then relaunch this script. If the command still resolves to v1, investigate `where.exe opencode` for a second old installation (Windows package manager, IDE or shim). The supervisor does not attempt package upgrades or database schema modifications on its own.
+
+References: [OpenCode installation](https://opencode.ai/docs) and [upstream exact-error issue #61106](https://github.com/anomalyco/opencode/issues/61106). The v2 installer may require working npm install scripts on Windows; a successful npm command by itself does not prove the CLI binary is valid.
+
 ## Defaults and stop behavior
 
 - `--max-cycles 0`: keep working while useful, verified progress continues and the runner remains active. Change to `--max-cycles 3` for a bounded test.

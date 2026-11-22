@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  parseOptions, nextPrompt, madeProgress, acquireLock, runLoop,
+  parseOptions, nextPrompt, madeProgress, acquireLock, runLoop, isLegacyOpenCodeVersion,
 } from '../tools/opencode-autopilot.mjs';
 
 const base = { maxCycles: 0, maxStalled: 2, maxFailures: 2, pauseSeconds: 0 };
@@ -18,6 +18,15 @@ test('autopilot options are bounded and reject shell metacharacters in models', 
   assert.throws(() => parseOptions(['--timeout-minutes', '0']), /outside the supported range/);
   assert.throws(() => parseOptions(['--max-cycles', '-1']), /nonnegative integer/);
   assert.throws(() => parseOptions(['--bogus']), /Unknown/);
+});
+
+test('OpenCode 1.x is rejected before touching a shared v2 session database', () => {
+  for (const legacy of ['1.19.6', 'v1.19.5', 'opencode 1.18.34', '0.12.0']) {
+    assert.equal(isLegacyOpenCodeVersion(legacy), true, legacy);
+  }
+  for (const current of ['2.0.24', '2.2.7', 'v2.2.7', 'opencode 2.2.6']) {
+    assert.equal(isLegacyOpenCodeVersion(current), false, current);
+  }
 });
 
 test('prompt chooses existing authorized PR review rather than asking operator', () => {
