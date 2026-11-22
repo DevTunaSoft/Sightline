@@ -10,6 +10,7 @@ test('accepts bounded typed actions', () => {
   assert.equal(good({action:'type',ref:'@e2',text:'hello'}).replace,true);
   assert.equal(good({action:'scroll',direction:'down',amount:900}).amount,900);
   assert.equal(good({action:'navigate',url:'https://example.com/a'}).url,'https://example.com/a');
+  assert.equal(good({action:'hover',ref:'@e1'}).ref,'@e1');
 });
 test('rejects arbitrary code and dangerous navigation schemes', () => {
   bad({action:'executeScript',code:'alert(1)'});
