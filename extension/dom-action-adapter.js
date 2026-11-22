@@ -124,6 +124,16 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       element.click();
       return { ok: true, ref: action.ref };
     },
+    async doubleClick(action) {
+      const element = resolve(action.ref);
+      if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be double-clicked by the agent.' };
+      element.scrollIntoView?.({ block: 'center', inline: 'center', behavior: 'auto' });
+      element.focus?.({ preventScroll: true });
+      if (typeof element.click !== 'function') return { ok: false, code: 'NOT_CLICKABLE', error: 'Target does not support click.' };
+      element.click();
+      element.click();
+      return { ok: true, ref: action.ref };
+    },
     async hover(action) {
       const element = resolve(action.ref);
       if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be hovered by the agent.' };

@@ -1,6 +1,6 @@
 const ACTION_TYPES = new Set([
   'read', 'click', 'type', 'clear', 'select', 'check', 'uncheck',
-  'scroll', 'navigate', 'pressKey', 'wait', 'verify', 'hover',
+  'scroll', 'navigate', 'pressKey', 'wait', 'verify', 'hover', 'doubleClick',
 ]);
 const REF_PATTERN = /^@e[1-9]\d{0,4}$/;
 const MAX_TEXT = 4000;
@@ -18,7 +18,7 @@ export function validateAction(input) {
   if (!ACTION_TYPES.has(action)) return fail('Unsupported action type.');
 
   const base = { action };
-  if (['read','click','clear','check','uncheck','hover'].includes(action)) {
+  if (['read','click','clear','check','uncheck','hover','doubleClick'].includes(action)) {
     if (!validRef(input.ref)) return fail('A valid element ref is required.');
     return pass({ ...base, ref: input.ref });
   }
