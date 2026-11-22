@@ -54,6 +54,14 @@ jobs:
       - name: Capture repeated-session resource trend
         shell: pwsh
         run: dotnet windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll --resource-soak | Out-File -Encoding utf8 windows/windows-session-soak.json
+      - name: Measure isolated Windows component resource use
+        shell: pwsh
+        run: |
+          $app = "windows/src/Sightline.App/bin/Release/net8.0-windows/Sightline.App.dll"
+          foreach ($component in @("diagnostics", "window-discovery", "process-inspection")) {
+            dotnet $app --component-resource $component | Out-File -Encoding utf8 "windows/component-resource-$component.json"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - name: Upload Windows test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,6 +73,7 @@ jobs:
             windows/windows-resource.json
             windows/windows-session-resource.json
             windows/windows-session-soak.json
+            windows/component-resource-*.json
           if-no-files-found: warn
           retention-days: 14
 
