@@ -109,7 +109,7 @@ Browser semantic observation, typed actions, live revalidation, stale recovery, 
 - interactive Windows UIA/actions and focus-interference testing
 - mixed DPI/multi-monitor + elevation/UIPI
 - active-UIA long-run soak
-- installed Chrome/Edge acceptance
+- installed Chrome acceptance: PASS (20/20, Chrome 157.0.8103.79, 2026-11-21); Edge still pending
 - live extension-origin Ollama acceptance
 - real Yahoo controlled workflow
 - installer/update lifecycle
