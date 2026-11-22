@@ -305,7 +305,7 @@ Verification note: the debugger path's receipt reports `ok: true` once input is 
 | X-04 | Live Ollama acceptance passed on 2026-11-21 with `hf.co/ggml-org/SmolVLM2-2.2B-Instruct-GGUF:Q4_K_M`: image inference returned 38 characters in 17894 ms. | VERIFIED |
 | X-05 | Live Yahoo Mail page layout has not been captured. Fixtures match the parser format, not a live page. | UNVERIFIED |
 | X-06 | Windows interactive acceptance passed on 2026-11-22: observed 15 bounded elements and verified SetValue -> Invoke -> result readback. | VERIFIED locally |
-| X-07 | Windows build and tests passed in CI only. | VERIFIED in CI (C-05, C-06). Local build: BLOCKED (W-07). |
+| X-07 | Windows build and tests passed locally on 2026-11-22: .NET 8.0.428, Core 65/65, Windows safety 30/30, interactive acceptance PASS. | VERIFIED locally |
 | X-08 | The process-inspection port is not built or tested on Windows. | BLOCKED (no run) |
 | X-09 | PR #8 must be rebased or replaced before merge (G-08, G-09). | OPEN, needs operator decision |
 | X-10 | The research feature has no search backend. | OPEN, needs operator decision (section 11) |
