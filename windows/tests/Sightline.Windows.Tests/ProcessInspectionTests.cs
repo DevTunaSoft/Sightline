@@ -76,7 +76,11 @@ public sealed class ProcessInspectionTests
         current.Refresh();
         var afterThreads = current.Threads.Count;
 
-        Assert.InRange((long)afterHandles - beforeHandles, -1, 1);
+        // Handle counts include short-lived OS/runtime handles that can be
+        // released slightly after Dispose/GC on hosted runners. A real leak is
+        // hundreds of handles, so keep a small tolerance while still catching
+        // accumulation.
+        Assert.InRange((long)afterHandles - beforeHandles, -5, 5);
         Assert.InRange(afterThreads - beforeThreads, -1, 1);
     }
 
