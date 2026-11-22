@@ -411,3 +411,15 @@ Memory growth remains a defect. Do not introduce unbounded queues, caches, logs,
 ## Recovery
 
 Inspect PR #6 and latest CI first. Fix the first failing root cause and do not repeat unchanged failures. Preserve PASS/FAIL/BLOCKED/NOT RUN/UNVERIFIED language.
+
+
+### 2026-11-22 UTC — OpenCode continuous-cycle supervisor (developer workflow, not product runtime)
+
+- **Reason:** Autonomous OpenCode session reported `develop=c112701` and green local/hosted tests but stopped to ask permission before PR #8 review. That task is already authorized. Instructions alone cannot keep a terminated OpenCode process alive.
+- **Baseline checked:** remote `develop` at `c1127010ad64379d2838fb6830f465902d1b6393`; matching GitHub CI 44972309663 PASS. PR #8 open/nonmergeable original head; rebased process-inspection branch already exists; issue #9 remains open. No duplicate PR #8 or competing supervisor was created in Sightline.
+- **Changes:** `tools/opencode-autopilot.mjs` adds a single-worker foreground loop using noninteractive `opencode run`. Includes PID lock/stale check, five-second gap, 50-minute per-cycle watchdog, explicit stop, two-failure/two-stall anti-loop limits and 128 KiB metadata-only rolling JSONL (one prior copy); never saves model transcripts. `tests/opencode-autopilot.test.js` includes 9 unit tests. `AGENTS.md`, `docs/OPENCODE_AUTONOMOUS_TAKEOVER.md`, `docs/OPENCODE_AUTOPILOT.md`, `README.md` describe execution and permissions.
+- **Local synthetic tests:** PASS — Node 22 sandbox `node --test tests/opencode-autopilot.test.js`, 9 PASS / 0 FAIL. PASS — simulated Linux child-process integration: two consecutive mocked OpenCode cycles each made a Git commit, with metadata-only logs. **These do not validate installed OpenCode on Windows.**
+- **Security and privacy:** no new third-party packages, product runtime permissions, browser access or hosted services. The runner does not interpret model stdout or capture typed payloads. `--auto` requests routine non-explicitly-denied tool approval in OpenCode and must run only within a least-privileged Windows account and existing Sightline safety contract. Never bypass user account MFA/UAC or production action approvals.
+- **Actual Windows/OpenCode execution:** NOT RUN; must be verified by `node tools/opencode-autopilot.mjs --max-cycles 1 --model <configured-model>` on user's machine. The PowerShell invocation and OpenCode permission behavior are UNVERIFIED on the exact installed version.
+- **CI:** pending on PR branch when this handoff entry was written; verify exact SHA and run URLs. No source/product release functionality changed; project runtime tests remain a separate gate.
+- **Next unblocked tasks:** verify the PR's complete CI; run one supervised live-PC cycle and record evidence; reconcile PR #8 diff without bypassing Windows action approval or journal; continue low-memory/security work when independent. Do not ask user for approval to inspect a PR or perform safe code corrections.
