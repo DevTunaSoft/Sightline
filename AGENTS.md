@@ -31,6 +31,12 @@ This authorization does **not** authorize bypassing Windows elevation, authentic
 - Do not duplicate existing PRs, issues, branches, features, or orchestrators.
 - Status words: **PASS, FAIL, BLOCKED, NOT RUN, UNVERIFIED**. Every PASS needs exact executed evidence; no fabricated success.
 
+## Continuous OpenCode execution — do not hand the task back unnecessarily
+
+A normal chat turn may end even when unblocked work remains. **Never conclude with "I can review PR #8 next if you want", "shall I continue?" or an equivalent request** when an authorized task is ready. Review the diff, selectively implement safe improvements, test, document, commit verified work, then move to the next independent priority. Do not treat missing real Yahoo-account access, optional model benchmarking, or nonrequired Edge testing as a blocker for unrelated project engineering.
+
+For actual persistent, sequential **OpenCode runs while the PC is on and the terminal remains open**, use `node tools/opencode-autopilot.mjs --model opencode-go/hy4-flash-free` from the updated Sightline checkout. Read `docs/OPENCODE_AUTOPILOT.md` for start/stop/anti-loop/security rules. This project-scoped supervisor starts another cycle after a normal completion, uses one worker and bounded metadata logs, and stops after two no-progress/failure cycles. It is **not** a background Windows service and cannot survive its host process being closed. Do not create another orchestration process or assume an existing one is running.
+
 ## First actions, then repeat
 
 1. `git status --short`; inspect local changes. Fetch `develop`/`main` explicitly, inspect branch SHAs, open PRs/issues and newest CI. Reconcile against implementation and ledger before edits.
