@@ -96,6 +96,23 @@ test('a failed attach reports a safe failure, not an unknown effect', async () =
   assert.equal(env.commands.some(c => c[0] === 'Input.dispatchMouseEvent'), false);
 });
 
+test('a target that moves immediately before dispatch is refused', async () => {
+  const env = setup({ locates: [
+    { x: 100, y: 50, width: 40, height: 20 },
+    { x: 100, y: 50, width: 40, height: 20 },
+    { x: 400, y: 300, width: 40, height: 20 },
+  ] });
+  const result = await runBrowserTask({
+    goal: 'Click next', model: 'm', chromeApi: env.chromeApi,
+    fetchImpl: async () => new Response(JSON.stringify({ message: { content: '{"done":false,"action":{"action":"click","ref":"@e1"}}' } }), { status: 200 }),
+    confirmAction: async () => true, useDebuggerClicks: true,
+    limits: { maxActions: 1, maxRepeatedAction: 5, maxRepeatedState: 5 },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'STALE_TARGET');
+  assert.equal(env.commands.length, 0, 'no debugger input when the target moved before dispatch');
+});
+
 test('a debugger click that produces no page change is not reported as success', async () => {
   const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }] });
   const result = await runBrowserTask({
