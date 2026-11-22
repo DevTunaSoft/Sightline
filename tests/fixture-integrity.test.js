@@ -17,3 +17,12 @@ test('browser acceptance fixture contains normal, hidden, disabled, sensitive, i
   assert.match(html, /id="same-origin-frame"/);
   assert.match(html, /id="opaque-frame"/);
 });
+
+test('mock Yahoo fixture contains search, count, and destructive controls', async () => {
+  const mockUrl = new URL('./fixtures/yahoo-mail-mock.html', import.meta.url);
+  const html = await readFile(mockUrl, 'utf8');
+  assert.match(html, /role="textbox"/);
+  assert.match(html, /aria-label="Search mail"/);
+  assert.match(html, /Showing 1-2 of 2/);
+  assert.match(html, /Move to Trash/);
+});
