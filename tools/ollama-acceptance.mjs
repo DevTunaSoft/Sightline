@@ -1,7 +1,7 @@
 const API = 'http://127.0.0.1:11434';
 const CLOUD_TAG = /(?:-cloud|:cloud|\.cloud)(?:$|[-:._])/i;
 // Tiny opaque PNG used only to prove image inference plumbing. It is not saved by Sightline.
-const TINY_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP8z8DAwMDAxMDAwMAAAAwAAf8CBYkAAAAASUVORK5CYII=';
+const TINY_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 function argValue(name) {
   const index = process.argv.indexOf(name);
