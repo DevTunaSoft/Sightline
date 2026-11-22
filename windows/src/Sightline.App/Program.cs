@@ -2,6 +2,9 @@ using System.Text.Json;
 using Sightline.Core;
 using Sightline.Windows;
 
+if (args.Length == 2 && args[0] == "--component-resource")
+    return await ComponentResourceProbe.RunAsync(args[1]);
+
 if (args.Length == 1 && args[0] == "--resource")
 {
     Console.WriteLine(JsonSerializer.Serialize(ProcessResourceSampler.CaptureCurrent()));
@@ -104,7 +107,7 @@ if (args.Length == 1 && args[0] == "--resource-session")
 if (args.Length != 2 || args[0] != "--observe" || !int.TryParse(args[1], out var processId))
 {
     Console.WriteLine("Sightline Windows Foundation v0");
-    Console.WriteLine("Usage: Sightline.App --observe <process-id> | --resource | --resource-session | --resource-soak");
+    Console.WriteLine("Usage: Sightline.App --observe <process-id> | --resource | --resource-session | --resource-soak | --component-resource <diagnostics|window-discovery|process-inspection>");
     return 2;
 }
 
