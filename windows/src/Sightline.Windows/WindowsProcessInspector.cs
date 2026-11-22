@@ -19,7 +19,9 @@ public sealed class WindowsProcessInspector : IDesktopProcessInspector
 
         try
         {
-            using var process = Process.GetProcessById(processId);
+            using var process = processId == Environment.ProcessId
+                ? Process.GetCurrentProcess()
+                : Process.GetProcessById(processId);
             return new(
                 ProcessInspectionStatus.Available,
                 new DesktopProcessInfo(

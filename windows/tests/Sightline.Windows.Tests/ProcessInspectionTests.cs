@@ -56,12 +56,22 @@ public sealed class ProcessInspectionTests
             Assert.Equal(ProcessInspectionStatus.Available, inspector.Inspect(Environment.ProcessId).Status);
 
         using var current = Process.GetCurrentProcess();
+        for (var gc = 0; gc < 3; gc++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
         var beforeThreads = current.Threads.Count;
         var beforeHandles = CurrentHandleCount();
 
         for (var i = 0; i < 500; i++)
             Assert.Equal(ProcessInspectionStatus.Available, inspector.Inspect(Environment.ProcessId).Status);
 
+        for (var gc = 0; gc < 3; gc++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
         var afterHandles = CurrentHandleCount();
         current.Refresh();
         var afterThreads = current.Threads.Count;
