@@ -31,6 +31,10 @@ Sightline follows a **deterministic software before AI, DOM before vision** rule
 - Cross-origin iframes are not scraped.
 - Task history and diagnostics are bounded tails, not unbounded transcripts.
 
+## Component-level Windows profiling
+
+Optional, isolated Windows resource probes for diagnostics, bounded window discovery, and on-demand process inspection are documented in [Windows Component Profiling](WINDOWS_COMPONENT_PROFILING.md). They record process metrics only; no component-level savings or Windows 11 release result is verified yet. No Rust migration is implied.
+
 ## Current synthetic benchmark evidence
 
 The repository includes `npm run benchmark:core`.
