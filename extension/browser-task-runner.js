@@ -187,8 +187,13 @@ export async function runBrowserTask({
     const second = validateLocateResult(secondRaw, { expectedSnapshotId: snapshot.snapshotId, viewport: secondRaw?.viewport });
     if (!second.ok) return { ok: false, code: second.code, error: second.error };
     if (!isSamePoint(first.point, second.point)) return { ok: false, code: 'STALE_TARGET', error: 'The element moved before the click.' };
+    // Locate once more immediately before dispatching input.
+    const thirdRaw = await locate();
+    const third = validateLocateResult(thirdRaw, { expectedSnapshotId: snapshot.snapshotId, viewport: thirdRaw?.viewport });
+    if (!third.ok) return { ok: false, code: third.code, error: third.error };
+    if (!isSamePoint(second.point, third.point)) return { ok: false, code: 'STALE_TARGET', error: 'The element moved before the click.' };
     try {
-      await debuggerInput.click(taskTabId, first.point.x, first.point.y);
+      await debuggerInput.click(taskTabId, third.point.x, third.point.y);
     } catch (error) {
       // Refusals before any attach mean nothing was sent, so they are safe to report as failures.
       if (error instanceof CdpInputError && ['TAB_NOT_APPROVED', 'ATTACH_FAILED', 'BAD_COORDINATES'].includes(error.code)) {

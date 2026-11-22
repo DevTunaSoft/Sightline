@@ -53,7 +53,7 @@ function setup({ locates, debuggerFail = null, afterSnapshot = null }) {
 
 test('opt-in debugger click runs only after confirmation and two agreeing locates', async () => {
   const afterSnapshot = { ...snapshot, elements: [] };
-  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }], afterSnapshot });
+  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }], afterSnapshot });
   let planCalls = 0;
   const fetchImpl = async () => {
     planCalls += 1;
@@ -67,7 +67,7 @@ test('opt-in debugger click runs only after confirmation and two agreeing locate
   });
   assert.equal(result.ok, true);
   assert.deepEqual(env.commands.map(c => c[0]), ['attach', 'Input.dispatchMouseEvent', 'Input.dispatchMouseEvent', 'detach']);
-  assert.equal(env.messages.filter(m => m === 'SIGHTLINE_LOCATE').length, 2);
+  assert.equal(env.messages.filter(m => m === 'SIGHTLINE_LOCATE').length, 3);
   assert.equal(env.execCount(), 2, 'only confirmation consume uses the page agent; the click itself does not');
 });
 
@@ -97,7 +97,7 @@ test('a failed attach reports a safe failure, not an unknown effect', async () =
 });
 
 test('a debugger click that produces no page change is not reported as success', async () => {
-  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }] });
+  const env = setup({ locates: [{ x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }, { x: 100, y: 50, width: 40, height: 20 }] });
   const result = await runBrowserTask({
     goal: 'Click next', model: 'm', chromeApi: env.chromeApi,
     fetchImpl: async () => new Response(JSON.stringify({ message: { content: '{"done":false,"action":{"action":"click","ref":"@e1"}}' } }), { status: 200 }),
