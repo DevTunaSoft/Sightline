@@ -1,4 +1,6 @@
 // Validates where a debugger click would land. Pure logic, no DOM or browser access.
+// Coordinates are CSS pixels from the page viewport; devicePixelRatio and page zoom
+// are intentionally not applied because CDP Input.dispatchMouseEvent uses CSS pixels.
 // The page agent reports a located element; these rules decide whether the
 // click may proceed. Any doubt returns a refusal code, never a guessed point.
 
