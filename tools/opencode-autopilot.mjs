@@ -44,7 +44,7 @@ export function parseOptions(args) {
 }
 
 export function isLegacyOpenCodeVersion(output) {
-  const match = String(output || '').trim().match(/^(?:opencode\\s+)?v?(\\d+)\\.(\\d+)\\.(\\d+)(?:\\s|$)/i);
+  const match = String(output || '').trim().match(/^(?:opencode\s+)?v?(\d+)\.(\d+)\.(\d+)(?:\s|$)/i);
   return Boolean(match && Number(match[1]) < 2);
 }
 
@@ -65,7 +65,7 @@ function checkOpenCodeCliVersion() {
   if (isLegacyOpenCodeVersion(version)) {
     throw Error(`OpenCode CLI ${version} is incompatible with the OpenCode 2.x session database. On Windows, install the official v2 CLI: npm uninstall -g opencode-ai; npm install -g @opencode/cli. Do not delete opencode.db. Verify "opencode --version" reports 2.x before retrying.`);
   }
-  if (!/^\\s*(?:opencode\\s+)?v?2\\.\\d+\\.\\d+/i.test(version)) {
+  if (!/^\s*(?:opencode\s+)?v?2\.\d+\.\d+/i.test(version)) {
     throw Error(`Unable to verify OpenCode CLI is v2: ${JSON.stringify(version.slice(0, 100))}. Confirm "opencode --version" manually.`);
   }
 }
