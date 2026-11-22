@@ -36,7 +36,7 @@ Status language: **Implemented**, **Automated-test verified**, **Real-machine ve
 | Single-use Windows approval primitive | Implemented / targeted XUnit tests added, **NOT RUN** | In-memory 32-byte SHA-256 digest; one pending approval; exact snapshot/action/target binding, max five-minute use-time expiry, clock-failure and rollback denial. Disposable WPF acceptance fixture wired; no production approval UI. |
 | Production Windows journal path and reconciliation UI | **NOT IMPLEMENTED** | Host must provide access-restricted stable per-user path and explicit independently verified resolution; default action still denied without injected approval and journal. |
 | Windows unknown-effect status | Implemented / **UNVERIFIED** | Mutation-phase exceptions and cancellations report UnknownEffect; crash-proof journaling/reconciliation remains missing. |
-| Real Windows UIA actions | **Not yet verified** | Requires interactive desktop. |
+| Real Windows UIA actions | **Verified locally** | Interactive acceptance passed: observed 15 bounded elements and verified SetValue -> Invoke -> result readback (2026-11-22). |
 | Browser companion IPC | Not yet implemented | Existing extension preserved. |
 | Tiny local GGUF runtime | Not yet implemented | Planned after deterministic routing foundation. |
 

@@ -283,7 +283,7 @@ Verification note: the debugger path's receipt reports `ok: true` once input is 
 | W-04 | `IsPassword` defaults to true when unreadable, so the password path fails closed. | `FlaUiActionExecutor.cs:135` | VERIFIED |
 | W-05 | UIA `Invoke` acceptance is not proof of an application effect. | `FlaUiActionExecutor.cs:179` comment; `:272` detail text | VERIFIED |
 | W-06 | The xUnit2031 rule is fixed by using `Assert.Single(collection, predicate)`. | `MutationJournalTests.cs:98`; `OneShotDesktopActionApprovalTests.cs:120` | VERIFIED in source. Build passed in CI at `5d64159` and later. |
-| W-07 | No .NET SDK is available in the sandbox, so no local C# build has run here. | `command -v dotnet` returned nothing | VERIFIED |
+| W-07 | .NET 8 SDK 8.0.428 is available locally; Windows build/tests/resource probe and interactive acceptance have run successfully. | `dotnet --version` = 8.0.428; test-windows.ps1 + -Interactive PASS | VERIFIED |
 
 ## 8. Testing conventions
 
@@ -304,7 +304,7 @@ Verification note: the debugger path's receipt reports `ok: true` once input is 
 | X-03 | Installed-browser acceptance (section 10) completed on Chrome 157.0.8103.79 on 2026-11-21: all 20 checks PASS (SELF_TEST_PASS). Edge run still pending. | VERIFIED in Chrome; Edge UNVERIFIED |
 | X-04 | Live Ollama acceptance passed on 2026-11-21 with `hf.co/ggml-org/SmolVLM2-2.2B-Instruct-GGUF:Q4_K_M`: image inference returned 38 characters in 17894 ms. | VERIFIED |
 | X-05 | Live Yahoo Mail page layout has not been captured. Fixtures match the parser format, not a live page. | UNVERIFIED |
-| X-06 | Windows desktop acceptance has not been run on a real desktop. | BLOCKED |
+| X-06 | Windows interactive acceptance passed on 2026-11-22: observed 15 bounded elements and verified SetValue -> Invoke -> result readback. | VERIFIED locally |
 | X-07 | Windows build and tests passed in CI only. | VERIFIED in CI (C-05, C-06). Local build: BLOCKED (W-07). |
 | X-08 | The process-inspection port is not built or tested on Windows. | BLOCKED (no run) |
 | X-09 | PR #8 must be rebased or replaced before merge (G-08, G-09). | OPEN, needs operator decision |
