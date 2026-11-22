@@ -301,7 +301,7 @@ Verification note: the debugger path's receipt reports `ok: true` once input is 
 |---|---|---|
 | X-01 | Debugger clicks have no outcome check after dispatch. A click that lands on the wrong element still reports success. | OPEN |
 | X-02 | Debugger clicks have not run in Chrome. Tests use fake browser objects. | BLOCKED on a Chrome run |
-| X-03 | Installed-browser acceptance (section 10) has not been run. | BLOCKED (needs Chrome on Windows) |
+| X-03 | Installed-browser acceptance (section 10) completed on Chrome 157.0.8103.79 on 2026-11-21: all 20 checks PASS (SELF_TEST_PASS). Edge run still pending. | VERIFIED in Chrome; Edge UNVERIFIED |
 | X-04 | Live Ollama acceptance has not been run. | BLOCKED (needs Ollama) |
 | X-05 | Live Yahoo Mail page layout has not been captured. Fixtures match the parser format, not a live page. | UNVERIFIED |
 | X-06 | Windows desktop acceptance has not been run on a real desktop. | BLOCKED |
