@@ -124,6 +124,18 @@ export function createDomActionAdapter({ registry, snapshotId, windowObject = gl
       element.click();
       return { ok: true, ref: action.ref };
     },
+    async hover(action) {
+      const element = resolve(action.ref);
+      if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sensitive fields cannot be hovered by the agent.' };
+      element.scrollIntoView?.({ block: 'center', inline: 'center', behavior: 'auto' });
+      const view = elementWindow(element, windowObject);
+      const MouseEventCtor = view?.MouseEvent || globalThis.MouseEvent;
+      if (!element?.dispatchEvent || !MouseEventCtor) return { ok: false, code: 'NOT_HOVERABLE', error: 'Target does not support hover.' };
+      element.dispatchEvent(new MouseEventCtor('mouseover', { bubbles: true, composed: true, view }));
+      element.dispatchEvent(new MouseEventCtor('mouseenter', { bubbles: false, composed: true, view }));
+      element.dispatchEvent(new MouseEventCtor('mousemove', { bubbles: true, composed: true, view }));
+      return { ok: true, ref: action.ref };
+    },
     async type(action) {
       const element = resolve(action.ref);
       if (sensitiveElement(element)) return { ok: false, code: 'SENSITIVE_FIELD', error: 'Sightline will not type into sensitive credential/payment fields autonomously.' };
