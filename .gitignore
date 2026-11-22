@@ -6,3 +6,4 @@
 node_modules/
 windows/windows-resource.json
 *.user
+.aider*
