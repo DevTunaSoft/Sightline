@@ -306,7 +306,7 @@ Verification note: the debugger path's receipt reports `ok: true` once input is 
 | X-05 | Live Yahoo Mail page layout has not been captured. Fixtures match the parser format, not a live page. | UNVERIFIED |
 | X-06 | Windows interactive acceptance passed on 2026-11-22: observed 15 bounded elements and verified SetValue -> Invoke -> result readback. | VERIFIED locally |
 | X-07 | Windows build and tests passed locally on 2026-11-22: .NET 8.0.428, Core 65/65, Windows safety 30/30, interactive acceptance PASS. | VERIFIED locally |
-| X-08 | The process-inspection port is not built or tested on Windows. | BLOCKED (no run) |
+| X-08 | PR #8 process inspection ported to `develop` as read-only `WindowsProcessInspector`; Windows Release build and Core 65/65 + Windows safety 34/34 (4 new tests) PASS locally. Live process launch/attach and interactive inspector acceptance remain pending. | VERIFIED locally for build/tests; live acceptance UNVERIFIED |
 | X-09 | PR #8 must be rebased or replaced before merge (G-08, G-09). | OPEN, needs operator decision |
 | X-10 | The research feature has no search backend. | OPEN, needs operator decision (section 11) |
 | X-11 | The collector, IP extraction, and `.xlsx` writer work in tests. The end-to-end browser flow that uses them is not built. | OPEN |

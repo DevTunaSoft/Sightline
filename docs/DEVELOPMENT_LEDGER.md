@@ -43,3 +43,17 @@ Rules: Append rather than erase prior history. Distinguish historical CI claims 
 - **Checks executed:** Node 22 isolated runner tests 9 PASS/0 FAIL; two-cycle mocked child-process test PASS with two Git commits and bounded metadata logging. Exact Windows OpenCode v1/v2 and installed-shell test **NOT RUN / UNVERIFIED**.
 - **Risk controls:** single lock, stop request, two-cycle anti-loop, short logs without raw AI output, no new dependencies; startup mode runs in foreground and does not survive signout or shutdown.
 - **Recovery:** Use `node tools/opencode-autopilot.mjs --model opencode-go/hy4-flash-free` from an updated checkout (verify model ID). See chronological `docs/HANDOFF.md` and PR CI before claiming general QA PASS.
+
+## 2026-11-22 — PR #8 process inspection ported to develop, Windows gates PASS
+
+- **Repository / branch / exact commit:** Sightline `develop`, base `83df33f`; PR #8 original head `520a425` and rebased branch `c0f12d4` inspected, not merged.
+- **Requirement IDs:** takeover section 10 items 1 and 5; X-08.
+- **Baseline inspected:** local tree clean apart from preserved untracked `.aider.*`; remote heads, open PRs/issues and CI verified; `npm run check` 322/322; PR #8 not merged because its session diff removes approval/journal wiring.
+- **Changes (paths and behavior):** `windows/src/Sightline.Core/ProcessInspection.cs`, `windows/src/Sightline.Windows/WindowsProcessInspector.cs`, `windows/tests/Sightline.Windows.Tests/ProcessInspectionTests.cs` added from the reconciled PR diff; `windows/src/Sightline.Windows\WindowsAutomationSession.cs` exposes `ProcessInspector` without altering approval/journal parameters. Read-only, stateless, bounded metadata lookup.
+- **Commands run and environment:** `npm run check`; `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\test-windows.ps1` on Windows with .NET SDK 8.0.428. Both exit 0.
+- **Tests:** npm 322 PASS / 0 FAIL; Windows build PASS (0 warnings, 0 errors); Core 65/65 PASS; Windows safety 34/34 PASS (previous 30/30); resource probe PASS; interactive acceptance NOT RUN. Evidence: `.artifacts/windows-foundation/summary.json`, `core.trx`, `windows-safety.trx`.
+- **Security/privacy checks:** no new permission, dependency, polling, retained handle or secret-bearing output; handle/thread regression test bounded to +/-1 over 500 inspections; approval and journal contract unchanged.
+- **Resource measurements:** handle and thread deltas measured before/after 500 inspections, both within [-1,1]; no new resident cache or background loop.
+- **Root cause and regression:** old PR branch point would drop approval/journal wiring; selective port avoids that. Regression guard is the handle/thread test and full Windows safety suite.
+- **Known gaps and blockers:** live process launch/attach and interactive inspector acceptance NOT RUN; PR #8 merge/close needs operator decision; externally gated Yahoo/live-model/Edge items untouched.
+- **Next three unblocked tasks:** (1) verify CI for the exact pushed SHA; (2) add bounded launch/attach with approval-bound actions and tests; (3) continue reproducible issue #9 findings. Recovery: start from current `develop` HEAD and the chronological `docs/HANDOFF.md` entry.
