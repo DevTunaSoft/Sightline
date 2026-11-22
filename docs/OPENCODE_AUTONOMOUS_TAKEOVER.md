@@ -319,3 +319,10 @@ A project prompt does not itself make a process run forever. OpenCode UI updates
 7. If all remaining work needs an unavailable login, elevated approval, live personal-account action or other genuine barrier, write an exact blocker list and stop with a recovery-ready state. Never invent green tests or claim continuation after the agent process stops.
 
 **The operator is not needed for routine implementation choices, local testing, bounded troubleshooting, approved Git actions, or selecting the next safe task. Execute; verify; preserve; continue.**
+
+
+## 14. Continuous local runner (implemented as a developer helper)
+
+The earlier note in section 12 described a possible future runner. The project now includes `tools/opencode-autopilot.mjs` and `docs/OPENCODE_AUTOPILOT.md` for a **foreground**, serial OpenCode cycle supervisor. It solves the common case where a model reports progress and ends its turn instead of selecting the next task. One completed `opencode run` launches another with an authoritative repo-state prompt; a second process is never started concurrently in the same checkout. The run stops after repeated failure or measurable Git-state stagnation, and it provides an explicit stop mechanism. It does not install persistent Windows startup, bypass OS authorization or guarantee execution after a terminal exits. Follow the separate guide and run Windows acceptance before claiming PC behavior verified.
+
+**Preapproved next action:** In the observed state, PR #8 process-inspection diff review is a routine unblocked task. The agent must inspect it and selectively port safe changes without needing a follow-up request. Do not merge its obsolete branch wholesale; preserve existing approval and journaling. A Yahoo live account, a new planning model or nonrequired Edge test cannot block independently safe tasks.

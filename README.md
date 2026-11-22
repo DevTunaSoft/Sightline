@@ -175,3 +175,14 @@ CI validates source/tests and publishes the `extension/` directory as a GitHub A
 Sightline is **not production-ready yet**.
 
 Remaining release gates include real Chrome and Edge acceptance, live local-model acceptance, real Yahoo non-destructive/destructive acceptance using controlled test data, long-session resource soak, permission/security review, and release packaging verification.
+
+
+## Autonomous developer workflow (OpenCode)
+
+For developer-led, continuous **foreground** coding/test cycles on a local Windows machine, Sightline includes a small single-worker, zero-dependency supervisor:
+
+```powershell
+node .\tools\opencode-autopilot.mjs --model opencode-go/hy4-flash-free
+```
+
+Run from the updated Sightline checkout; the script locates the repo from its own path. The model ID must match `opencode models`. The runner starts the next OpenCode task after each successful cycle, prevents concurrent duplicate runners, and stops after two stalled or failed cycles. It does not keep running when the supervising process or PC is shut down. See [OpenCode Autopilot](docs/OPENCODE_AUTOPILOT.md), [Agent Contract](AGENTS.md) and [Full Engineering Takeover](docs/OPENCODE_AUTONOMOUS_TAKEOVER.md). The supervisor is a development tool, **not** part of the Sightline product runtime.

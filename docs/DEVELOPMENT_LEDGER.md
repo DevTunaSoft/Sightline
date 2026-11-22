@@ -34,3 +34,12 @@
 ```
 
 Rules: Append rather than erase prior history. Distinguish historical CI claims from independently rerun tests. Never paste credentials, raw sensitive logs or user data. Close/open issues based on demonstrated acceptance; avoid duplicates. Two identical unsuccessful attempts require change of strategy or explicit blocker.
+
+## 2026-11-22 — Continuous OpenCode developer-runner checkpoint
+
+- **Scope:** Developer automation only; does not alter Sightline runtime or bypass action safety.
+- **Source:** `tools/opencode-autopilot.mjs`, `tests/opencode-autopilot.test.js`; usage `docs/OPENCODE_AUTOPILOT.md`; authority `AGENTS.md` and `docs/OPENCODE_AUTONOMOUS_TAKEOVER.md`.
+- **Observed baseline:** `develop` commit `c112701`, GitHub CI run 44972309663 PASS, PR #8 still open/nonmergeable; verify again on resumption.
+- **Checks executed:** Node 22 isolated runner tests 9 PASS/0 FAIL; two-cycle mocked child-process test PASS with two Git commits and bounded metadata logging. Exact Windows OpenCode v1/v2 and installed-shell test **NOT RUN / UNVERIFIED**.
+- **Risk controls:** single lock, stop request, two-cycle anti-loop, short logs without raw AI output, no new dependencies; startup mode runs in foreground and does not survive signout or shutdown.
+- **Recovery:** Use `node tools/opencode-autopilot.mjs --model opencode-go/hy4-flash-free` from an updated checkout (verify model ID). See chronological `docs/HANDOFF.md` and PR CI before claiming general QA PASS.
